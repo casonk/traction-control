@@ -66,10 +66,10 @@ Non-repo folder:
 
 Current strong baseline across the portfolio:
 
-- every repo should have `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
+- every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
-- `.editorconfig` and pre-commit coverage are improved but still not universal
-- `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CHANGELOG.md` are still uneven outside this control-plane repo
+- pre-commit coverage is now portfolio-wide
+- code-focused repos now also have lightweight CI and `docs/contributor-architecture-blueprint.md`; docs-first repos remain intentionally lighter unless a repo-specific reason justifies more tooling
 
 Re-scan before making claims based on exact counts. This layer should stay accurate without becoming stale.
 
@@ -83,24 +83,24 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 
 ## Current Portfolio Priorities
 
-### P0 — Governance
+### P0 — Governance Maintenance
 
-- Add `SECURITY.md` across public repositories.
-- Add `CODE_OF_CONDUCT.md` across public repositories.
+- Keep the baseline governance files in place for every new repository from day one.
+- Backfill missing standards immediately when a new public repository is added to the portfolio.
 
 ### P1 — Release Hygiene
 
-- Introduce `CHANGELOG.md` where releases or user-facing versions matter.
 - Keep tags and version metadata aligned in packaged projects.
+- Replace placeholder `CHANGELOG.md` entries with meaningful release notes as repositories mature.
 
 ### P2 — Tooling Consistency
 
-- Add `.editorconfig` to repos still missing it.
-- Expand pre-commit coverage in repos that already have tests or CI.
+- Keep `.editorconfig`, pre-commit, and architecture docs aligned with actual repo behavior.
+- Avoid stale scaffolding: if workflows, diagrams, or contributor docs stop matching reality, update them in the same change.
 
 ### P3 — CI And Verification
 
-- Continue standardizing lightweight CI and smoke tests in newer code repos.
+- Expand lightweight CI and smoke tests where a repo only has baseline validation today.
 - Prefer repo-appropriate checks over one-size-fits-all workflows.
 
 ## Baseline For New Repositories

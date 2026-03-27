@@ -24,3 +24,9 @@
 - Do not commit local absolute paths when relative paths or location-neutral wording communicate the same workflow.
 - Prefer references like `./util-repos/traction-control`, `../..`, or "portfolio root" over machine-specific mount points.
 - Treat committed local path disclosure as a documentation hygiene and security issue, not just a style preference.
+
+### 2026-03-26 — Inventory CI by workflow presence, not only by `ci.yml`
+
+- Some repositories satisfy the CI standard through differently named workflows such as `black-pylint-pytest.yml` or publish-specific pipelines paired with test workflows.
+- When auditing CI coverage, inspect `.github/workflows/` broadly before concluding that a repository has no CI.
+- Prefer reporting "no workflow files found" over "missing `ci.yml`" unless the exact filename is itself the requirement being audited.
