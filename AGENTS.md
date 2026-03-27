@@ -43,6 +43,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | Repository | Path From Portfolio Root | Type | Notes |
 |---|---|---|---|
 | `casonk.github.io` | `./doc-repos/casonk.github.io` | Jekyll / Ruby | Personal portfolio website |
+| `my-consent` | `./doc-repos/my-consent` | Docs / Markdown | Personal consent and data-processing consent statements |
 | `Certifications` | `./doc-repos/Certifications` | Docs / Markdown | Certification and recognition archive |
 | `university-coursework` | `./doc-repos/university-coursework` | Mixed archive | Coursework repository spanning multiple disciplines |
 | `drawio-templates` | `./drawio-templates` | Templates | Reusable draw.io diagrams |
@@ -62,11 +63,23 @@ Non-repo folder:
 
 - `archive-repos/` contains archive artifacts only.
 
+## Shared Utility Repos
+
+These utility repositories are the portfolio-standard implementation homes for common operational capabilities:
+
+- `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
+- `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
+- `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
+
+When another repo needs one of these capabilities, prefer integrating with the relevant shared utility repo instead of re-implementing the capability locally.
+
 ## Portfolio Baseline
 
 Current strong baseline across the portfolio:
 
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
+- every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
+- every repo-level `AGENTS.md` should also mention the shared utility repos available for password management, VPN switching, and external messaging
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - pre-commit coverage is now portfolio-wide
@@ -122,6 +135,9 @@ Every new repository should start with:
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
+Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
+Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay` so agents can find the standard password-management, VPN-switching, and external-messaging implementations.
+
 `README.md` should include:
 
 - project name and one-line description
@@ -161,7 +177,9 @@ Add:
 
 ## Best Current Internal References
 
-- `./util-repos/nordility`: strongest repo-level `AGENTS.md`
+- `./util-repos/auto-pass`: standard password-management utility for other repos
+- `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
+- `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
 - `./doc-repos/Certifications` and `./doc-repos/university-coursework`: strong examples of documentation-first repository organization

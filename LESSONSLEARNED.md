@@ -41,3 +41,13 @@
 
 - After pushing changes that trigger GitHub Actions, review the resulting workflow runs instead of assuming the local validation was sufficient.
 - Treat new CI failures as part of the same rollout and resolve them before calling the cross-repo change complete.
+
+### 2026-03-26 — Repo-level AGENTS files should point back to the control plane
+
+- Include a short control-plane reference in each repo-level `AGENTS.md` so an agent working inside any individual repo can still find the portfolio-wide standards.
+- Use portfolio-root relative paths such as `./util-repos/traction-control` when describing where the shared standards live.
+
+### 2026-03-26 — Shared utility repos should be advertised from every repo AGENTS file
+
+- Keep the portfolio-standard utility repos discoverable from any repo-level `AGENTS.md`, especially `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay`.
+- When a repo needs password management, VPN switching, or external messaging, steer agents toward those shared repos before they build a bespoke implementation.
