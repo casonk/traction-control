@@ -18,3 +18,9 @@
 - Verify actual API access before relying on `gh auth` output alone.
 - Expect `gh repo create`, `gh repo view`, and similar networked commands to need escalated execution in this environment.
 - Prefer SSH remotes for `git push` when an SSH key is already available.
+
+### 2026-03-26 — Avoid committing absolute local filesystem paths
+
+- Do not commit local absolute paths when relative paths or location-neutral wording communicate the same workflow.
+- Prefer references like `./util-repos/traction-control`, `../..`, or "portfolio root" over machine-specific mount points.
+- Treat committed local path disclosure as a documentation hygiene and security issue, not just a style preference.

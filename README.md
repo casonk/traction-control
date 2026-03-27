@@ -2,20 +2,19 @@
 
 Portfolio control-plane repository for cross-repository agent guidance, maintenance standards, and session continuity.
 
-This repo lives at:
+This repo lives under:
 
-- `/mnt/4tb-m2/git/util-repos/traction-control`
+- `./util-repos/traction-control`
 
 Its effective scan target is the portfolio root two levels up:
 
-- `/mnt/4tb-m2/git`
-- relative path from this repo: `../..`
+- `../..`
 
 ## Purpose
 
 - Store the portfolio-wide `AGENTS.md` used for cross-repo maintenance work.
 - Store the portfolio-wide `CHATHISTORY.md` used for local session continuity.
-- Define the baseline conventions for repositories under `/mnt/4tb-m2/git`.
+- Define the baseline conventions for repositories under the portfolio root.
 - Act as the home repo for future cross-repo automation or inventory tooling.
 
 ## Working Rule

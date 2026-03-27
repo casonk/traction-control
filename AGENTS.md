@@ -1,18 +1,18 @@
 # AGENTS.md — Portfolio Control Plane
 
-> Scope: this file governs portfolio-wide agent behavior across every git repository under `/mnt/4tb-m2/git/`.
-> This file lives in `/mnt/4tb-m2/git/util-repos/traction-control`, not at the portfolio root.
+> Scope: this file governs portfolio-wide agent behavior across every git repository in the portfolio workspace.
+> This file lives in `./util-repos/traction-control`, not at the portfolio root.
 
 ## Working Coordinates
 
-- Control-plane repo: `/mnt/4tb-m2/git/util-repos/traction-control`
-- Portfolio root to scan: `/mnt/4tb-m2/git`
+- Control-plane repo: `./util-repos/traction-control`
+- Portfolio root to scan: `../..`
 - Relative path from this repo to the portfolio root: `../..`
 
 When these instructions refer to:
 
-- `portfolio root`: `/mnt/4tb-m2/git`
-- `repo paths`: paths relative to `/mnt/4tb-m2/git`, not relative to `traction-control`
+- `portfolio root`: the directory at `../..` from this repo
+- `repo paths`: paths relative to the portfolio root, not relative to `traction-control`
 
 Before auditing or inventorying repositories, scan from the portfolio root.
 
@@ -165,7 +165,7 @@ Add:
 ## Agent Operating Rules
 
 1. For cross-repo work, read `traction-control/AGENTS.md`, `traction-control/CHATHISTORY.md`, and `traction-control/LESSONSLEARNED.md` first.
-2. Then scan from the portfolio root `/mnt/4tb-m2/git`, not from `/mnt/4tb-m2/git/util-repos/traction-control`.
+2. Then scan from the portfolio root (`../..` from this repo), not from the `traction-control` repo root.
 3. Read the target repo’s `AGENTS.md` and `CHATHISTORY.md` before making repo-specific changes.
 4. Report the relevant prior history you relied on, and state when `CHATHISTORY.md` was updated.
 5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
