@@ -23,6 +23,11 @@ PORTFOLIO_ROOT="$(cd ../.. && pwd)"
 find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 ```
 
+## GitHub Access Notes
+
+- Before starting a new `gh auth login` flow, check whether GitHub CLI auth is already active for the current user.
+- An SSH key is present in the environment, so repo remotes may use SSH when that is the cleaner publishing path.
+
 Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 
 ## Repository Landscape

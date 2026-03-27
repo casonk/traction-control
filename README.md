@@ -29,6 +29,11 @@ PORTFOLIO_ROOT="$(cd ../.. && pwd)"
 find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 ```
 
+## GitHub Publishing Notes
+
+- GitHub CLI authentication may already be active for the workspace user; verify before starting a new login flow.
+- An SSH key is available in the environment, so SSH remotes are a valid publishing path when creating or pushing the repo.
+
 ## Key Files
 
 - `AGENTS.md`: portfolio-wide agent instructions
