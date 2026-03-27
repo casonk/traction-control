@@ -176,9 +176,10 @@ Add:
 6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
 7. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
 8. Run relevant verification before and after substantive changes when feasible. For docs-only changes, targeted validation is acceptable.
-9. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-10. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
-11. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
-12. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+9. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
+10. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
+11. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
+12. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
+13. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 
 Last reviewed: `2026-03-26`
