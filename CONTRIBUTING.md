@@ -12,6 +12,7 @@
 ## Content Standards
 
 - `AGENTS.md` should describe portfolio behavior from the perspective of the portfolio root.
+- `LESSONSLEARNED.md` is the tracked durable-lessons file for portfolio-wide reusable guidance.
 - `CHATHISTORY.md` is local-only and should stay concise.
 - Do not embed credentials, local machine secrets, or personal data in control-plane docs.
 - When the repo inventory changes, update both the repo landscape and any summary guidance that depends on it.

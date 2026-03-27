@@ -13,6 +13,7 @@ Its effective scan target is the portfolio root two levels up:
 ## Purpose
 
 - Store the portfolio-wide `AGENTS.md` used for cross-repo maintenance work.
+- Store the portfolio-wide `LESSONSLEARNED.md` used for durable cross-repo operational guidance.
 - Store the portfolio-wide `CHATHISTORY.md` used for local session continuity.
 - Define the baseline conventions for repositories under the portfolio root.
 - Act as the home repo for future cross-repo automation or inventory tooling.
