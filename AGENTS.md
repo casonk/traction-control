@@ -28,6 +28,14 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - Before starting a new `gh auth login` flow, check whether GitHub CLI auth is already active for the current user.
 - An SSH key is present in the environment, so repo remotes may use SSH when that is the cleaner publishing path.
 
+## Session Continuity And Reporting
+
+- Read `CHATHISTORY.md` for recent local session continuity before resuming portfolio-wide work.
+- Read `LESSONSLEARNED.md` for durable operational lessons before repeating setup, publishing, or audit workflows.
+- Always update `CHATHISTORY.md` after a meaningful session.
+- Always report the relevant prior history you relied on when continuing work for the user.
+- When a reusable lesson is discovered during a request, add it to `LESSONSLEARNED.md`.
+
 Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 
 ## Repository Landscape
@@ -71,6 +79,7 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 - `CHATHISTORY.md` is local-only, gitignored, and must not be committed.
 - Read repo `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
+- Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
 
 ## Current Portfolio Priorities
 
@@ -155,15 +164,17 @@ Add:
 
 ## Agent Operating Rules
 
-1. For cross-repo work, read `traction-control/AGENTS.md` and `traction-control/CHATHISTORY.md` first.
+1. For cross-repo work, read `traction-control/AGENTS.md`, `traction-control/CHATHISTORY.md`, and `traction-control/LESSONSLEARNED.md` first.
 2. Then scan from the portfolio root `/mnt/4tb-m2/git`, not from `/mnt/4tb-m2/git/util-repos/traction-control`.
 3. Read the target repo’s `AGENTS.md` and `CHATHISTORY.md` before making repo-specific changes.
-4. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
-5. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
-6. Run relevant verification before and after substantive changes when feasible. For docs-only changes, targeted validation is acceptable.
-7. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-8. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
-9. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
-10. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+4. Report the relevant prior history you relied on, and state when `CHATHISTORY.md` was updated.
+5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
+6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
+7. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
+8. Run relevant verification before and after substantive changes when feasible. For docs-only changes, targeted validation is acceptable.
+9. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
+10. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
+11. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
+12. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 
 Last reviewed: `2026-03-26`

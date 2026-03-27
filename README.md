@@ -38,6 +38,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 
 - `AGENTS.md`: portfolio-wide agent instructions
 - `CHATHISTORY.md`: local-only portfolio-wide session log
+- `LESSONSLEARNED.md`: tracked durable lessons that should influence future sessions
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo
 - `CHANGELOG.md`: notable changes to the portfolio-governance layer
 
