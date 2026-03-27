@@ -16,7 +16,7 @@ Its effective scan target is the portfolio root two levels up:
 - Store the portfolio-wide `LESSONSLEARNED.md` used for durable cross-repo operational guidance.
 - Store the portfolio-wide `CHATHISTORY.md` used for local session continuity.
 - Define the baseline conventions for repositories under the portfolio root.
-- Document the shared utility repos used across the portfolio for password management, VPN switching, and external messaging.
+- Document the shared utility repos used across the portfolio for architecture inventory, password management, VPN switching, and external messaging.
 - Act as the home repo for future cross-repo automation or inventory tooling.
 
 ## Working Rule
@@ -46,6 +46,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 ## Shared Utility Repos
 
 - `./util-repos/auto-pass`: portfolio-standard password management and KeePassXC-backed secret helper
+- `./util-repos/archility`: portfolio-standard architecture inventory and blueprint/drift-check helper
 - `./util-repos/nordility`: portfolio-standard NordVPN switching/orchestration helper
 - `./util-repos/shock-relay`: portfolio-standard external messaging integration repo
 
