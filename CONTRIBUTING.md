@@ -1,11 +1,11 @@
 # Contributing
 
-`traction-control` is the portfolio-governance repo for `/mnt/4tb-m2/git`.
+`traction-control` is the portfolio-governance repo for this workspace.
 
 ## Workflow
 
 1. Make cross-repo guidance changes here first.
-2. When auditing the portfolio, scan from `/mnt/4tb-m2/git`, not from this repo root.
+2. When auditing the portfolio, scan from `../..`, not from this repo root.
 3. Keep portfolio-wide instructions factual, current, and lightweight enough to stay maintainable.
 4. Use Conventional Commits such as `docs: update portfolio guidance` or `chore: add repo baseline`.
 
