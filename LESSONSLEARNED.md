@@ -51,3 +51,8 @@
 
 - Keep the portfolio-standard utility repos discoverable from any repo-level `AGENTS.md`, especially `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay`.
 - When a repo needs password management, VPN switching, or external messaging, steer agents toward those shared repos before they build a bespoke implementation.
+
+### 2026-03-26 — New shared utility repos need control-plane and repo-AGENTS updates together
+
+- When introducing a new portfolio utility repo, add it to the `traction-control` inventory and shared-utility documentation in the same change that creates the repo.
+- Update the shared-utility snippet in repo-level `AGENTS.md` files at the same time so agents working inside other repos can discover the new implementation home immediately.
