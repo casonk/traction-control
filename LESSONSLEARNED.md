@@ -30,3 +30,9 @@
 - Some repositories satisfy the CI standard through differently named workflows such as `black-pylint-pytest.yml` or publish-specific pipelines paired with test workflows.
 - When auditing CI coverage, inspect `.github/workflows/` broadly before concluding that a repository has no CI.
 - Prefer reporting "no workflow files found" over "missing `ci.yml`" unless the exact filename is itself the requirement being audited.
+
+### 2026-03-26 — Bulk portfolio pushes should fetch first and expect repo-specific doc conflicts
+
+- Before pushing a portfolio-wide batch, fetch each modified repo first so you know which branches are behind origin.
+- Generic governance commits can conflict with repo-specific `CONTRIBUTING.md` files that were added upstream after the local branch last fetched.
+- When those add/add conflicts happen, preserve the repo-specific workflow guidance and fold in only the useful generic contributor hygiene instead of replacing the file wholesale.

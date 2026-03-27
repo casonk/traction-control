@@ -66,7 +66,8 @@ Non-repo folder:
 
 Current strong baseline across the portfolio:
 
-- every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
+- every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
+- repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - pre-commit coverage is now portfolio-wide
 - code-focused repos now also have lightweight CI and `docs/contributor-architecture-blueprint.md`; docs-first repos remain intentionally lighter unless a repo-specific reason justifies more tooling
@@ -75,9 +76,11 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 
 ## Local Session Memory Standard
 
+- Each repository should use repo-root `LESSONSLEARNED.md` as the tracked durable-lessons file.
 - Each repository should use repo-root `CHATHISTORY.md` as the standard local handoff log.
+- `LESSONSLEARNED.md` is tracked and should contain only reusable lessons that should change future sessions.
 - `CHATHISTORY.md` is local-only, gitignored, and must not be committed.
-- Read repo `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
+- Read repo `LESSONSLEARNED.md` and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
 
@@ -113,6 +116,7 @@ Every new repository should start with:
 - `LICENSE`
 - `.gitignore`
 - `AGENTS.md`
+- `LESSONSLEARNED.md`
 - `.editorconfig`
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/ISSUE_TEMPLATE/bug_report.md`
@@ -166,7 +170,7 @@ Add:
 
 1. For cross-repo work, read `traction-control/AGENTS.md`, `traction-control/CHATHISTORY.md`, and `traction-control/LESSONSLEARNED.md` first.
 2. Then scan from the portfolio root (`../..` from this repo), not from the `traction-control` repo root.
-3. Read the target repo’s `AGENTS.md` and `CHATHISTORY.md` before making repo-specific changes.
+3. Read the target repo’s `AGENTS.md`, `LESSONSLEARNED.md`, and `CHATHISTORY.md` before making repo-specific changes.
 4. Report the relevant prior history you relied on, and state when `CHATHISTORY.md` was updated.
 5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
 6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
