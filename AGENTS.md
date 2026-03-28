@@ -52,7 +52,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `pushshift_python` | `./research-repos/pushshift_python` | Python | Reddit analytics and research tooling |
 | `sonetsim` | `./research-repos/sonetsim` | Python package | Social network simulation library |
 | `zillow-public-data` | `./research-repos/zillow-public-data` | Python | Zillow dataset mirror and visualization tooling |
-| `archility` | `./util-repos/archility` | Python package | Architecture inventory, blueprint scaffolding, and drift-check tooling |
+| `archility` | `./util-repos/archility` | Python package | Architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter generation, agentic architecture authoring, and drift-check tooling |
 | `auto-pass` | `./util-repos/auto-pass` | Python package | KeePassXC-backed password automation helpers |
 | `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
 | `nordility` | `./util-repos/nordility` | Python package | NordVPN CLI/API automation |
@@ -68,7 +68,7 @@ Non-repo folder:
 
 These utility repositories are the portfolio-standard implementation homes for common operational capabilities:
 
-- `./util-repos/archility`: architecture inventory, blueprint scaffolding, and architecture-documentation drift checks
+- `./util-repos/archility`: architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter-layout generation, agentic architecture authoring, architecture inventory, and architecture-documentation drift checks
 - `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
@@ -81,11 +81,15 @@ Current strong baseline across the portfolio:
 
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
-- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture inventory, password management, VPN switching, and external messaging
+- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, VPN switching, and external messaging
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - pre-commit coverage is now portfolio-wide
-- code-focused repos now also have lightweight CI and `docs/contributor-architecture-blueprint.md`; docs-first repos remain intentionally lighter unless a repo-specific reason justifies more tooling
+- every repo should keep the shared architecture starter layout under `docs/`:
+  - `docs/contributor-architecture-blueprint.md`
+  - `docs/diagrams/repo-architecture.puml`
+  - `docs/diagrams/repo-architecture.drawio`
+- code-focused repos should still carry lightweight CI and expand the starter blueprint into repo-specific flow detail when the code path is non-trivial
 
 Re-scan before making claims based on exact counts. This layer should stay accurate without becoming stale.
 
@@ -114,6 +118,7 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 ### P2 — Tooling Consistency
 
 - Keep `.editorconfig`, pre-commit, and architecture docs aligned with actual repo behavior.
+- Keep the architecture starter filenames and directory layout stable across repos so `archility` automation stays deterministic.
 - Avoid stale scaffolding: if workflows, diagrams, or contributor docs stop matching reality, update them in the same change.
 
 ### P3 — CI And Verification
@@ -133,12 +138,15 @@ Every new repository should start with:
 - `AGENTS.md`
 - `LESSONSLEARNED.md`
 - `.editorconfig`
+- `docs/contributor-architecture-blueprint.md`
+- `docs/diagrams/repo-architecture.puml`
+- `docs/diagrams/repo-architecture.drawio`
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
-Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay` so agents can find the standard architecture-inventory, password-management, VPN-switching, and external-messaging implementations.
+Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, VPN-switching, and external-messaging implementations.
 
 `README.md` should include:
 
@@ -162,7 +170,6 @@ Add:
 - `tests/`
 - `.github/workflows/ci.yml`
 - `.pre-commit-config.yaml`
-- `docs/contributor-architecture-blueprint.md`
 
 For Python repos:
 
@@ -179,7 +186,8 @@ Add:
 
 ## Best Current Internal References
 
-- `./util-repos/archility`: standard architecture-inventory and blueprint-audit utility for other repos
+- `./util-repos/archility`: standard architecture bootstrap/render, Graphviz-capable diagram utility, and blueprint-audit utility for other repos
+- `./util-repos/archility`: standard deterministic starter-layout generator and agentic architecture-authoring home for other repos
 - `./util-repos/auto-pass`: standard password-management utility for other repos
 - `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos

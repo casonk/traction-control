@@ -1,0 +1,63 @@
+@startuml
+!pragma layout smetana
+title traction-control Repository Architecture
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam packageStyle rectangle
+
+actor "Cross-repo Agent" as agent
+
+package "Control Plane Docs" #F8FAFC {
+  rectangle "AGENTS.md\nportfolio rules + repo inventory" as agents_doc #E2E8F0
+  rectangle "LESSONSLEARNED.md\ndurable portfolio lessons" as lessons_doc #E2E8F0
+  rectangle "CHATHISTORY.md\nlocal cross-repo continuity" as history_doc #E2E8F0
+  rectangle "README.md\nCONTRIBUTING.md\nCHANGELOG.md" as repo_docs #DBEAFE
+}
+
+package "Portfolio Boundary" #F8FAFC {
+  rectangle "Portfolio root\n../.." as portfolio_root #FCE7F3
+  rectangle "Target repo AGENTS.md\nLESSONSLEARNED.md\nCHATHISTORY.md" as target_docs #FCE7F3
+}
+
+package "Shared Utility Repos" #F8FAFC {
+  rectangle "../archility\narchitecture generation / render" as archility #E0F2FE
+  rectangle "../auto-pass\n../nordility\n../shock-relay" as utility_refs #E0F2FE
+}
+
+package "Governance Loop" #F8FAFC {
+  rectangle "Portfolio scan\nrepo inventory refresh" as scan #DCFCE7
+  rectangle "Standards pass /\nrepo-specific remediation" as remediation #DCFCE7
+  rectangle "Verification\nlocal checks + hosted workflows" as verify #DCFCE7
+  rectangle "Continuity update\nCHATHISTORY + LESSONSLEARNED" as continuity #DCFCE7
+}
+
+package "Repo Self Validation" #F8FAFC {
+  rectangle ".github/workflows/ci.yml\npre-commit" as ci #DCFCE7
+  rectangle ".pre-commit-config.yaml" as precommit #DCFCE7
+}
+
+agent --> agents_doc
+agent --> lessons_doc
+agent --> history_doc
+agents_doc --> repo_docs
+
+agents_doc --> scan
+scan --> portfolio_root
+portfolio_root --> target_docs
+target_docs --> remediation
+
+archility --> remediation
+utility_refs --> remediation
+
+remediation --> verify
+verify --> continuity
+
+ci --> precommit
+ci --> repo_docs
+
+note right of repo_docs
+  This repo is documentation-driven today.
+  There is no local control-plane daemon or CLI yet;
+  the governance loop is executed by agents following policy.
+end note
+@enduml
