@@ -83,6 +83,7 @@ Current strong baseline across the portfolio:
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
 - every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, VPN switching, and external messaging
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
+- new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - pre-commit coverage is now portfolio-wide
 - every repo should keep the shared architecture starter layout under `docs/`:
@@ -136,7 +137,7 @@ Every new repository should start with:
 - `LICENSE`
 - `.gitignore`
 - `AGENTS.md`
-- `LESSONSLEARNED.md`
+- `LESSONSLEARNED.md` seeded from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md`
 - `.editorconfig`
 - `docs/contributor-architecture-blueprint.md`
 - `docs/diagrams/repo-architecture.puml`
@@ -147,6 +148,7 @@ Every new repository should start with:
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, VPN-switching, and external-messaging implementations.
+New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 
 `README.md` should include:
 

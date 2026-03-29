@@ -160,3 +160,9 @@
 - For portfolio sites like `casonk.github.io`, a folder inventory is too vague to explain the real implementation.
 - Center the architecture on the authored pages and collections, config and structured data, layouts and includes, the Jekyll build into `_site/`, and any optional helper lanes that precompute content or data before the site build.
 - Keep private local sources, reference-only config examples, and excluded helper outputs explicit so the diagrams distinguish the public site pipeline from offline authoring workflows.
+
+### 2026-03-28 — New repos should start with seeded durable lessons, not an empty placeholder
+
+- Initialize repo-root `LESSONSLEARNED.md` from a shared control-plane template instead of leaving only "No durable lessons recorded yet."
+- Keep that template limited to universal operating guidance: document the real workflow, keep local or private boundaries explicit, and re-run repo-appropriate validation after CI-facing changes.
+- When the shared baseline changes, backfill those lessons into existing repos unless a repo-specific entry already captures the same rule more precisely.
