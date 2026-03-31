@@ -16,7 +16,7 @@ Its effective scan target is the portfolio root two levels up:
 - Store the portfolio-wide `LESSONSLEARNED.md` used for durable cross-repo operational guidance.
 - Store the portfolio-wide `CHATHISTORY.md` used for local session continuity.
 - Define the baseline conventions for repositories under the portfolio root.
-- Document the shared utility repos used across the portfolio for architecture toolchain bootstrap/render orchestration, Graphviz-backed diagram support, deterministic architecture-layout generation, agentic architecture authoring, password management, VPN switching, and external messaging.
+- Document the shared utility repos used across the portfolio for architecture toolchain bootstrap/render orchestration, Graphviz-backed diagram support, deterministic architecture-layout generation, agentic architecture authoring, password management, VPN switching, external messaging, and SMB-based file sharing.
 - Act as the home repo for future cross-repo automation or inventory tooling.
 
 The important implementation detail today is that `traction-control` is still a
@@ -57,7 +57,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 2. Scan the portfolio root at `../..` to identify the current repo landscape.
 3. Read the target repo's `AGENTS.md`, `LESSONSLEARNED.md`, and `CHATHISTORY.md`.
 4. Apply standards or repo-specific changes, using shared utility repos such as
-   `archility`, `auto-pass`, `nordility`, and `shock-relay` when they are the
+   `archility`, `auto-pass`, `nordility`, `shock-relay`, and `snowbridge` when they are the
    designated implementation homes.
 5. Run repo-appropriate verification and, after pushes, check hosted workflow
    results when CI is involved.
@@ -70,6 +70,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `./util-repos/archility`: portfolio-standard architecture toolchain bootstrap/render orchestrator plus Graphviz-backed diagram support, deterministic starter-layout generation, agentic architecture authoring, and blueprint/drift-check help
 - `./util-repos/nordility`: portfolio-standard NordVPN switching/orchestration helper
 - `./util-repos/shock-relay`: portfolio-standard external messaging integration repo
+- `./util-repos/snowbridge`: portfolio-standard SMB-based private file-sharing and phone-access helper
 
 ## Architecture Layout Standard
 
