@@ -166,3 +166,8 @@
 - Initialize repo-root `LESSONSLEARNED.md` from a shared control-plane template instead of leaving only "No durable lessons recorded yet."
 - Keep that template limited to universal operating guidance: document the real workflow, keep local or private boundaries explicit, and re-run repo-appropriate validation after CI-facing changes.
 - When the shared baseline changes, backfill those lessons into existing repos unless a repo-specific entry already captures the same rule more precisely.
+
+### 2026-03-30 — Normalize SVG EOF in archility, not repo by repo
+
+- Missing terminal newlines in generated `.svg` artifacts recur across downstream repos because the renderer is the shared source of truth for those files.
+- Fix that class of failure in `./util-repos/archility` by normalizing final SVG outputs during the shared render handoff instead of chasing `end-of-file-fixer` failures repo by repo after pushes.
