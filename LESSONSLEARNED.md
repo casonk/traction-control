@@ -49,8 +49,8 @@
 
 ### 2026-03-26 — Shared utility repos should be advertised from every repo AGENTS file
 
-- Keep the portfolio-standard utility repos discoverable from any repo-level `AGENTS.md`, especially `./util-repos/auto-pass`, `./util-repos/nordility`, and `./util-repos/shock-relay`.
-- When a repo needs password management, VPN switching, or external messaging, steer agents toward those shared repos before they build a bespoke implementation.
+- Keep the portfolio-standard utility repos discoverable from any repo-level `AGENTS.md`, especially `./util-repos/auto-pass`, `./util-repos/nordility`, `./util-repos/shock-relay`, and `./util-repos/snowbridge`.
+- When a repo needs password management, VPN switching, external messaging, or SMB-based file sharing, steer agents toward those shared repos before they build a bespoke implementation.
 
 ### 2026-03-26 — New shared utility repos need control-plane and repo-AGENTS updates together
 
