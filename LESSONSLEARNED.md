@@ -171,3 +171,10 @@
 
 - Missing terminal newlines in generated `.svg` artifacts recur across downstream repos because the renderer is the shared source of truth for those files.
 - Fix that class of failure in `./util-repos/archility` by normalizing final SVG outputs during the shared render handoff instead of chasing `end-of-file-fixer` failures repo by repo after pushes.
+
+### 2026-04-01 — WireGuard tooling should live in its own utility repo, not inside the service it protects
+
+- When a setup tool (like WireGuard installation) is embedded inside a specific service repo (like snowbridge), it becomes invisible to other repos that could use the same tool.
+- Extract standalone installer/configuration tools into their own dedicated utility repos so they can be used across multiple service repos without duplication.
+- Keep the host-specific config templates (example and local files) in the service repo where they are semantically owned; move only the generic installer and tooling to the utility repo.
+- Document the split clearly in both repos: the service repo keeps its configs and references the utility repo for the tooling.
