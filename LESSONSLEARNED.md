@@ -210,3 +210,10 @@
 - `!pragma layout elk` handles cross-package arrows reliably and matches the portfolio's established diagram style.
 - `smetana` is more portable but has bugs with `rectangle` elements linked across package boundaries.
 - Reserve `smetana` only for simple diagrams with no cross-package relationships.
+
+### 2026-04-01 — draw.io cells must use overflow=hidden and adequate sizing
+
+- Always add `overflow=hidden` to draw.io cell styles — on both leaf cells and swimlane containers.  Without it, text visually escapes the block boundary in the exported SVG/PNG.
+- Size every cell with adequate height for its text content.  At font size 12, allow at least 22px per line plus 16px padding (a 3-line box needs ≥ 82px height; a 2-line box needs ≥ 60px).
+- Never size a swimlane container smaller than its tallest child row plus the `startSize` header plus row margins.
+- Replace "Focus Root" archility template placeholder labels with actual module or component names before the diagram is committed.
