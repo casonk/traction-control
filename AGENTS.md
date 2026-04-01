@@ -62,6 +62,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
 | `snowbridge` | `./util-repos/snowbridge` | SMB / Ops | SMB-based private file-sharing and phone-access utility repo |
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
+| `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
 
 Non-repo folder:
@@ -78,6 +79,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
+- `./util-repos/dyno-lab`: unified test bench utilities — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 
 When another repo needs one of these capabilities, prefer integrating with the relevant shared utility repo instead of re-implementing the capability locally.
 
@@ -87,7 +89,7 @@ Current strong baseline across the portfolio:
 
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
-- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, VPN switching, WireGuard VPN setup, external messaging, and SMB-based file sharing
+- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, and unified test bench utilities
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
@@ -153,7 +155,7 @@ Every new repository should start with:
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
-Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, and `./util-repos/snowbridge` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, VPN-switching, external-messaging, WireGuard VPN setup, and SMB-based file-sharing implementations.
+Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, and `./util-repos/dyno-lab` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, and unified test bench implementations.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 
 `README.md` should include:
@@ -201,6 +203,7 @@ Add:
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./util-repos/short-circuit`: standard WireGuard VPN setup and configuration utility for other repos
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
+- `./util-repos/dyno-lab`: standard unified test bench utility — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
 - `./doc-repos/Certifications` and `./doc-repos/university-coursework`: strong examples of documentation-first repository organization
