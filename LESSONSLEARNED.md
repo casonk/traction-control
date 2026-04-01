@@ -172,6 +172,13 @@
 - Missing terminal newlines in generated `.svg` artifacts recur across downstream repos because the renderer is the shared source of truth for those files.
 - Fix that class of failure in `./util-repos/archility` by normalizing final SVG outputs during the shared render handoff instead of chasing `end-of-file-fixer` failures repo by repo after pushes.
 
+### 2026-04-01 — SSH key transfer to mobile devices should use snowbridge, not email or cloud
+
+- When bootstrapping SSH access from a mobile device, copy the private key to the snowbridge SMB share (`/mnt/4tb-m2/read/ssh-keys/`) so the phone can retrieve it via Files app over the LAN.
+- Delete the key from the share immediately after the device imports it — the share is a transit medium, not a key store.
+- The `authorized_keys` entry remains on the server; only the private key moves transiently through the share.
+- This pattern avoids email, iCloud, or third-party cloud exposure of the private key while keeping the workflow simple.
+
 ### 2026-04-01 — WireGuard tooling should live in its own utility repo, not inside the service it protects
 
 - When a setup tool (like WireGuard installation) is embedded inside a specific service repo (like snowbridge), it becomes invisible to other repos that could use the same tool.
