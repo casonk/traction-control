@@ -52,10 +52,17 @@
 - Keep the portfolio-standard utility repos discoverable from any repo-level `AGENTS.md`, especially `./util-repos/auto-pass`, `./util-repos/nordility`, `./util-repos/shock-relay`, and `./util-repos/snowbridge`.
 - When a repo needs password management, VPN switching, external messaging, or SMB-based file sharing, steer agents toward those shared repos before they build a bespoke implementation.
 
-### 2026-03-26 — New shared utility repos need control-plane and repo-AGENTS updates together
+### 2026-04-01 — New shared utility repos need control-plane and repo-AGENTS updates together
 
 - When introducing a new portfolio utility repo, add it to the `traction-control` inventory and shared-utility documentation in the same change that creates the repo.
 - Update the shared-utility snippet in repo-level `AGENTS.md` files at the same time so agents working inside other repos can discover the new implementation home immediately.
+
+### 2026-04-01 — dyno-lab is the portfolio standard for shared test utilities
+
+- Any repo that needs subprocess mocking, env patching, filesystem fixtures, CLI capture, HTTP session mocking, schema validation, smoke scaffolding, or shared pytest markers should depend on `./util-repos/dyno-lab` instead of re-implementing the pattern locally.
+- Install via `pip install -e ./util-repos/dyno-lab` or as a local path dependency in `pyproject.toml`.
+- Activate pytest fixtures with `pytest_plugins = ["dyno_lab.fixtures"]` in `conftest.py`.
+- Register shared markers with `from dyno_lab.markers import register_markers` in `pytest_configure`.
 
 ### 2026-03-26 — Shared architecture toolchains should live in archility, not feature repos
 
