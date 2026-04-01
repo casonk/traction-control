@@ -192,3 +192,9 @@
 - Extract standalone installer/configuration tools into their own dedicated utility repos so they can be used across multiple service repos without duplication.
 - Keep the host-specific config templates (example and local files) in the service repo where they are semantically owned; move only the generic installer and tooling to the utility repo.
 - Document the split clearly in both repos: the service repo keeps its configs and references the utility repo for the tooling.
+
+### 2026-04-01 — Pin ruff version in pre-commit and CI to avoid format drift
+
+- Mismatched ruff versions between local pre-commit and hosted CI produce implicit string-concat formatting differences that pass locally but fail `ruff format --check` in CI.
+- Pin the `rev:` in `.pre-commit-config.yaml` and install the same pinned version in CI instead of installing latest.
+- When upgrading ruff, update both together and re-run pre-commit before pushing.
