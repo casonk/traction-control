@@ -198,3 +198,15 @@
 - Mismatched ruff versions between local pre-commit and hosted CI produce implicit string-concat formatting differences that pass locally but fail `ruff format --check` in CI.
 - Pin the `rev:` in `.pre-commit-config.yaml` and install the same pinned version in CI instead of installing latest.
 - When upgrading ruff, update both together and re-run pre-commit before pushing.
+
+### 2026-04-01 — Avoid reserved PlantUML keywords as element aliases
+
+- `init` is a reserved PlantUML keyword (initial pseudostate) that silently switches diagram interpretation to activity mode, breaking `rectangle` + `-->` arrow syntax.
+- Avoid `init`, `end`, `start`, `stop`, `fork`, `join`, `kill`, and other activity-diagram keywords as element aliases in component/package diagrams.
+- Use descriptive names like `publicapi`, `pkg_init`, or `entrypoint` instead.
+
+### 2026-04-01 — Use elk layout for cross-package arrows in PlantUML
+
+- `!pragma layout elk` handles cross-package arrows reliably and matches the portfolio's established diagram style.
+- `smetana` is more portable but has bugs with `rectangle` elements linked across package boundaries.
+- Reserve `smetana` only for simple diagrams with no cross-package relationships.
