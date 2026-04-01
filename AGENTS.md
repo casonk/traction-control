@@ -61,6 +61,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `pit-box` | `./util-repos/pit-box` | Bash / Shell | WireGuard + SSH hardened remote-access scaffold with settings-driven config rendering |
 | `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
 | `snowbridge` | `./util-repos/snowbridge` | SMB / Ops | SMB-based private file-sharing and phone-access utility repo |
+| `intake` | `./util-repos/intake` | Python | Receipt PDF ingestion, categorization, SQLite storage, and Markdown/HTML reporting from snowbridge share |
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
