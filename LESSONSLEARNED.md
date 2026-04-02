@@ -217,3 +217,16 @@
 - Size every cell with adequate height for its text content.  At font size 12, allow at least 22px per line plus 16px padding (a 3-line box needs ≥ 82px height; a 2-line box needs ≥ 60px).
 - Never size a swimlane container smaller than its tallest child row plus the `startSize` header plus row margins.
 - Replace "Focus Root" archility template placeholder labels with actual module or component names before the diagram is committed.
+
+### 2026-04-02 — Portfolio-wide test audit and dyno-lab integration
+
+- Flat-module repos (no src/ layout) need `pythonpath = ["."]` in
+  `[tool.pytest.ini_options]` so `pytest` resolves local imports without
+  requiring `PYTHONPATH=.` to be set manually.
+- A root `conftest.py` that calls `sys.path.insert(0, str(Path(__file__).parent))`
+  achieves the same for repos where adding a full `pyproject.toml` is heavy.
+- Test files named `*_validator.py` are NOT collected by pytest's default
+  naming convention — always use `test_*.py` or `*_test.py`.
+- dyno-lab can be referenced as a CI dev dep via:
+  `pip install git+https://github.com/casonk/dyno-lab.git`
+  until it is published to PyPI.
