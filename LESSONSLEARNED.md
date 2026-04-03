@@ -279,3 +279,34 @@
 - Multi-line `run:` blocks in GitHub Actions YAML **require** the `|` block scalar indicator.
   A bare `run: first-command\n  second-command` is NOT two commands — it concatenates into one,
   causing mysterious "package not found" pip errors. Always use `run: |` for multi-step installs.
+
+### 2026-04-04 — ruff line-length belongs in [tool.ruff], not [tool.ruff.format]
+
+- Ruff rejects `line-length` in `[tool.ruff.format]` — it must live in the parent `[tool.ruff]`
+  table. The `[tool.ruff.format]` subtable accepts `quote-style` and `indent-style` only.
+- When standardizing formatter config, always put `line-length = 88` under `[tool.ruff]` and
+  keep `[tool.ruff.format]` limited to `quote-style = "double"` and `indent-style = "space"`.
+
+### 2026-04-04 — black and ruff format can genuinely disagree on some constructs
+
+- At `line-length = 88`, black and ruff format agree on the vast majority of code, but genuine
+  incompatibilities exist: multiline `if`-condition wrapping, magic trailing comma handling,
+  and certain lambda / inline comment edge cases.
+- When both formatters must coexist during a transition period, make the deprecated formatter
+  (`black`) non-fatal in CI (`|| true` or `|| echo "NOTE: ..."`) so the primary formatter
+  (`ruff format`) is the enforcing check.
+- For per-site circular disagreements: use `# fmt: skip` on the offending line or extract the
+  problematic construct to a named variable — both formatters then skip or agree on the result.
+- `# noqa` comments that exist solely to suppress lint rules not in the repo's selected ruff
+  rule set can be safely removed when they are the sole cause of a formatter conflict.
+
+### 2026-04-04 — Portfolio-wide formatter standardization pattern
+
+- Standard config for every Python repo: `[tool.ruff]` with `line-length = 88`,
+  `[tool.ruff.format]` with `quote-style = "double"` and `indent-style = "space"`,
+  and `[tool.black]` with `line-length = 88` and repo-appropriate `target-version`.
+- Pre-commit ordering: `ruff-format` (preferred) appears BEFORE `black` (deprecated).
+- CI ordering: `ruff format --check .` (primary enforcing step) BEFORE `black --check --diff .`
+  (deprecated, non-fatal if genuine incompatibility exists).
+- Always run `black .` then `ruff format .` in that order when applying bulk reformats so ruff
+  format is the final state that CI will check.
