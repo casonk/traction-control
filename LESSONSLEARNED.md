@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-04-03 — Shared utility repos should track downstream usage in config/downstream-repos.toml
+
+- Each shared utility repo should keep a tracked `config/downstream-repos.toml` inventory of known downstream repositories.
+- Record repo paths relative to the portfolio root and keep the list focused on explicit code, config, or operational integrations rather than generic `AGENTS.md` cross-references.
+- Update the inventory in the same change that adds or removes a cross-repo dependency so the control plane and the utility repo stay aligned.
+
 ### 2026-04-03 — dyno-lab is optional when a repo still tests older Python versions
 
 - `./util-repos/dyno-lab` currently declares `requires-python = ">=3.10"`.
