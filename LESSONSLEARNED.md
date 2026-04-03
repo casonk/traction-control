@@ -310,3 +310,21 @@
   (deprecated, non-fatal if genuine incompatibility exists).
 - Always run `black .` then `ruff format .` in that order when applying bulk reformats so ruff
   format is the final state that CI will check.
+
+### 2026-04-03 — Inline `||` with quoted colon in GitHub Actions `run:` breaks YAML
+
+- A one-line `run: command || echo "message: with colon"` is invalid YAML — the `:` inside
+  the double-quoted string causes a YAML mapping-values-not-allowed parse error.
+- The workflow fails with 0 jobs (nothing runs) and no diagnostic message.
+- Fix: always use `run: |` block scalar when the command contains `||`, `&&`, or any string
+  with a `:` that might be mistaken for a YAML key.
+- Validate locally with `python3 -c "import yaml; yaml.safe_load(open(f).read())"` before pushing.
+
+### 2026-04-03 — Both ruff format and black are now portfolio-wide with black deprecated
+
+- All Python repos now run `ruff format --check` (primary) and `black --check` (deprecated)
+  in CI and pre-commit.
+- `[tool.ruff.format]` and `[tool.black]` with `line-length = 88` are in all `pyproject.toml` files.
+- `# TODO: remove black once ruff format is confirmed stable portfolio-wide` marks black steps.
+- `line-length` must go in `[tool.ruff]`, NOT `[tool.ruff.format]` — ruff rejects it in the
+  format subtable.
