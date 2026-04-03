@@ -267,3 +267,15 @@
 - Always follow with `ruff format <files>` (or `ruff format .`) before committing,
   otherwise `ruff format --check` in CI will fail on a separate step.
 - Quickest pattern: `ruff check --fix . && ruff format .`
+
+### 2026-04-03 — Know which formatter each repo uses before reformatting
+
+- Some repos use `black` for CI formatting checks, others use `ruff format`. They are
+  mostly compatible but differ on edge cases (e.g. trailing commas, magic trailing comma).
+- Before running a formatter on a repo, check its CI step to determine which formatter
+  it expects: `black --check` or `ruff format --check`.
+- Never run `ruff format` on a repo whose CI uses `black --check` unless you also confirm
+  the output is black-compatible (run `black --check` to verify after).
+- Multi-line `run:` blocks in GitHub Actions YAML **require** the `|` block scalar indicator.
+  A bare `run: first-command\n  second-command` is NOT two commands — it concatenates into one,
+  causing mysterious "package not found" pip errors. Always use `run: |` for multi-step installs.
