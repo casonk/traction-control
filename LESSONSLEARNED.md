@@ -242,3 +242,20 @@
   directory, or `os.chdir(ctx.path)` if a chdir is needed.
 - `load_module_by_path(path, name, repo_root=REPO_ROOT)` is a drop-in
   replacement for hand-rolled `importlib.util.spec_from_file_location` patterns.
+
+### 2026-04-03 — dyno-lab v0.2.0 new modules and CI pre-flight patterns
+
+- `dyno_lab.preflight` adds `requires_tool`, `requires_env`, `requires_import` pytest marks
+  that auto-skip tests when tools/env vars/packages are absent. Add
+  `pytest_plugins = ["dyno_lab.fixtures"]` to `conftest.py` to activate the hook.
+- `PreflightSuite` can be run as a standalone CI step before pytest to surface environment
+  problems early (missing binaries, unset keys, unreachable ports).
+- `dyno_lab.time.FrozenTime` freezes `time.time()`, `time.monotonic()`, and
+  `datetime.datetime.now()` via a subclass override — no freezegun dependency required.
+- `dyno_lab.time.FastSleep` replaces `time.sleep()` with a no-op and records all calls;
+  use `fs.total_slept` / `fs.call_count` to assert retry/backoff timing.
+- `dyno_lab.log.LogCapture` captures Python logging records; use `assert_logged(level, fragment)`
+  and `assert_not_logged(level, fragment)` to assert on log output without relying on stdout.
+- `dyno_lab.patch.AttrPatch(obj, attr=value)` patches and auto-restores object/class/module
+  attributes; if the attribute didn't exist before, it is deleted on exit.
+- All four modules are exported from `dyno_lab` top level; 174 internal tests pass.
