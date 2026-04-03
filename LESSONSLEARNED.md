@@ -230,3 +230,15 @@
 - dyno-lab can be referenced as a CI dev dep via:
   `pip install git+https://github.com/casonk/dyno-lab.git`
   until it is published to PyPI.
+
+### 2026-04-03 — dyno-lab API signatures (from integration test authoring)
+
+- `SubprocessPatch(side_effect)` — takes a **callable** as the first arg, not
+  keyword `returncode=`/`stdout=`. Wrap `build_completed_process` in a lambda:
+  `SubprocessPatch(lambda *a, **kw: build_completed_process(0, "out", ""))`.
+- `EnvPatch({"KEY": "val"})` — positional dict, not keyword args.
+  `clear=True` wipes the entire environment for the block.
+- `TempWorkdir()` has no `cd=` parameter; use `.path` attribute for the
+  directory, or `os.chdir(ctx.path)` if a chdir is needed.
+- `load_module_by_path(path, name, repo_root=REPO_ROOT)` is a drop-in
+  replacement for hand-rolled `importlib.util.spec_from_file_location` patterns.
