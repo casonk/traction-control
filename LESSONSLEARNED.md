@@ -259,3 +259,11 @@
 - `dyno_lab.patch.AttrPatch(obj, attr=value)` patches and auto-restores object/class/module
   attributes; if the attribute didn't exist before, it is deleted on exit.
 - All four modules are exported from `dyno_lab` top level; 174 internal tests pass.
+
+### 2026-04-03 — Always run ruff format after ruff --fix
+
+- `ruff check --fix` fixes lint violations (F401, I001, etc.) but does NOT apply the
+  black-style formatter.
+- Always follow with `ruff format <files>` (or `ruff format .`) before committing,
+  otherwise `ruff format --check` in CI will fail on a separate step.
+- Quickest pattern: `ruff check --fix . && ruff format .`
