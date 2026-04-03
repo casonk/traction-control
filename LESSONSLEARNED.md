@@ -284,7 +284,9 @@
 
 - Ruff rejects `line-length` in `[tool.ruff.format]` — it must live in the parent `[tool.ruff]`
   table. The `[tool.ruff.format]` subtable accepts `quote-style` and `indent-style` only.
-- When standardizing formatter config, always put `line-length = 88` under `[tool.ruff]` and
+  Confirmed in ruff 0.15.9. Do not put line-length in [tool.ruff.format] regardless of what
+  documentation or instructions say — always verify against installed ruff version.
+- When standardizing formatter config, always put `line-length = 100` under `[tool.ruff]` and
   keep `[tool.ruff.format]` limited to `quote-style = "double"` and `indent-style = "space"`.
 
 ### 2026-04-04 — black and ruff format can genuinely disagree on some constructs
@@ -302,14 +304,34 @@
 
 ### 2026-04-04 — Portfolio-wide formatter standardization pattern
 
-- Standard config for every Python repo: `[tool.ruff]` with `line-length = 88`,
+- Standard config for every Python repo: `[tool.ruff]` with `line-length = 100`,
   `[tool.ruff.format]` with `quote-style = "double"` and `indent-style = "space"`,
-  and `[tool.black]` with `line-length = 88` and repo-appropriate `target-version`.
+  and `[tool.black]` with `line-length = 100` and repo-appropriate `target-version`.
+- Standard `[tool.ruff.lint]`: `select = ["E","F","I","UP","B","SIM"]`, `ignore = ["E501","B008","SIM108"]`.
+  Add `SIM117` (nested with) to ignore for test-heavy repos where that pattern aids readability.
 - Pre-commit ordering: `ruff-format` (preferred) appears BEFORE `black` (deprecated).
 - CI ordering: `ruff format --check .` (primary enforcing step) BEFORE `black --check --diff .`
   (deprecated, non-fatal if genuine incompatibility exists).
-- Always run `black .` then `ruff format .` in that order when applying bulk reformats so ruff
-  format is the final state that CI will check.
+- Always run `ruff check --fix --unsafe-fixes .` then `ruff format .` then `black .` in that order.
+- For repos without pyproject.toml (personal-finance), add `--line-length 100` flags to all
+  ruff and black CI commands instead of creating a pyproject.toml.
+
+### 2026-04-XX — SIM117 is commonly noisy in test-heavy repos
+
+- `SIM117` warns about nested `with` statements that could be combined into one.
+- In test code, nested `with` statements (e.g. `with patch(...):` inside `with pytest.raises():`)
+  are often intentionally separate for readability and should not be auto-combined.
+- Add `SIM117` to `ignore` in `[tool.ruff.lint]` for repos where nested `with` is a common
+  test pattern rather than trying to fix each instance individually.
+
+### 2026-04-XX — Portfolio-wide lint select is now E/F/I/UP/B/SIM at line-length=100
+
+- All Python repos now have `[tool.ruff.lint]` with `select = ["E","F","I","UP","B","SIM"]`
+  and `line-length = 100` in `[tool.ruff]` and `[tool.black]`.
+- ruff target-version is a string (`"py310"`); black target-version is a list (`["py310"]`).
+- sonetsim keeps `target-version = "py38"` (ruff) and `["py38","py39","py310"]` (black) due to
+  min Python 3.8 requirement; UP fixes were safe at py38 for this repo.
+- citegres has one remaining E722 (bare except) in legacy code that is not auto-fixable.
 
 ### 2026-04-03 — Inline `||` with quoted colon in GitHub Actions `run:` breaks YAML
 
