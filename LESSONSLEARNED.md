@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-04-03 — dyno-lab is optional when a repo still tests older Python versions
+
+- `./util-repos/dyno-lab` currently declares `requires-python = ">=3.10"`.
+- Repos that still run GitHub Actions on older interpreters such as Python `3.8` or `3.9` must not unconditionally import `dyno_lab.fixtures` in `conftest.py`.
+- For those repos, either gate the pytest plugin load on `find_spec("dyno_lab")` or install/use `dyno-lab` only in the newer matrix lanes that support it.
+
 ### 2026-04-03 — Ignore local `.codex` artifacts in repo roots
 
 - A repo-root `.codex` path can appear as a local agent artifact and should not be committed.
