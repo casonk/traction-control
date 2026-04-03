@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-04-03 — Ignore local `.codex` artifacts in repo roots
+
+- A repo-root `.codex` path can appear as a local agent artifact and should not be committed.
+- Add `.codex` to repo `.gitignore` files when it shows up, alongside other local-only handoff or tooling artifacts such as `CHATHISTORY.md`.
+- Treat `.codex` as local workspace state unless a repository explicitly documents it as committed project content.
+
 ### 2026-03-26 — GitHub CLI access is unreliable inside the sandbox
 
 - `gh` commands that need GitHub API access may fail inside the sandbox even when local login appears to succeed.
