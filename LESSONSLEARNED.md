@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-04-04 — Shared scheduler abstractions belong in `./util-repos/clockwork`
+
+- When repo-local cron snippets or `systemd` unit-generation logic start to repeat across the portfolio, move the scheduler description/rendering into `./util-repos/clockwork` instead of cloning another shell installer.
+- Keep workload wrappers, notifications, and env bootstrap in the downstream repo; `clockwork` should own the declarative manifest, rendered scheduler artifacts, and install guidance.
+- New scheduling workflows should update `clockwork` examples or downstream inventories in the same change so the shared abstraction stays grounded in real portfolio use.
+
 ### 2026-04-03 — Shared utility repos should track downstream usage in config/downstream-repos.toml
 
 - Each shared utility repo should keep a tracked `config/downstream-repos.toml` inventory of known downstream repositories.
