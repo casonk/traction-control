@@ -18,3 +18,5 @@ reports/
 scan-cache/
 
 CLAUDE.md
+
+.tachometer/
