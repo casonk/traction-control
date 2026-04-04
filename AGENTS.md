@@ -56,6 +56,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `archility` | `./util-repos/archility` | Python package | Architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter generation, agentic architecture authoring, and drift-check tooling |
 | `auto-pass` | `./util-repos/auto-pass` | Python package | KeePassXC-backed password automation helpers |
 | `clockwork` | `./util-repos/clockwork` | Python package | Shared cron and systemd scheduler manifest rendering and install guidance |
+| `tachometer` | `./util-repos/tachometer` | Python package | Shared repo and resource profiling helpers plus manifest-driven local profile conventions |
 | `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
 | `nordility` | `./util-repos/nordility` | Python package | NordVPN CLI/API automation |
 | `shock-relay` | `./util-repos/shock-relay` | Python / Shell | Cross-platform messaging relay tooling |
@@ -78,6 +79,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/archility`: architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter-layout generation, agentic architecture authoring, architecture inventory, and architecture-documentation drift checks
 - `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
 - `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
+- `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, and local JSON summary generation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
@@ -92,7 +94,7 @@ Current strong baseline across the portfolio:
 
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
-- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, and unified test bench utilities
+- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, and unified test bench utilities
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
@@ -158,7 +160,7 @@ Every new repository should start with:
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
-Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, and `./util-repos/dyno-lab` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, and unified test bench implementations.
+Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, and `./util-repos/dyno-lab` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, and unified test bench implementations.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 
 `README.md` should include:
@@ -203,6 +205,7 @@ Add:
 - `./util-repos/archility`: standard deterministic starter-layout generator and agentic architecture-authoring home for other repos
 - `./util-repos/auto-pass`: standard password-management utility for other repos
 - `./util-repos/clockwork`: standard shared scheduler utility for cron and systemd manifests across other repos
+- `./util-repos/tachometer`: standard shared profiling utility for repo snapshots, resource measurements, and profiled command runs across other repos
 - `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./util-repos/short-circuit`: standard WireGuard VPN setup and configuration utility for other repos

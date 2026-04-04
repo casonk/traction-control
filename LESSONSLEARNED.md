@@ -374,3 +374,23 @@
 - `# TODO: remove black once ruff format is confirmed stable portfolio-wide` marks black steps.
 - `line-length` must go in `[tool.ruff]`, NOT `[tool.ruff.format]` — ruff rejects it in the
   format subtable.
+
+### 2026-04-04 — Use a clean worktree for CI repairs when the main checkout is dirty
+
+- If a pushed branch exposes formatter or CI failures but the local checkout already has unrelated
+  in-flight edits, create a clean detached worktree from the pushed head and fix the branch there.
+- This keeps unrelated local work out of the repair commit and avoids having to stash or reset a
+  dirty repo just to clear hosted CI.
+- After the repair commit is pushed and hosted checks are green, remove the temporary worktree and
+  leave the original checkout state unchanged.
+
+### 2026-04-04 — Standardize repo-local profiling around tachometer
+
+- The portfolio baseline for local profiling is now:
+  `config/tachometer/profile.toml`, `scripts/run_tachometer_profile.sh`, and a
+  `.gitignore` entry for `.tachometer/`.
+- Keep profiling outputs local-only under `.tachometer/`; commit the manifest
+  and wrapper, not the generated host-specific profile or summary JSON.
+- When a repo needs repo-level or command-level profiling, prefer integrating
+  with `./util-repos/tachometer` instead of adding another local profiler or
+  ad hoc resource snapshot script.
