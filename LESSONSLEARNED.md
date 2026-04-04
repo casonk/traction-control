@@ -394,3 +394,16 @@
 - When a repo needs repo-level or command-level profiling, prefer integrating
   with `./util-repos/tachometer` instead of adding another local profiler or
   ad hoc resource snapshot script.
+
+### 2026-04-04 — Cross-repo tests must not depend on workstation layout or local env files
+
+- If a test imports helpers from a sibling repo, make the import deterministic in
+  CI and temporary worktrees: either clear stale modules before importing from the
+  explicit sibling `src/` path or inject the needed dependency through `PYTHONPATH`
+  during verification.
+- If behavior depends on a local config file such as `auto-pass.env.local`, create
+  a temporary fixture file in the test instead of assuming the developer machine
+  already has one.
+- Run at least one clean-environment verification pass before pushing repo-wide
+  rollouts so path-coupled or host-coupled tests fail locally instead of only in
+  hosted CI.
