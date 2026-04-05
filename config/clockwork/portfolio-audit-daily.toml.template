@@ -1,0 +1,20 @@
+[[jobs]]
+name = "portfolio-audit-daily"
+description = "Daily baseline governance audit across the portfolio — checks every repo for missing Tier-1 files and reports gaps"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/portfolio-audit.sh"
+after = ["network.target"]
+standard_output = "journal"
+standard_error = "journal"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/portfolio-audit"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* 08:00:00"
+persistent = true
+randomized_delay_sec = "300"
