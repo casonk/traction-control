@@ -95,10 +95,12 @@ When another repo needs one of these capabilities, prefer integrating with the r
 Current strong baseline across the portfolio:
 
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
+- every repo now has `REFS-PUBLIC.md` (tracked, public external references) and `REFS-LOCAL.md` (gitignored, machine-specific local paths)
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
 - every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, unified test bench utilities, and local LLM inference
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
+- repo-root `REFS-PUBLIC.md` documents public external dependencies; `REFS-LOCAL.md` is gitignored and holds machine-specific paths
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - pre-commit coverage is now portfolio-wide
 - every repo should keep the shared architecture starter layout under `docs/`:
@@ -113,8 +115,12 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 
 - Each repository should use repo-root `LESSONSLEARNED.md` as the tracked durable-lessons file.
 - Each repository should use repo-root `CHATHISTORY.md` as the standard local handoff log.
+- Each repository should use repo-root `REFS-PUBLIC.md` to document tracked public external dependencies.
+- Each repository should use repo-root `REFS-LOCAL.md` for machine-specific local paths (gitignored).
 - `LESSONSLEARNED.md` is tracked and should contain only reusable lessons that should change future sessions.
 - `CHATHISTORY.md` is local-only, gitignored, and must not be committed.
+- `REFS-LOCAL.md` is local-only, gitignored, and must not be committed.
+- `REFS-PUBLIC.md` is tracked and must remain free of private or local-only details.
 - Read repo `LESSONSLEARNED.md` and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
@@ -154,6 +160,8 @@ Every new repository should start with:
 - `AGENTS.md`
 - `LESSONSLEARNED.md` seeded from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md`
 - `.editorconfig`
+- `REFS-PUBLIC.md` seeded from `./util-repos/traction-control/docs/templates/REFS-PUBLIC.md`
+- `REFS-LOCAL.md` seeded from `./util-repos/traction-control/docs/templates/REFS-LOCAL.md` and added to `.gitignore`
 - `docs/contributor-architecture-blueprint.md`
 - `docs/diagrams/repo-architecture.puml`
 - `docs/diagrams/repo-architecture.drawio`

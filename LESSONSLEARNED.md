@@ -12,6 +12,13 @@
 
 ## Lessons
 
+### 2026-04-06 — Every repo carries REFS-PUBLIC.md (tracked) and REFS-LOCAL.md (gitignored)
+
+- `REFS-PUBLIC.md` is tracked and documents external public repositories, datasets, APIs, and documentation that the repo depends on or references. Keep it free of private or machine-specific detail.
+- `REFS-LOCAL.md` is gitignored and holds hard-coded local filesystem paths to reference files, sibling repos, or local data sources needed to operate the repo on this machine.
+- Both files are seeded from `./util-repos/traction-control/docs/templates/` and must be present in every repo from day one.
+- When adding or updating a dependency (public or local), update the appropriate file in the same change so references stay in sync with the code.
+
 ### 2026-04-04 — Shared scheduler abstractions belong in `./util-repos/clockwork`
 
 - When repo-local cron snippets or `systemd` unit-generation logic start to repeat across the portfolio, move the scheduler description/rendering into `./util-repos/clockwork` instead of cloning another shell installer.
