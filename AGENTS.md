@@ -235,11 +235,21 @@ Add:
 5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
 6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
 7. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
-8. Run relevant verification before and after substantive changes when feasible. For docs-only changes, targeted validation is acceptable.
+8. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
 9. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
 10. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
 11. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
 12. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
 13. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 
-Last reviewed: `2026-04-04`
+## Local CI Verification — traction-control
+
+Run before every push:
+
+```bash
+pre-commit run --all-files
+```
+
+This repo has no Python source; `pre-commit` is the full verification gate.
+
+Last reviewed: `2026-04-07`
