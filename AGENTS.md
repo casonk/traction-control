@@ -102,6 +102,7 @@ Current strong baseline across the portfolio:
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
 - repo-root `REFS-PUBLIC.md` documents public external dependencies; `REFS-LOCAL.md` is gitignored and holds machine-specific paths
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
+- repo-root `BACKLOG.md` is the tracked work-item backlog everywhere; seed from `./util-repos/traction-control/docs/templates/BACKLOG.md`
 - pre-commit coverage is now portfolio-wide
 - every repo should keep the shared architecture starter layout under `docs/`:
   - `docs/contributor-architecture-blueprint.md`
@@ -115,13 +116,15 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 
 - Each repository should use repo-root `LESSONSLEARNED.md` as the tracked durable-lessons file.
 - Each repository should use repo-root `CHATHISTORY.md` as the standard local handoff log.
+- Each repository should use repo-root `BACKLOG.md` as the tracked work-item backlog.
 - Each repository should use repo-root `REFS-PUBLIC.md` to document tracked public external dependencies.
 - Each repository should use repo-root `REFS-LOCAL.md` for machine-specific local paths (gitignored).
 - `LESSONSLEARNED.md` is tracked and should contain only reusable lessons that should change future sessions.
+- `BACKLOG.md` is tracked and holds pending, in-progress, and completed work items. Seed from the template in `./util-repos/traction-control/docs/templates/BACKLOG.md`.
 - `CHATHISTORY.md` is local-only, gitignored, and must not be committed.
 - `REFS-LOCAL.md` is local-only, gitignored, and must not be committed.
 - `REFS-PUBLIC.md` is tracked and must remain free of private or local-only details.
-- Read repo `LESSONSLEARNED.md` and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
+- Read repo `LESSONSLEARNED.md`, `BACKLOG.md`, and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
 
@@ -159,6 +162,7 @@ Every new repository should start with:
 - `.gitignore`
 - `AGENTS.md`
 - `LESSONSLEARNED.md` seeded from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md`
+- `BACKLOG.md` seeded from `./util-repos/traction-control/docs/templates/BACKLOG.md`
 - `.editorconfig`
 - `REFS-PUBLIC.md` seeded from `./util-repos/traction-control/docs/templates/REFS-PUBLIC.md`
 - `REFS-LOCAL.md` seeded from `./util-repos/traction-control/docs/templates/REFS-LOCAL.md` and added to `.gitignore`
@@ -172,6 +176,7 @@ Every new repository should start with:
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
+New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
 
 `README.md` should include:
 
