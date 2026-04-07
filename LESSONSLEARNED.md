@@ -12,6 +12,27 @@
 
 ## Lessons
 
+### 2026-04-07 — Always append exactly one final newline when inserting content at the end of a file
+
+- The `end-of-file-fixer` pre-commit hook requires every tracked file to end with exactly one `\n`.
+- Scripted file appends that call `rstrip()` before writing can leave double trailing newlines (`\n\n`) if the written block itself ends with a blank line.
+- Before committing any scripted file edit, verify with `od -c <file> | tail -2` that the file ends with exactly `.\n` and not `.\n\n`.
+- In Python: `content.rstrip(b'\n\r\t ') + b'\n'` is the safe normalization pattern.
+
+### 2026-04-07 — Pin ruff version consistently between local dev, pre-commit, and CI
+
+- Different ruff versions can disagree on import sort order (I001) and formatting choices, causing local-clean code to fail CI.
+- When the portfolio standardizes on a new ruff version, update the CI `pip install ruff==X.Y.Z` pin and the `.pre-commit-config.yaml` `rev: vX.Y.Z` in the same change.
+- Always validate locally with the same ruff version that CI uses: `pip install ruff==0.15.9` before running `ruff check .` and `ruff format --check .` before any push.
+- Never push code that has only been validated by a mismatched ruff version.
+
+### 2026-04-07 — Run pre-commit locally before every push; repo AGENTS.md specifies exact commands
+
+- Every repo's `AGENTS.md` now contains a "Local CI Verification" section with the exact commands to run before pushing.
+- The portfolio-wide rule (traction-control AGENTS.md rule 8) is non-negotiable: do not push code that has not passed local verification.
+- For Python repos: `pre-commit run --all-files` then `pytest -q`.
+- For docs/ops repos: `pre-commit run --all-files` is the full gate.
+
 ### 2026-04-06 — Every repo carries REFS-PUBLIC.md (tracked) and REFS-LOCAL.md (gitignored)
 
 - `REFS-PUBLIC.md` is tracked and documents external public repositories, datasets, APIs, and documentation that the repo depends on or references. Keep it free of private or machine-specific detail.
