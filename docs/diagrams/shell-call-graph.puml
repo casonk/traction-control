@@ -6,11 +6,18 @@ skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
 rectangle "scripts/archility-weekly.sh\n0 local shell edges\n6 external tools" as shell_scripts_archility_weekly_sh #DBEAFE
+rectangle "scripts/install_archility_weekly_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_archility_weekly_systemd_sh #DBEAFE
+rectangle "scripts/run_tachometer_profile.sh\n0 local shell edges\n3 external tools" as shell_scripts_run_tachometer_profile_sh #DBEAFE
+cloud "cat" as tool_cat #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "log" as tool_log #FEF3C7
 cloud "mapfile" as tool_mapfile #FEF3C7
 cloud "mkdir" as tool_mkdir #FEF3C7
+cloud "run" as tool_run #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
+cloud "summarize" as tool_summarize #FEF3C7
+cloud "systemctl" as tool_systemctl #FEF3C7
+cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
 shell_scripts_archility_weekly_sh --> tool_ln
 shell_scripts_archility_weekly_sh --> tool_log
@@ -18,9 +25,14 @@ shell_scripts_archility_weekly_sh --> tool_mapfile
 shell_scripts_archility_weekly_sh --> tool_mkdir
 shell_scripts_archility_weekly_sh --> tool_sort
 shell_scripts_archility_weekly_sh --> tool_tee
+shell_scripts_install_archility_weekly_systemd_sh --> tool_cat
+shell_scripts_install_archility_weekly_systemd_sh --> tool_systemctl
+shell_scripts_run_tachometer_profile_sh --> tool_run
+shell_scripts_run_tachometer_profile_sh --> tool_summarize
+shell_scripts_run_tachometer_profile_sh --> tool_tachometer
 note as shellGraphSummary
-Scanned 1 shell script.
+Scanned 3 shell scripts.
 Detected 0 local shell edges.
-Detected 6 external tools.
+Detected 11 external tools.
 end note
 @enduml
