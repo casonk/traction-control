@@ -50,6 +50,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo
 - `CHANGELOG.md`: notable changes to the portfolio-governance layer
+- `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 
 ## Control-Plane Flow
 
@@ -89,6 +90,24 @@ Its deterministic programmatic path creates the baseline starter strictly from c
 ## Contributing
 
 See `CONTRIBUTING.md`.
+
+## Operational Scripts
+
+For batch post-push GitHub Actions checks, use:
+
+```bash
+bash scripts/check_github_push_ci.sh --input /path/to/pushes.tsv
+```
+
+The input file is tab-separated with columns:
+
+```text
+repo_rel	repo_slug	branch	sha
+util-repos/traction-control	casonk/traction-control	main	e272b52
+```
+
+The script polls matching push-triggered workflow runs, prints one TSV result row
+per commit, and exits nonzero if any run fails, times out, or the input is invalid.
 
 ## License
 
