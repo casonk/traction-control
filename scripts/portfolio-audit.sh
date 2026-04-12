@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# portfolio-audit.sh — daily baseline governance audit across the portfolio
+# portfolio-audit.sh — daily governance audit across the portfolio
 #
 # Scans every git repository under PORTFOLIO_ROOT and reports:
 #   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, etc.)
 #   - missing CHATHISTORY.md entry in .gitignore
 #   - missing .pre-commit-config.yaml in non-doc code repos
+#   - SECURITY.md files that exist but miss portfolio best-practice guidance
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -16,6 +17,7 @@ set -euo pipefail
 PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-/mnt/4tb-m2/git}"
 LOG_DIR="${LOG_DIR:-${HOME}/.local/share/portfolio-audit}"
 MAX_DEPTH=4
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ─────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -86,6 +88,34 @@ for repo in "${REPO_DIRS[@]}"; do
     if [[ ! "$rel" =~ ^doc-repos ]] && [[ ! -f "${repo}/.pre-commit-config.yaml" ]]; then
         missing+=(".pre-commit-config.yaml")
     fi
+
+    # SECURITY.md best-practice content checks
+    security_status=0
+    set +e
+    security_output="$(
+        python3 "${SCRIPT_DIR}/check_security_md.py" \
+            --repo "${repo}" \
+            --repo-rel "${rel}" 2>&1
+    )"
+    security_status=$?
+    set -e
+
+    case "${security_status}" in
+        0)
+            ;;
+        1)
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] && missing+=("SECURITY.md policy: ${line}")
+            done <<< "${security_output}"
+            ;;
+        *)
+            warn "${rel}: SECURITY.md checker error"
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] && warn "  checker: ${line}"
+            done <<< "${security_output}"
+            exit 2
+            ;;
+    esac
 
     if (( ${#missing[@]} > 0 )); then
         warn "${rel}: ${#missing[@]} gap(s)"

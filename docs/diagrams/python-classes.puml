@@ -1,0 +1,8 @@
+@startuml classes_traction-control
+set namespaceSeparator none
+note as archilityPythonSurfaceNote
+Minimal class surface detected.
+Scanned 1 Python module.
+See python-import-deps-scripts-check_security_md.svg for module-level imports.
+end note
+@enduml
