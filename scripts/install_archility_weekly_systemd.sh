@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# install_archility_weekly_systemd.sh — render and optionally enable the weekly
-# archility user-level timer via the shared clockwork scheduler utility.
+# install_archility_weekly_systemd.sh — render and optionally enable the
+# twice-weekly archility user-level timer via the shared clockwork scheduler
+# utility.
 
 set -euo pipefail
 
@@ -18,8 +19,8 @@ usage() {
   cat <<EOF
 Usage: install_archility_weekly_systemd.sh [options]
 
-Render the archility weekly user-level systemd files via clockwork and enable
-the timer by default.
+Render the archility twice-weekly user-level systemd files via clockwork and
+enable the timer by default.
 
 Options:
   --render-only           Write the unit files only; skip daemon-reload/enable.
