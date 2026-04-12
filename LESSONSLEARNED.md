@@ -469,3 +469,9 @@
 - `REFS-PUBLIC.md` drift is easy to miss because the starter template still looks structurally valid; scan for the placeholder domains and comments (`example.com`, `docs.example.com`, `github.com/org/repo`) instead of only checking file presence.
 - `REFS-LOCAL.md` drift hides even more easily because those files are gitignored; a portfolio cleanup should scan and refresh both tracked `REFS-PUBLIC.md` and local-only `REFS-LOCAL.md`, not just the tracked side.
 - For repos with no durable external upstreams, replacing the starter comments with a repo-specific "no standing public refs required" statement is better than leaving the generic template in place.
+
+### 2026-04-12 — Publish dirty cross-repo rollouts from clean sibling worktrees and align formatter pins across local and hosted CI
+
+- When many portfolio repos have unrelated local WIP, publish cross-repo documentation rollouts from clean sibling worktrees such as `<repo>.codex-publish`; that keeps commits scoped to the intended changes and prevents bundling unrelated edits from the main checkout.
+- A full-repo `pre-commit run --all-files` in those clean worktrees will surface baseline drift that the dirty checkout may be hiding, including whitespace debt, invalid example YAML, brittle tests tied to a checkout directory name, and repo-local import assumptions. Treat those as real blockers and fix them in the clean worktree instead of weakening verification.
+- If hosted CI installs formatter packages directly, pin the workflow formatter versions and arguments to match `.pre-commit-config.yaml` exactly. Otherwise a repo can pass local `pre-commit` but fail GitHub Actions on the same commit because the workflow pulled a newer or differently configured formatter.
