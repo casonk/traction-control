@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# archility-weekly.sh — weekly architecture audit + render across the portfolio
+# archility-weekly.sh — twice-weekly architecture audit + render across the
+# portfolio
 #
 # Discovers all git repos under PORTFOLIO_ROOT, runs:
 #   archility audit  — drift report for every repo
@@ -25,7 +26,7 @@ mkdir -p "${LOG_DIR}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
 
-log "=== archility weekly run ==="
+log "=== archility twice-weekly run ==="
 log "portfolio root : ${PORTFOLIO_ROOT}"
 log "archility      : $(command -v "${ARCHILITY_CMD}" || echo 'not found')"
 log "log file       : ${LOG_FILE}"

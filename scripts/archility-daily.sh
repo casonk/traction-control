@@ -4,7 +4,7 @@
 # Discovers all git repos under PORTFOLIO_ROOT and runs:
 #   archility audit  — drift report for every repo
 #
-# Diagram renders stay in the weekly pass (archility-weekly.sh).
+# Diagram renders stay in the twice-weekly pass (archility-weekly.sh).
 # Logs are written to LOG_DIR (default: ~/.local/share/archility-daily/).
 # Run once manually to verify: bash /path/to/archility-daily.sh
 

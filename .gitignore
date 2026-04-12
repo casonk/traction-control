@@ -9,6 +9,7 @@ desktop.ini
 *.swp
 *.swo
 *~
+__pycache__/
 .idea/
 .vscode/
 

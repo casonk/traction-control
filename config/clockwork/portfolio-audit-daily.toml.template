@@ -1,6 +1,6 @@
 [[jobs]]
 name = "portfolio-audit-daily"
-description = "Daily baseline governance audit across the portfolio — checks every repo for missing Tier-1 files and reports gaps"
+description = "Daily governance audit across the portfolio — checks baseline files plus SECURITY.md policy coverage and reports gaps"
 scope = "user"
 service_type = "oneshot"
 working_directory = "__REPO_ROOT__"
