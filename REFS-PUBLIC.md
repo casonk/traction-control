@@ -1,4 +1,4 @@
-# REFS-PUBLIC.md — Public References
+# REFS-PUBLIC.md - Public References
 
 > Record external public repositories, datasets, documentation, APIs, or other
 > public resources that this repository utilizes or depends on.
@@ -6,22 +6,17 @@
 
 ## Public Repositories
 
-<!-- External repos this project depends on, forks, or integrates with:
-- https://github.com/org/repo — description of usage
--->
+- No fixed external code repository is the main upstream; this repo documents internal portfolio conventions and scheduled governance flows.
 
 ## Public Datasets and APIs
 
-<!-- Publicly accessible data sources, REST APIs, or external feeds consumed here:
-- https://example.com/dataset — description of usage
--->
+- No standing public data APIs are required; the control plane primarily inspects the local portfolio workspace.
 
 ## Documentation and Specifications
 
-<!-- Reference docs, RFCs, standards, or upstream project documentation:
-- https://docs.example.com — description
--->
+- https://docs.github.com/en/actions - GitHub Actions reference for the control-plane CI workflow
+- https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html - user timer semantics for the scheduled audit and install scripts
 
 ## Notes
 
-<!-- Any context about how these public references are used or versioned -->
+- Sibling utility repos such as archility, clockwork, and tachometer are internal portfolio references and therefore stay out of this public-only file.

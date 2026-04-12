@@ -463,3 +463,9 @@
   <timer>.timer`, then verify both `systemctl --user status` and
   `systemctl --user list-timers --all` so the next trigger matches the new
   calendar expression.
+
+### 2026-04-12 — Audit REFS drift by scanning both tracked and gitignored files
+
+- `REFS-PUBLIC.md` drift is easy to miss because the starter template still looks structurally valid; scan for the placeholder domains and comments (`example.com`, `docs.example.com`, `github.com/org/repo`) instead of only checking file presence.
+- `REFS-LOCAL.md` drift hides even more easily because those files are gitignored; a portfolio cleanup should scan and refresh both tracked `REFS-PUBLIC.md` and local-only `REFS-LOCAL.md`, not just the tracked side.
+- For repos with no durable external upstreams, replacing the starter comments with a repo-specific "no standing public refs required" statement is better than leaving the generic template in place.
