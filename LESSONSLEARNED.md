@@ -12,6 +12,24 @@
 
 ## Lessons
 
+### 2026-04-11 — SECURITY.md policy lint should be concept-based and extend the existing scheduled audit
+
+- Portfolio `SECURITY.md` files already vary by repo, so content lint should check for concepts like private reporting, public-disclosure avoidance, and sensitive-content guidance instead of enforcing one exact heading template.
+- The right integration point is the existing `traction-control` scheduled governance audit, not a separate repo, when the scope is portfolio-local documentation policy enforcement.
+- Repo-name copy/paste mistakes inside security-reporting text are common enough to check automatically and cheap enough to include in the daily audit.
+
+### 2026-04-11 — Centralize repeated personal-data consent by category in `my-consent`
+
+- When several sibling repos process the same kind of personal data, prefer one category-level consent statement in `./doc-repos/my-consent` instead of cloning near-identical repo-specific wording.
+- Add repo-local links back to the matching consent document from the affected repos so the consent is discoverable where the processing happens.
+- Reserve repo-unique consent files for materially different surfaces, such as provider-specific opt-in requirements or a distinctly different data category.
+
+### 2026-04-09 — Stage a brand-new repo before trusting `pre-commit run --all-files`
+
+- In a freshly initialized repository, `pre-commit run --all-files` only scans tracked files, so a fully untracked scaffold can misleadingly report that every hook was skipped.
+- After creating a new repo baseline, stage the tracked files before treating the pre-commit result as a real validation signal.
+- Keep intentionally local files such as `CHATHISTORY.md` and `REFS-LOCAL.md` gitignored while staging the tracked baseline for verification.
+
 ### 2026-04-07 — Always append exactly one final newline when inserting content at the end of a file
 
 - The `end-of-file-fixer` pre-commit hook requires every tracked file to end with exactly one `\n`.
@@ -435,3 +453,13 @@
 - Run at least one clean-environment verification pass before pushing repo-wide
   rollouts so path-coupled or host-coupled tests fail locally instead of only in
   hosted CI.
+
+### 2026-04-11 — Restart active user timers after changing installed systemd calendar units
+
+- Re-rendering a timer unit into `~/.config/systemd/user` and running
+  `systemctl --user daemon-reload` plus `enable --now` is not enough when the
+  timer is already active; the old schedule can remain in memory.
+- After changing `OnCalendar`, explicitly run `systemctl --user restart
+  <timer>.timer`, then verify both `systemctl --user status` and
+  `systemctl --user list-timers --all` so the next trigger matches the new
+  calendar expression.

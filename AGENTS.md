@@ -55,6 +55,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `zillow-public-data` | `./research-repos/zillow-public-data` | Python | Zillow dataset mirror and visualization tooling |
 | `archility` | `./util-repos/archility` | Python package | Architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter generation, agentic architecture authoring, and drift-check tooling |
 | `auto-pass` | `./util-repos/auto-pass` | Python package | KeePassXC-backed password automation helpers |
+| `bit-byte-block` | `./util-repos/bit-byte-block` | Python | Local Bitcoin Stratum proxy and Solo CKPool upstream status tooling |
 | `clockwork` | `./util-repos/clockwork` | Python package | Shared cron and systemd scheduler manifest rendering and install guidance |
 | `tachometer` | `./util-repos/tachometer` | Python package | Shared repo and resource profiling helpers plus manifest-driven local profile conventions |
 | `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
@@ -67,6 +68,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `crew-chief` | `./util-repos/crew-chief` | Python package / Container | Local Ollama LLM service (Podman) and zero-dependency Python client for portfolio-wide trivial inference tasks |
+| `wiring-harness` | `./util-repos/wiring-harness` | Python / Ops | Shared Caddy, mTLS, and DNS infrastructure for home services |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
 
 Non-repo folder:
@@ -79,6 +81,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 
 - `./util-repos/archility`: architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter-layout generation, agentic architecture authoring, architecture inventory, and architecture-documentation drift checks
 - `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
+- `./util-repos/bit-byte-block`: local Bitcoin mining ingress via transparent Stratum proxying, upstream failover, and Solo CKPool status inspection
 - `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
 - `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, and local JSON summary generation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
@@ -87,6 +90,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
 - `./util-repos/dyno-lab`: unified test bench utilities — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: local Ollama LLM service (Podman container) and zero-dependency Python client for trivial inference tasks across portfolio repos
+- `./util-repos/wiring-harness`: shared Caddy, mTLS, and DNS infrastructure for home-service ingress
 
 When another repo needs one of these capabilities, prefer integrating with the relevant shared utility repo instead of re-implementing the capability locally.
 
@@ -176,7 +180,7 @@ Every new repository should start with:
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
-New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
+New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
 
 `README.md` should include:
 
@@ -219,6 +223,7 @@ Add:
 - `./util-repos/archility`: standard architecture bootstrap/render, Graphviz-capable diagram utility, and blueprint-audit utility for other repos
 - `./util-repos/archility`: standard deterministic starter-layout generator and agentic architecture-authoring home for other repos
 - `./util-repos/auto-pass`: standard password-management utility for other repos
+- `./util-repos/bit-byte-block`: standard local Bitcoin Stratum ingress and Solo CKPool upstream-monitoring utility for mining experiments
 - `./util-repos/clockwork`: standard shared scheduler utility for cron and systemd manifests across other repos
 - `./util-repos/tachometer`: standard shared profiling utility for repo snapshots, resource measurements, and profiled command runs across other repos
 - `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
@@ -227,6 +232,7 @@ Add:
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
 - `./util-repos/dyno-lab`: standard unified test bench utility — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: standard local LLM inference utility — Podman-hosted Ollama service and zero-dependency Python client for trivial tasks across portfolio repos
+- `./util-repos/wiring-harness`: standard shared HTTPS ingress, mTLS, and DNS service inventory for home services
 - `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
 - `./doc-repos/Certifications` and `./doc-repos/university-coursework`: strong examples of documentation-first repository organization
@@ -257,4 +263,4 @@ pre-commit run --all-files
 
 This repo has no Python source; `pre-commit` is the full verification gate.
 
-Last reviewed: `2026-04-07`
+Last reviewed: `2026-04-09`

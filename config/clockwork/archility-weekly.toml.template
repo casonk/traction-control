@@ -1,6 +1,6 @@
 [[jobs]]
 name = "archility-weekly"
-description = "Archility weekly architecture audit and diagram render"
+description = "Archility twice-weekly architecture audit and diagram render"
 scope = "user"
 service_type = "oneshot"
 working_directory = "__REPO_ROOT__"
@@ -8,7 +8,7 @@ exec_start = "__REPO_ROOT__/scripts/archility-weekly.sh"
 after = ["network.target"]
 standard_output = "journal"
 standard_error = "journal"
-timer_description = "Run archility weekly architecture audit and diagram render"
+timer_description = "Run archility twice-weekly architecture audit and diagram render"
 
 [jobs.environment]
 PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
@@ -17,6 +17,6 @@ LOG_DIR = "%h/.local/share/archility-weekly"
 
 [jobs.timer]
 kind = "calendar"
-on_calendar = "Sun *-*-* 02:00:00"
+on_calendar = "Wed,Sun *-*-* 02:00:00"
 persistent = true
 randomized_delay_sec = "600"
