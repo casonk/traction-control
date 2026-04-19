@@ -8,6 +8,7 @@ skinparam linetype ortho
 rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
 rectangle "scripts/archility-daily.sh\n6 detected tools" as source_scripts_archility_daily_sh #E0F2FE
 rectangle "scripts/archility-weekly.sh\n6 detected tools" as source_scripts_archility_weekly_sh #E0F2FE
+rectangle "scripts/check_github_push_ci.sh\n9 detected tools" as source_scripts_check_github_push_ci_sh #E0F2FE
 rectangle "scripts/install_archility_daily_systemd.sh\n2 detected tools" as source_scripts_install_archility_daily_systemd_sh #E0F2FE
 rectangle "scripts/install_archility_weekly_systemd.sh\n2 detected tools" as source_scripts_install_archility_weekly_systemd_sh #E0F2FE
 rectangle "scripts/install_portfolio_audit_systemd.sh\n2 detected tools" as source_scripts_install_portfolio_audit_systemd_sh #E0F2FE
@@ -28,21 +29,29 @@ cloud "actions/setup-python" as tool_actions_setup_python #FEF3C7
 cloud "bug_report.md" as tool_bug_report_md #FEF3C7
 cloud "cat" as tool_cat #FEF3C7
 cloud "contributor-architecture-blueprint.md" as tool_contributor_architecture_blueprint_md #FEF3C7
+cloud "failure_count" as tool_failure_count #FEF3C7
 cloud "feature_request.md" as tool_feature_request_md #FEF3C7
+cloud "invalid_count" as tool_invalid_count #FEF3C7
+cloud "line_number" as tool_line_number #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "log" as tool_log #FEF3C7
 cloud "mapfile" as tool_mapfile #FEF3C7
 cloud "mkdir" as tool_mkdir #FEF3C7
+cloud "no_ci_count" as tool_no_ci_count #FEF3C7
 cloud "pip" as tool_pip #FEF3C7
 cloud "pre-commit" as tool_pre_commit #FEF3C7
 cloud "repo-architecture.drawio" as tool_repo_architecture_drawio #FEF3C7
 cloud "repo-architecture.puml" as tool_repo_architecture_puml #FEF3C7
 cloud "run" as tool_run #FEF3C7
+cloud "select(.headSha" as tool_select_headsha #FEF3C7
+cloud "sleep" as tool_sleep #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
+cloud "success_count" as tool_success_count #FEF3C7
 cloud "summarize" as tool_summarize #FEF3C7
 cloud "systemctl" as tool_systemctl #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
+cloud "timeout_count" as tool_timeout_count #FEF3C7
 cloud "warn" as tool_warn #FEF3C7
 source_github_workflows_ci_yml --> tool_actions_checkout
 source_github_workflows_ci_yml --> tool_actions_setup_python
@@ -60,6 +69,15 @@ source_scripts_archility_weekly_sh --> tool_mapfile
 source_scripts_archility_weekly_sh --> tool_mkdir
 source_scripts_archility_weekly_sh --> tool_sort
 source_scripts_archility_weekly_sh --> tool_tee
+source_scripts_check_github_push_ci_sh --> tool_cat
+source_scripts_check_github_push_ci_sh --> tool_failure_count
+source_scripts_check_github_push_ci_sh --> tool_invalid_count
+source_scripts_check_github_push_ci_sh --> tool_line_number
+source_scripts_check_github_push_ci_sh --> tool_no_ci_count
+source_scripts_check_github_push_ci_sh --> tool_select_headsha
+source_scripts_check_github_push_ci_sh --> tool_sleep
+source_scripts_check_github_push_ci_sh --> tool_success_count
+source_scripts_check_github_push_ci_sh --> tool_timeout_count
 source_scripts_install_archility_daily_systemd_sh --> tool_cat
 source_scripts_install_archility_daily_systemd_sh --> tool_systemctl
 source_scripts_install_archility_weekly_systemd_sh --> tool_cat
@@ -92,7 +110,7 @@ source_scripts_run_tachometer_profile_sh --> tool_run
 source_scripts_run_tachometer_profile_sh --> tool_summarize
 source_scripts_run_tachometer_profile_sh --> tool_tachometer
 note as toolingGraphSummary
-Scanned 8 tooling entrypoints.
-Detected 31 third-party tools.
+Scanned 9 tooling entrypoints.
+Detected 39 third-party tools.
 end note
 @enduml
