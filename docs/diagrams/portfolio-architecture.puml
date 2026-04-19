@@ -1,0 +1,142 @@
+@startuml portfolio-architecture
+!pragma layout elk
+title Casonk Portfolio — Cross-Repo Architecture
+
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam ArrowFontSize 9
+skinparam ArrowColor #64748B
+skinparam componentBorderColor #94A3B8
+skinparam packageBorderColor #94A3B8
+skinparam NoteBorderColor #CBD5E1
+skinparam NoteBackgroundColor #F8FAFC
+
+' ─────────────────────────────────────────────
+' GOVERNANCE
+' ─────────────────────────────────────────────
+package "Control Plane" as CP #EDE9FE {
+  component "[traction-control]\nGovernance, baseline standards\nCI sweep + portfolio audit" as TC
+}
+
+' ─────────────────────────────────────────────
+' SHARED TOOLING
+' ─────────────────────────────────────────────
+package "Shared Tooling" as TOOL #DBEAFE {
+  component "[archility]\nArchitecture toolchain\ndiagram render + audit" as ARCH
+  component "[dyno-lab]\nTest fixtures, mocks\npytest markers" as DYNO
+  component "[tachometer]\nRepo + resource\nprofiling snapshots" as TACHO
+  component "[clockwork]\nCron + systemd\nscheduler manifests" as CLOCK
+}
+
+note bottom of TOOL
+  archility: render diagrams for all repos (weekly scheduled)
+  dyno-lab: pytest fixtures consumed by all Python repos
+  tachometer: profile snapshots across entire portfolio
+  clockwork: scheduler manifests for intake, snowbridge,
+    crew-chief, personal-finance, doseido, zillow, archility
+end note
+
+' ─────────────────────────────────────────────
+' SECURITY & NETWORK
+' ─────────────────────────────────────────────
+package "Security & Network Access" as NET #FEF9C3 {
+  component "[auto-pass]\nKeePassXC-backed\nsecret retrieval" as PASS
+  component "[nordility]\nNordVPN CLI\nautomation" as NORD
+  component "[short-circuit]\nWireGuard VPN\nsetup + config" as SC
+  component "[pit-box]\nWireGuard + SSH\nhardened remote access" as PB
+  component "[wiring-harness]\nCaddy + mTLS + DNS\nhome-server provisioning" as WH
+}
+
+' ─────────────────────────────────────────────
+' COMMUNICATION & FILE I/O
+' ─────────────────────────────────────────────
+package "Communication & File I/O" as COMM #DCFCE7 {
+  component "[shock-relay]\nSignal / Gmail /\nTwilio / Telegram relay" as SR
+  component "[snowbridge]\nSMB private file share\n+ phone access" as SB
+  component "[crew-chief]\nOllama LLM service\n+ agentic loop" as CC
+}
+
+' ─────────────────────────────────────────────
+' APPLICATIONS
+' ─────────────────────────────────────────────
+package "Applications" as APPS #F0FDF4 {
+  component "[intake]\nReceipt PDF ingestion\ncategorize + SQLite + reports" as INTAKE
+  component "[personal-finance]\nFinancial data download\nnormalize + analysis" as PF
+  component "[doseido]\nSupplement sourcing\n+ schema enrichment" as DOSE
+}
+
+' ─────────────────────────────────────────────
+' LOCAL ENVIRONMENT
+' ─────────────────────────────────────────────
+package "Local Environment" as ENV #FFF7ED {
+  component "[terminility]\ntmux session\nmanagement" as TERM
+  component "[fedora-debugg]\nCrash triage\n+ hardware audit" as FD
+}
+
+' ─────────────────────────────────────────────
+' RESEARCH
+' ─────────────────────────────────────────────
+package "Research" as RES #FFF1F2 {
+  component "[sonetsim]\nSocial network\nsimulation" as SIM
+  component "[citegres]\nPostgreSQL GUI\nacademic project" as CIT
+  component "[pushshift_python]\nReddit analytics\n+ research" as PUSH
+  component "[zillow-public-data]\nZillow dataset\n+ visualization" as ZILLOW
+}
+
+' ─────────────────────────────────────────────
+' DOCUMENTATION
+' ─────────────────────────────────────────────
+package "Documentation" as DOCS #F8FAFC {
+  component "[casonk.github.io]\nPortfolio website\n(Jekyll)" as SITE
+  component "[Certifications]\nCertification archive" as CERT
+  component "[my-consent]\nPersonal consent\nstatements" as CONSENT
+  component "[university-coursework]\nCoursework archive" as UNI
+  component "[drawio-templates]\nReusable draw.io\ntemplates" as DRAW
+}
+
+' ─────────────────────────────────────────────
+' GOVERNANCE (solid purple)
+' ─────────────────────────────────────────────
+TC -[#7C3AED]-> ARCH  : portfolio baseline + audit
+TC -[#7C3AED]-> CLOCK
+TC -[#7C3AED]-> DYNO
+TC -[#7C3AED]-> TACHO
+
+' ─────────────────────────────────────────────
+' SECRETS (solid amber)
+' ─────────────────────────────────────────────
+PASS -[#D97706]-> INTAKE : credentials
+PASS -[#D97706]-> NORD   : credentials
+PASS -[#D97706]-> SR     : credentials
+PASS -[#D97706]-> SB     : credentials
+
+' ─────────────────────────────────────────────
+' MESSAGING (solid cyan)
+' ─────────────────────────────────────────────
+CC -[#0891B2]-> SR     : Signal + Gmail\nsend / recv
+SR -[#0891B2]-> INTAKE : email\nnotifications
+
+' ─────────────────────────────────────────────
+' FILE I/O (solid green)
+' ─────────────────────────────────────────────
+SB -[#16A34A]-> INTAKE : receipt PDFs\n(SMB share)
+SB -[#94A3B8,dashed]-> PB : SSH key transit
+
+' ─────────────────────────────────────────────
+' NETWORK / ACCESS (solid brown)
+' ─────────────────────────────────────────────
+NORD -[#B45309]-> SB : VPN rotation
+SC   -[#B45309]-> SB : WireGuard tunnel
+WH   -[#B45309]-> SB : Caddy reverse proxy
+WH   -[#B45309,dashed]-> SC      : WireGuard (ref)
+WH   -[#B45309,dashed]-> PB      : SSH (ref)
+WH   -[#B45309,dashed]-> CONSENT : consent ref
+
+' ─────────────────────────────────────────────
+' DATA PIPELINE (solid dark green)
+' ─────────────────────────────────────────────
+INTAKE -[#15803D]-> PF : aggregated\nspend data
+
+@enduml
