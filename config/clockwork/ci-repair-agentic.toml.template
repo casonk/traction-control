@@ -1,0 +1,26 @@
+[[jobs]]
+name = "ci-repair-agentic"
+description = "Every-other-day agentic scan for failing GitHub Actions push CI across clean portfolio repos"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/ci_repair_agentic.sh"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/ci-repair-agentic.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Run the traction-control CI repair agent every other day"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/ci-repair-agentic"
+CI_REPAIR_AGENTIC_PROVIDER = "__PROVIDER__"
+CI_REPAIR_AGENTIC_MODEL = "__MODEL__"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "1h"
+on_unit_active_sec = "2d"
+persistent = true
+randomized_delay_sec = "1200"

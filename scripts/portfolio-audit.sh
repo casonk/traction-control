@@ -2,7 +2,7 @@
 # portfolio-audit.sh — daily governance audit across the portfolio
 #
 # Scans every git repository under PORTFOLIO_ROOT and reports:
-#   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, etc.)
+#   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, BACKLOG.md, etc.)
 #   - missing CHATHISTORY.md entry in .gitignore
 #   - missing .pre-commit-config.yaml in non-doc code repos
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
@@ -35,6 +35,7 @@ TIER1_FILES=(
     .gitignore
     AGENTS.md
     LESSONSLEARNED.md
+    BACKLOG.md
     .editorconfig
     SECURITY.md
     CODE_OF_CONDUCT.md
@@ -60,6 +61,7 @@ mapfile -t REPO_DIRS < <(
         -type d \
         -name ".git" \
         ! -path "*/archive-repos/*" \
+        ! -path "*/vendor/filebrowser-upstream/*" \
     | sed 's|/.git$||' \
     | sort
 )
