@@ -1,0 +1,26 @@
+[[jobs]]
+name = "bug-sweep-agentic"
+description = "Daily agentic review of clean code repos for potential bugs and regressions"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/bug_sweep_agentic.sh"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/bug-sweep-agentic.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Run the traction-control daily bug sweep agent"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/bug-sweep-agentic"
+BUG_SWEEP_AGENTIC_PROVIDER = "__PROVIDER__"
+BUG_SWEEP_AGENTIC_MODEL = "__MODEL__"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "90m"
+on_unit_active_sec = "1d"
+persistent = true
+randomized_delay_sec = "1800"

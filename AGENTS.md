@@ -52,6 +52,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `citegres` | `./research-repos/citegres` | Python / tkinter | PostgreSQL GUI academic project |
 | `pushshift_python` | `./research-repos/pushshift_python` | Python | Reddit analytics and research tooling |
 | `sonetsim` | `./research-repos/sonetsim` | Python package | Social network simulation library |
+| `fred-public-data` | `./research-repos/fred-public-data` | Python | FRED (Federal Reserve Economic Data) time-series mirror and visualization tooling |
 | `zillow-public-data` | `./research-repos/zillow-public-data` | Python | Zillow dataset mirror and visualization tooling |
 | `archility` | `./util-repos/archility` | Python package | Architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter generation, agentic architecture authoring, and drift-check tooling |
 | `auto-pass` | `./util-repos/auto-pass` | Python package | KeePassXC-backed password automation helpers |
@@ -168,6 +169,7 @@ Every new repository should start with:
 - `LESSONSLEARNED.md` seeded from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md`
 - `BACKLOG.md` seeded from `./util-repos/traction-control/docs/templates/BACKLOG.md`
 - `.editorconfig`
+- `SECURITY.md` seeded from `./util-repos/traction-control/docs/templates/SECURITY.md`
 - `REFS-PUBLIC.md` seeded from `./util-repos/traction-control/docs/templates/REFS-PUBLIC.md`
 - `REFS-LOCAL.md` seeded from `./util-repos/traction-control/docs/templates/REFS-LOCAL.md` and added to `.gitignore`
 - `docs/contributor-architecture-blueprint.md`
@@ -181,6 +183,7 @@ Repo-level `AGENTS.md` files should include a short portfolio standards referenc
 Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
+New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
 
 `README.md` should include:
 
