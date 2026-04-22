@@ -47,10 +47,14 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `AGENTS.md`: portfolio-wide agent instructions
 - `CHATHISTORY.md`: local-only portfolio-wide session log
 - `LESSONSLEARNED.md`: tracked durable lessons that should influence future sessions
+- `docs/templates/SECURITY.md`: starter template for new repo security-policy files
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo
 - `CHANGELOG.md`: notable changes to the portfolio-governance layer
+- `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
+- `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
+- `scripts/template_consolidation_agentic.sh`: unattended review pass that scans repo `SECURITY.md` and `LESSONSLEARNED.md` files for guidance worth promoting into the shared templates
 
 ## Control-Plane Flow
 
@@ -92,6 +96,69 @@ Its deterministic programmatic path creates the baseline starter strictly from c
 See `CONTRIBUTING.md`.
 
 ## Operational Scripts
+
+All unattended agentic jobs in this repo follow the same runtime pattern:
+
+- provider default comes from the job-specific `*_PROVIDER` env var
+- model default comes from the matching `*_MODEL` env var
+- optional local-only credential/profile overrides live in
+  `~/.config/traction-control/<job-name>.env`
+- `auto` provider mode now runs a CLI auth/status check plus a lightweight
+  model-specific readiness probe before the real maintenance prompt starts, so
+  an over-quota or unavailable provider is skipped up front instead of being
+  discovered after the full job launches
+- install scripts accept `--provider` and `--model`, and the `clockwork` web UI
+  can edit the tracked provider/model defaults for the example manifests
+
+For the every-other-day agentic template-consolidation pass, use:
+
+```bash
+bash scripts/template_consolidation_agentic.sh
+```
+
+The wrapper prefers `codex`, then `claude`, then `copilot` when
+`TEMPLATE_CONSOLIDATION_PROVIDER=auto` (the default), but only after the
+status/readiness precheck passes for the requested model. It refuses to run
+when tracked `SECURITY.md` or `LESSONSLEARNED.md` files are already dirty,
+unless you pass `--force`.
+
+To install the user-level systemd timer through `clockwork`, use:
+
+```bash
+bash scripts/install_template_consolidation_agentic_systemd.sh --provider auto --model gpt-5.4
+```
+
+For the daily agentic bug-sweep pass, use:
+
+```bash
+bash scripts/bug_sweep_agentic.sh
+```
+
+The wrapper inventories clean code-focused repos, skips dirty worktrees by
+default, and runs a findings-first review. It is review-first by default, so
+target-repo edits are treated as exceptional rather than the normal outcome.
+
+To install the user-level systemd timer through `clockwork`, use:
+
+```bash
+bash scripts/install_bug_sweep_agentic_systemd.sh --provider auto --model gpt-5.4
+```
+
+For the every-other-day agentic CI-repair pass, use:
+
+```bash
+bash scripts/ci_repair_agentic.sh
+```
+
+The wrapper inventories the latest default-branch push CI across clean GitHub
+repos, skips dirty worktrees by default, and only invokes an agent when one or
+more repos are currently failing.
+
+To install the user-level systemd timer through `clockwork`, use:
+
+```bash
+bash scripts/install_ci_repair_agentic_systemd.sh --provider auto --model gpt-5.4
+```
 
 For batch post-push GitHub Actions checks, use:
 

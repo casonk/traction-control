@@ -1,0 +1,26 @@
+[[jobs]]
+name = "template-consolidation-agentic"
+description = "Every-other-day agentic review of repo SECURITY.md and LESSONSLEARNED.md files for shared template promotion"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/template_consolidation_agentic.sh"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/template-consolidation-agentic.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Run the traction-control template consolidation agent every other day"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/template-consolidation-agentic"
+TEMPLATE_CONSOLIDATION_PROVIDER = "__PROVIDER__"
+TEMPLATE_CONSOLIDATION_MODEL = "__MODEL__"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "30m"
+on_unit_active_sec = "2d"
+persistent = true
+randomized_delay_sec = "900"

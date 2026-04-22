@@ -12,6 +12,54 @@
 
 ## Lessons
 
+### 2026-04-21 — Expand consent categories when AI/model or health-adjacent workflows become first-class
+
+- A broad personal-tools consent statement is not precise enough once the portfolio grows into explicit model-mediated workflows or health-adjacent research datasets.
+- Add category-level consent documents for those new domains in `./doc-repos/my-consent` and then tighten the neighboring financial, messaging, and secret wording to match the actual integrations.
+- Keep the split category-based rather than repo-specific unless a provider or regulatory surface has its own materially different opt-in requirement.
+
+### 2026-04-19 — Scheduled bug sweeps should stay review-first and target clean code repos
+
+- A daily portfolio-wide bug-scan should inventory candidate repos from tracked source files first, so documentation-only repos are not treated as code-review targets by accident.
+- Default unattended bug hunting to review-only output and logs; a generic daily sweep should not silently rewrite code unless a fix is extremely small, high-confidence, and locally verifiable.
+- Skip dirty worktrees by default during bug sweeps so potential findings are not mixed with in-progress local edits.
+
+### 2026-04-19 — Scheduled CI repair should inventory current failures before launching an agent
+
+- An unattended CI-fix job should first identify which repos actually have a failing latest default-branch push run; otherwise the agent wastes time sweeping healthy repos and may broaden scope without evidence.
+- Skip dirty worktrees by default during scheduled CI repair so the automation does not mix emergency CI remediation with in-progress local edits.
+- When one repo carries multiple unattended agentic jobs, stagger their boot delays so they do not routinely start at the same moment after login or downtime recovery.
+
+### 2026-04-19 — Scheduled agentic maintenance should preflight dirty target files and use an explicit provider order
+
+- Unattended cross-repo agent runs should skip when the tracked files they are meant to review are already dirty; otherwise an automatic doc-consolidation pass can trample in-progress manual edits.
+- When several agent CLIs are available, scheduled automation should use an explicit preference order and a fixed non-interactive mode instead of assuming an interactive operator will choose at runtime.
+- When the selected model matters, do a cheap CLI readiness probe for that exact provider/model pair before launching the full maintenance prompt so quota or overload problems are discovered during provider selection instead of halfway through the real job.
+- Keep unattended agent credentials and local profile overrides in local-only `EnvironmentFile` paths rather than tracked manifests; tracked defaults should carry provider/model choice, not live secrets.
+
+### 2026-04-19 — Promote repeated example-scrubbing and admin-surface guidance into shared templates
+
+- When several repos independently add the same warning about public `.example` files, synthetic placeholders, or local-only `CHATHISTORY.md`, move that language into the shared `SECURITY.md` and `LESSONSLEARNED.md` templates instead of leaving it scattered across repo-local files.
+- Shared templates should also carry the conditional baseline that local dashboards/admin surfaces default to loopback and that wider exposure is an explicit trust-boundary decision, not just a README assumption.
+
+### 2026-04-19 — Document intentional trust-boundary assumptions and break-glass TLS bypasses explicitly
+
+- Generic `SECURITY.md` text is not enough when a repo intentionally listens on a LAN interface or exposes an insecure TLS override for troubleshooting.
+- If a service is meant for a trusted LAN/VPN only, say that directly in `SECURITY.md` and point at the concrete bind setting that widens exposure.
+- If a repo exposes `verify_tls: false` or `*.tls.insecure_skip_verify`, document those flags as short-lived break-glass settings and tell operators to prefer CA configuration over disabling verification.
+
+### 2026-04-19 — Admin UIs and dashboards must default to loopback unless auth is built in
+
+- If a repo expects Caddy, mTLS, or WireGuard to provide the trust boundary, keep the app's standalone default on `127.0.0.1` rather than `0.0.0.0`.
+- Do not rely on deployment docs alone to protect state-changing POST routes; either require auth/CSRF in the app or make wider network exposure an explicit opt-in.
+- During portfolio security audits, compare code bind defaults against example manifests and README deployment guidance to catch drift between the documented boundary and the actual runtime default.
+
+### 2026-04-19 — Seed new repo SECURITY.md files from a shared template, then specialize
+
+- A concept-based linter catches missing policy coverage, but it does not prevent copy/paste drift by itself.
+- New repos should start from a shared `SECURITY.md` template that already covers private reporting, public-disclosure avoidance, and sensitive-content examples.
+- After seeding from the template, add repo-specific boundaries such as localhost-only admin UIs, private datasets, wallet data, or infrastructure topology in the same scaffold step.
+
 ### 2026-04-11 — SECURITY.md policy lint should be concept-based and extend the existing scheduled audit
 
 - Portfolio `SECURITY.md` files already vary by repo, so content lint should check for concepts like private reporting, public-disclosure avoidance, and sensitive-content guidance instead of enforcing one exact heading template.
@@ -493,3 +541,48 @@
 - After a portfolio-wide sweep that publishes from clean sibling worktrees, every main checkout will still show `behind=N` and local dirty tracked files that match what is already on origin/main.
 - This is expected and not a blocker: the remote is correctly updated. The local dirty state is just the working tree having content that matches origin/main while the local `HEAD` pointer still points to the pre-sweep commit.
 - Do not mistake "git status shows dirty" for "changes not yet published" — always compare against `git diff origin/main` to see what is genuinely unpublished.
+
+### 2026-04-20 — For current private site inventories, trust local service registries over README examples
+
+- For "what websites are live right now?" requests, use the local source of truth such as `wiring-harness/services.local.toml`, generated Caddyfiles, repo-local `settings.env`, and live listeners instead of relying on README example hostnames.
+- Private infra READMEs can legitimately lag the local machine state; when they disagree, report the live configured hostname and explicitly call out the stale example so it does not propagate further.
+
+### 2026-04-21 — If private hostnames are shared across repos, centralize them in one registry and have sibling repos consume it
+
+- Once multiple repos refer to the same private browser/admin surfaces, a docs-only inventory is not enough; one repo should own the canonical hostname registry and sibling repos should resolve from it instead of keeping parallel hostname lists.
+- For this portfolio, `wiring-harness/services.toml` plus `services.local.toml` is the right ownership point because it already governs shared Caddy, private DNS, and mTLS issuance.
+
+### 2026-04-21 — Headless sessions cannot be assumed to have clipboard support
+
+- Terminal-side clipboard tools like `wl-copy` may be installed but still unusable in headless sessions when `XDG_RUNTIME_DIR` / `WAYLAND_DISPLAY` are unset.
+- When the user needs copyable commands from a headless session, prefer email or a local file fallback instead of assuming clipboard repair is possible from the terminal.
+
+### 2026-04-21 — Triage failing clockwork jobs by separating scheduler defects from underlying workload failures
+
+- A failed user timer/service is not automatically a `clockwork` bug. Check `systemctl --user status` and `journalctl --user-unit` first to see whether the failure is at the unit layer (`203/EXEC`, missing env, bad working directory) or inside the wrapped workload.
+- For wrapper-style jobs, follow the nested `Run metadata:` and `Run log:` paths before changing scheduler manifests. Many failures are real downstream alerts such as expired tokens, checksum drift, MFA/TTY requirements, or repo-audit findings.
+- Fix unit-layer defects in the shared scheduler/manifests; leave genuine workload failures as repo-specific alerts unless the user asked to repair the downstream pipeline too.
+
+### 2026-04-21 — Timestamped current-state snapshots should not be verified against statement checksum manifests by default
+
+- `verify-runs` against a local statement checksum manifest is appropriate for manifest-stable statement files, not for timestamped API snapshot outputs whose filenames change every run.
+- If a scheduled job captures current-state JSON snapshots like `...-20260421T163038Z.json`, default that scheduler path to `--skip-checksum-verify` or equivalent and make checksum verification an explicit opt-in.
+- Otherwise the job will fail with `target_not_in_manifest`, which looks like a scheduler failure but is really a mismatched verification policy.
+
+### 2026-04-21 — Portfolio baseline docs and the daily audit must evolve together
+
+- If `AGENTS.md` says a file is part of the standard repo baseline, the portfolio audit must check for it explicitly. Otherwise the written standard can drift far ahead of reality without any scheduled job flagging it.
+- When adding a new baseline file like `BACKLOG.md`, update both the template set and `scripts/portfolio-audit.sh` in the same change.
+- Exclude vendored third-party git repos from baseline enforcement unless you intentionally want to fork and normalize them.
+
+### 2026-04-21 — Use shock-relay as the email fallback when Gmail MCP tools are unavailable
+
+- Gmail MCP tools can disconnect mid-session; when that happens, send email via shock-relay instead of blocking or abandoning the task.
+- Command: `python3 SHOCK_RELAY_ROOT_PLACEHOLDER/services/gmail-imap/send_email.py <to> <subject> <body>`
+- The config is at `./util-repos/shock-relay/services/gmail-imap/config.local.yaml` and is already provisioned — no setup required.
+
+### 2026-04-22 — Sibling-repo shims and test helpers must resolve through the git common dir to stay worktree-safe
+
+- Clean publish worktrees under `/tmp` break any repo code or tests that assume a sibling utility repo lives next to the checked-out worktree path.
+- When a repo needs a sibling like `dyno-lab` or `tachometer`, first try the normal local path search, then fall back to `git rev-parse --git-common-dir` and search upward from the real shared repo path behind the worktree.
+- This keeps `pytest -q` and local compatibility shims valid in clean worktrees without forcing editable installs or special-case `PYTHONPATH` setup during cross-repo publish sweeps.
