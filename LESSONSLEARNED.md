@@ -18,6 +18,12 @@
 - Add category-level consent documents for those new domains in `./doc-repos/my-consent` and then tighten the neighboring financial, messaging, and secret wording to match the actual integrations.
 - Keep the split category-based rather than repo-specific unless a provider or regulatory surface has its own materially different opt-in requirement.
 
+### 2026-04-22 — Large portfolio CI sweeps must account for isolated checkouts and minimum Python versions
+
+- A local workspace with sibling utility repos can hide CI failures when tests accidentally rely on those siblings existing next to the repo under test; browser/credential fallback tests should stub shared-repo lookups instead of depending on `./util-repos/*` being present in GitHub Actions.
+- When a repo still lints or tests against Python `3.10` or `3.11`, avoid writing syntax that only parses on newer local interpreters such as Python `3.12+`; nested f-string quote reuse can pass locally and still fail hosted lint.
+- During post-push CI repair, compare hosted failures against local environment assumptions first before assuming the underlying feature logic is broken.
+
 ### 2026-04-19 — Scheduled bug sweeps should stay review-first and target clean code repos
 
 - A daily portfolio-wide bug-scan should inventory candidate repos from tracked source files first, so documentation-only repos are not treated as code-review targets by accident.
