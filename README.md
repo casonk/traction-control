@@ -54,6 +54,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
+- `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
 - `scripts/template_consolidation_agentic.sh`: unattended review pass that scans repo `SECURITY.md` and `LESSONSLEARNED.md` files for guidance worth promoting into the shared templates
 
 ## Control-Plane Flow
@@ -158,6 +159,37 @@ To install the user-level systemd timer through `clockwork`, use:
 
 ```bash
 bash scripts/install_ci_repair_agentic_systemd.sh --provider auto --model gpt-5.4
+```
+
+For Gmail-based GitHub Actions failure monitoring, use:
+
+```bash
+python3 scripts/monitor_github_ci_emails.py
+```
+
+The monitor scans the configured Gmail inbox for GitHub notification emails
+from `notifications@github.com` whose subject contains `Run failed:`, parses
+the repo/workflow/run metadata, dedupes detections through a local JSON state
+file, and emits `WARNING ...` log lines for newly detected failures. This keeps
+the job compatible with `clockwork`'s warning surfacing without needing another
+alert channel.
+
+The default Gmail config path is the sibling
+`./util-repos/shock-relay/services/gmail-imap/config.local.yaml`. Override any
+runtime settings through the optional local-only env file:
+
+```text
+~/.config/traction-control/github-ci-email-monitor.env
+```
+
+Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
+`GITHUB_CI_EMAIL_STATE_FILE`, `GITHUB_CI_EMAIL_MAILBOX`,
+`GITHUB_CI_EMAIL_SINCE_DAYS`, and `GITHUB_CI_EMAIL_UNSEEN_ONLY`.
+
+To install the user-level systemd timer through `clockwork`, use:
+
+```bash
+bash scripts/install_github_ci_email_monitor_systemd.sh
 ```
 
 For batch post-push GitHub Actions checks, use:

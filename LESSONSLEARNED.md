@@ -24,6 +24,12 @@
 - When a repo still lints or tests against Python `3.10` or `3.11`, avoid writing syntax that only parses on newer local interpreters such as Python `3.12+`; nested f-string quote reuse can pass locally and still fail hosted lint.
 - During post-push CI repair, compare hosted failures against local environment assumptions first before assuming the underlying feature logic is broken.
 
+### 2026-04-25 — GitHub Actions failure emails must be parsed against the IMAP text shape, not only the Gmail/web rendering
+
+- The same GitHub Actions failure notice can appear as a markdown-like table in Gmail's rendered body but as a flattened bullet summary in IMAP text, for example `* lint-and-test (3.11) failed (2 annotations)`.
+- Inbox monitors should parse both body shapes and key their dedupe on the run URL / run id rather than on the exact body text layout.
+- When validating an email parser, use a live inbox sample once before trusting an offline fixture built from a different rendering path.
+
 ### 2026-04-19 — Scheduled bug sweeps should stay review-first and target clean code repos
 
 - A daily portfolio-wide bug-scan should inventory candidate repos from tracked source files first, so documentation-only repos are not treated as code-review targets by accident.
