@@ -23,6 +23,7 @@ DEFAULT_STATE_FILE = Path.home() / ".local" / "share" / "traction-control" / "gi
 DEFAULT_MAILBOX = "INBOX"
 DEFAULT_FROM_FILTER = "notifications@github.com"
 DEFAULT_SUBJECT_FILTER = "Run failed:"
+DEFAULT_PROCESSED_LABEL = "GitHub/CI Failure Processed"
 DEFAULT_LIMIT = 20
 DEFAULT_SINCE_DAYS = 14
 MAX_REPO_DEPTH = 4
@@ -58,6 +59,7 @@ class MonitorConfig:
     mailbox: str
     from_filter: str
     subject_filter: str
+    processed_label: str
     limit: int
     since_days: int
     unseen_only: bool
@@ -82,6 +84,13 @@ class GitHubCiEmail:
     cancelled_jobs: tuple[str, ...]
     annotation_counts: dict[str, int]
     snippet: str
+
+
+@dataclass(frozen=True)
+class ParsedDetection:
+    email: GitHubCiEmail
+    mailbox: str
+    uid: int | None
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -131,6 +140,16 @@ def parse_args() -> MonitorConfig:
         help=f"Subject substring filter (default: {DEFAULT_SUBJECT_FILTER!r}).",
     )
     parser.add_argument(
+        "--processed-label",
+        default=os.environ.get(
+            "GITHUB_CI_EMAIL_PROCESSED_LABEL", DEFAULT_PROCESSED_LABEL
+        ),
+        help=(
+            "Gmail label to apply after a matching message is processed "
+            f"(default: {DEFAULT_PROCESSED_LABEL!r})."
+        ),
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=int(os.environ.get("GITHUB_CI_EMAIL_LIMIT", str(DEFAULT_LIMIT))),
@@ -172,6 +191,7 @@ def parse_args() -> MonitorConfig:
         mailbox=str(args.mailbox).strip() or DEFAULT_MAILBOX,
         from_filter=str(args.from_filter).strip() or DEFAULT_FROM_FILTER,
         subject_filter=str(args.subject_filter).strip() or DEFAULT_SUBJECT_FILTER,
+        processed_label=str(args.processed_label).strip() or DEFAULT_PROCESSED_LABEL,
         limit=max(1, int(args.limit)),
         since_days=max(1, int(args.since_days)),
         unseen_only=bool(args.unseen or env_bool("GITHUB_CI_EMAIL_UNSEEN_ONLY")),
@@ -327,6 +347,52 @@ def parse_job_statuses(body: str) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(failed_jobs)), list(dict.fromkeys(cancelled_jobs))
 
 
+def parse_uid(value: Any) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def mailbox_name_candidates(name: str) -> list[str]:
+    cleaned = str(name or "").strip()
+    if not cleaned:
+        return []
+    candidates: list[str] = []
+    if " " in cleaned and not cleaned.startswith('"'):
+        candidates.append(f'"{cleaned}"')
+    candidates.append(cleaned)
+    return list(dict.fromkeys(candidates))
+
+
+def apply_gmail_label(conn: Any, uid: int, label: str) -> None:
+    last_status = ""
+    last_data: Any = []
+    last_exception: Exception | None = None
+    for candidate in mailbox_name_candidates(label):
+        try:
+            conn.create(candidate)
+        except Exception as exc:
+            last_exception = exc
+            continue
+        try:
+            status, data = conn.uid("copy", str(uid), candidate)
+        except Exception as exc:
+            last_exception = exc
+            continue
+        if status == "OK":
+            return
+        last_status, last_data = status, data
+    if last_exception is not None:
+        raise last_exception
+    raise MonitorError(
+        f"IMAP UID copy failed while applying label {label!r}: status={last_status} data={last_data!r}"
+    )
+
+
 def parse_ci_email(message: dict[str, Any], repo_index: dict[str, str]) -> GitHubCiEmail | None:
     subject = str(message.get("subject") or "").strip()
     sender = str(message.get("from") or "").strip()
@@ -381,6 +447,7 @@ def summarize_for_humans(
     *,
     parsed: list[GitHubCiEmail],
     new_items: list[GitHubCiEmail],
+    tagged_count: int,
 ) -> list[str]:
     lines: list[str] = []
     if not parsed:
@@ -388,7 +455,7 @@ def summarize_for_humans(
         return lines
 
     lines.append(
-        f"info: matching GitHub CI failure emails found={len(parsed)} new={len(new_items)}"
+        f"info: matching GitHub CI failure emails found={len(parsed)} new={len(new_items)} tagged={tagged_count}"
     )
     for item in new_items:
         failed_jobs = ", ".join(item.failed_jobs) or "-"
@@ -405,18 +472,120 @@ def summarize_for_humans(
     return lines
 
 
-def emit_json_summary(parsed: list[GitHubCiEmail], new_items: list[GitHubCiEmail]) -> str:
+def emit_json_summary(
+    parsed: list[GitHubCiEmail],
+    new_items: list[GitHubCiEmail],
+    tagged_keys: set[str],
+) -> str:
     payload = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "matching_messages": len(parsed),
         "new_detections": len(new_items),
+        "tagged_messages": len(tagged_keys),
         "emails": [asdict(item) for item in parsed],
         "new_emails": [asdict(item) for item in new_items],
+        "tagged_detection_keys": sorted(tagged_keys),
     }
     return json.dumps(payload, indent=2, sort_keys=True)
 
 
-def update_state(existing: dict[str, Any], parsed: Iterable[GitHubCiEmail]) -> dict[str, Any]:
+def should_apply_processed_label(
+    detection: ParsedDetection,
+    known_runs: dict[str, Any],
+    *,
+    processed_label: str,
+) -> bool:
+    if not processed_label:
+        return False
+    prior = known_runs.get(detection_key(detection.email))
+    if not isinstance(prior, dict):
+        return True
+    return not (
+        prior.get("processed_label") == processed_label
+        and prior.get("processed_label_applied_at")
+    )
+
+
+def apply_processed_labels(
+    config: MonitorConfig,
+    detections: Iterable[ParsedDetection],
+    known_runs: dict[str, Any],
+) -> set[str]:
+    if config.messages_file is not None or not config.processed_label:
+        return set()
+
+    pending = [
+        detection
+        for detection in detections
+        if should_apply_processed_label(
+            detection,
+            known_runs,
+            processed_label=config.processed_label,
+        )
+    ]
+    if not pending:
+        return set()
+
+    for detection in pending:
+        if detection.uid is None or not detection.mailbox:
+            raise MonitorError(
+                "cannot apply processed Gmail label because the monitor message is missing "
+                f"mailbox/uid metadata (subject={detection.email.subject!r})"
+            )
+
+    common = _load_shock_relay_common(config.shock_relay_root)
+    try:
+        gmail_config = common.load_config(str(config.gmail_config))
+    except Exception as exc:
+        raise MonitorError(f"cannot load Gmail config for label application: {exc}") from exc
+
+    labeled_keys: set[str] = set()
+    current_mailbox = ""
+    try:
+        with common.open_imap_connection(gmail_config) as conn:
+            for detection in pending:
+                assert detection.uid is not None
+                if detection.mailbox != current_mailbox:
+                    try:
+                        status, _ = common.select_mailbox(
+                            conn, detection.mailbox, readonly=False
+                        )
+                    except Exception as exc:
+                        raise MonitorError(
+                            "failed selecting the Gmail mailbox for processed-label application "
+                            f"(mailbox={detection.mailbox!r}): {exc}"
+                        ) from exc
+                    if status != "OK":
+                        raise MonitorError(
+                            "failed selecting the Gmail mailbox for processed-label application "
+                            f"(mailbox={detection.mailbox!r}, status={status})"
+                        )
+                    current_mailbox = detection.mailbox
+                try:
+                    apply_gmail_label(conn, detection.uid, config.processed_label)
+                except Exception as exc:
+                    raise MonitorError(
+                        "failed applying the processed Gmail label "
+                        f"{config.processed_label!r} to uid={detection.uid} "
+                        f"in mailbox={detection.mailbox!r}: {exc}"
+                    ) from exc
+                labeled_keys.add(detection_key(detection.email))
+    except MonitorError:
+        raise
+    except Exception as exc:
+        raise MonitorError(
+            f"processed Gmail label application failed unexpectedly: {exc}"
+        ) from exc
+    return labeled_keys
+
+
+def update_state(
+    existing: dict[str, Any],
+    parsed: Iterable[GitHubCiEmail],
+    *,
+    processed_label: str,
+    labeled_keys: set[str],
+) -> dict[str, Any]:
     runs = existing.get("runs", {})
     if not isinstance(runs, dict):
         runs = {}
@@ -424,7 +593,9 @@ def update_state(existing: dict[str, Any], parsed: Iterable[GitHubCiEmail]) -> d
     updated_runs = dict(runs)
     checked_at = datetime.now(timezone.utc).isoformat()
     for item in parsed:
-        updated_runs[detection_key(item)] = {
+        key = detection_key(item)
+        previous = updated_runs.get(key)
+        record = {
             "repo_slug": item.repo_slug,
             "repo_rel": item.repo_rel,
             "workflow_name": item.workflow_name,
@@ -439,6 +610,17 @@ def update_state(existing: dict[str, Any], parsed: Iterable[GitHubCiEmail]) -> d
             "annotation_counts": item.annotation_counts,
             "last_seen_at": checked_at,
         }
+        if isinstance(previous, dict):
+            prior_label = str(previous.get("processed_label") or "").strip()
+            prior_applied_at = str(previous.get("processed_label_applied_at") or "").strip()
+            if prior_label:
+                record["processed_label"] = prior_label
+            if prior_applied_at:
+                record["processed_label_applied_at"] = prior_applied_at
+        if key in labeled_keys:
+            record["processed_label"] = processed_label
+            record["processed_label_applied_at"] = checked_at
+        updated_runs[key] = record
     return {
         "checked_at": checked_at,
         "runs": updated_runs,
@@ -450,24 +632,44 @@ def main() -> int:
     state = load_state(config.state_file)
     repo_index = build_repo_index(config.portfolio_root)
     messages = load_messages(config)
-    parsed_by_key: dict[str, GitHubCiEmail] = {}
-    for item in (parse_ci_email(message, repo_index) for message in messages):
+    parsed_by_key: dict[str, ParsedDetection] = {}
+    for message in messages:
+        item = parse_ci_email(message, repo_index)
         if item is None:
             continue
-        parsed_by_key.setdefault(detection_key(item), item)
-    parsed = list(parsed_by_key.values())
+        parsed_by_key.setdefault(
+            detection_key(item),
+            ParsedDetection(
+                email=item,
+                mailbox=str(message.get("mailbox") or "").strip(),
+                uid=parse_uid(message.get("uid")),
+            ),
+        )
+    parsed_detections = list(parsed_by_key.values())
+    parsed = [detection.email for detection in parsed_detections]
     known_runs = state.get("runs", {})
     if not isinstance(known_runs, dict):
         known_runs = {}
     new_items = [item for item in parsed if detection_key(item) not in known_runs]
+    tagged_keys = apply_processed_labels(config, parsed_detections, known_runs)
 
     if config.output_json:
-        print(emit_json_summary(parsed, new_items))
+        print(emit_json_summary(parsed, new_items, tagged_keys))
     else:
-        for line in summarize_for_humans(parsed=parsed, new_items=new_items):
+        for line in summarize_for_humans(
+            parsed=parsed, new_items=new_items, tagged_count=len(tagged_keys)
+        ):
             print(line)
 
-    save_state(config.state_file, update_state(state, parsed))
+    save_state(
+        config.state_file,
+        update_state(
+            state,
+            parsed,
+            processed_label=config.processed_label,
+            labeled_keys=tagged_keys,
+        ),
+    )
     return 0
 
 
