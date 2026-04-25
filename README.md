@@ -170,9 +170,10 @@ python3 scripts/monitor_github_ci_emails.py
 The monitor scans the configured Gmail inbox for GitHub notification emails
 from `notifications@github.com` whose subject contains `Run failed:`, parses
 the repo/workflow/run metadata, dedupes detections through a local JSON state
-file, and emits `WARNING ...` log lines for newly detected failures. This keeps
-the job compatible with `clockwork`'s warning surfacing without needing another
-alert channel.
+file, applies a processed Gmail label after a successful live scan, and emits
+`WARNING ...` log lines for newly detected failures. This keeps the job
+compatible with `clockwork`'s warning surfacing without needing another alert
+channel.
 
 The default Gmail config path is the sibling
 `./util-repos/shock-relay/services/gmail-imap/config.local.yaml`. Override any
@@ -184,7 +185,9 @@ runtime settings through the optional local-only env file:
 
 Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 `GITHUB_CI_EMAIL_STATE_FILE`, `GITHUB_CI_EMAIL_MAILBOX`,
-`GITHUB_CI_EMAIL_SINCE_DAYS`, and `GITHUB_CI_EMAIL_UNSEEN_ONLY`.
+`GITHUB_CI_EMAIL_SINCE_DAYS`, `GITHUB_CI_EMAIL_UNSEEN_ONLY`, and
+`GITHUB_CI_EMAIL_PROCESSED_LABEL`. The default processed label is
+`GitHub/CI Failure Processed`.
 
 To install the user-level systemd timer through `clockwork`, use:
 

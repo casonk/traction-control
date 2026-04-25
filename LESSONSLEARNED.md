@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-04-25 — Gmail IMAP label names with spaces must be mailbox-quoted for create/copy operations
+
+- Gmail label application over IMAP is not just a `SELECT` problem; `CREATE` and `UID COPY` can also fail with `BAD Could not parse command` when the target label contains spaces.
+- If a monitor applies a processed label after parsing mail, quote mailbox-style label names before attempting `CREATE`/`COPY` rather than assuming the helper's select-time quoting is enough.
+- Apply the live label before saving the local dedupe state so a labeling failure stays retryable on the next run instead of being silently marked as already handled.
+
 ### 2026-04-21 — Expand consent categories when AI/model or health-adjacent workflows become first-class
 
 - A broad personal-tools consent statement is not precise enough once the portfolio grows into explicit model-mediated workflows or health-adjacent research datasets.
