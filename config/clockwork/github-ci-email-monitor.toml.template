@@ -1,0 +1,23 @@
+[[jobs]]
+name = "github-ci-email-monitor"
+description = "Periodic Gmail scan for GitHub Actions failure notification emails"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/monitor_github_ci_emails.py"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/github-ci-email-monitor.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Monitor GitHub Actions failure emails in Gmail"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "10m"
+on_unit_active_sec = "15m"
+persistent = true
+randomized_delay_sec = "120"
