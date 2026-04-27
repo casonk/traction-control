@@ -1,0 +1,7 @@
+@startuml packages_traction-control
+set namespaceSeparator none
+top to bottom direction
+skinparam componentStyle rectangle
+rectangle "check_security_md\n1 python file" as check_security_md
+rectangle "monitor_github_ci_emails\n1 python file" as monitor_github_ci_emails
+@enduml
