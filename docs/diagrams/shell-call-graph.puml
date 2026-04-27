@@ -14,10 +14,12 @@ rectangle "scripts/install_archility_daily_systemd.sh\n0 local shell edges\n2 ex
 rectangle "scripts/install_archility_weekly_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_archility_weekly_systemd_sh #DBEAFE
 rectangle "scripts/install_bug_sweep_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_bug_sweep_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_ci_repair_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_ci_repair_agentic_systemd_sh #DBEAFE
+rectangle "scripts/install_github_ci_email_monitor_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_github_ci_email_monitor_systemd_sh #DBEAFE
 rectangle "scripts/install_portfolio_audit_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_portfolio_audit_systemd_sh #DBEAFE
 rectangle "scripts/install_template_consolidation_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_template_consolidation_agentic_systemd_sh #DBEAFE
 rectangle "scripts/lib/agentic_provider.sh\n0 local shell edges\n19 external tools" as shell_scripts_lib_agentic_provider_sh #DBEAFE
 rectangle "scripts/portfolio-audit.sh\n0 local shell edges\n23 external tools" as shell_scripts_portfolio_audit_sh #DBEAFE
+rectangle "scripts/refs_audit_agentic.sh\n0 local shell edges\n27 external tools" as shell_scripts_refs_audit_agentic_sh #DBEAFE
 rectangle "scripts/run_tachometer_profile.sh\n0 local shell edges\n3 external tools" as shell_scripts_run_tachometer_profile_sh #DBEAFE
 rectangle "scripts/template_consolidation_agentic.sh\n0 local shell edges\n12 external tools" as shell_scripts_template_consolidation_agentic_sh #DBEAFE
 cloud "*.bash" as tool_bash #FEF3C7
@@ -36,8 +38,11 @@ cloud "*.py" as tool_py #FEF3C7
 cloud "*.rb" as tool_rb #FEF3C7
 cloud "*.rs" as tool_rs #FEF3C7
 cloud "*.sh" as tool_sh #FEF3C7
+cloud "*.toml" as tool_toml #FEF3C7
 cloud "*.ts" as tool_ts #FEF3C7
 cloud "*.tsx" as tool_tsx #FEF3C7
+cloud "*.yaml" as tool_yaml #FEF3C7
+cloud "*.yml" as tool_yml #FEF3C7
 cloud "*.zsh" as tool_zsh #FEF3C7
 cloud ".editorconfig" as tool_editorconfig #FEF3C7
 cloud ".gitignore" as tool_gitignore #FEF3C7
@@ -76,6 +81,8 @@ cloud "feature_request.md" as tool_feature_request_md #FEF3C7
 cloud "flock" as tool_flock #FEF3C7
 cloud "gh" as tool_gh #FEF3C7
 cloud "git" as tool_git #FEF3C7
+cloud "has_refs: REFS-PUBLIC.md present — audit for gaps or stale entries" as tool_has_refs_refs_public_md_present_audit_for_gaps_or_stale_entries #FEF3C7
+cloud "has_refs_count" as tool_has_refs_count #FEF3C7
 cloud "insufficient" as tool_insufficient #FEF3C7
 cloud "invalid_count" as tool_invalid_count #FEF3C7
 cloud "latest default-branch push CI is failing" as tool_latest_default_branch_push_ci_is_failing #FEF3C7
@@ -86,17 +93,20 @@ cloud "line_number" as tool_line_number #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "log" as tool_log #FEF3C7
 cloud "mapfile" as tool_mapfile #FEF3C7
+cloud "missing_refs_count" as tool_missing_refs_count #FEF3C7
 cloud "mkdir" as tool_mkdir #FEF3C7
 cloud "model" as tool_model #FEF3C7
 cloud "no_ci_count" as tool_no_ci_count #FEF3C7
 cloud "null" as tool_null #FEF3C7
 cloud "over[-" as tool_over #FEF3C7
+cloud "package.json" as tool_package_json #FEF3C7
 cloud "pending_count" as tool_pending_count #FEF3C7
 cloud "pyproject.toml" as tool_pyproject_toml #FEF3C7
 cloud "quota" as tool_quota #FEF3C7
 cloud "rate" as tool_rate #FEF3C7
 cloud "repo-architecture.drawio" as tool_repo_architecture_drawio #FEF3C7
 cloud "repo-architecture.puml" as tool_repo_architecture_puml #FEF3C7
+cloud "requirements.txt" as tool_requirements_txt #FEF3C7
 cloud "run" as tool_run #FEF3C7
 cloud "select(((.conclusion" as tool_select_conclusion #FEF3C7
 cloud "select(.headSha" as tool_select_headsha #FEF3C7
@@ -212,6 +222,8 @@ shell_scripts_install_bug_sweep_agentic_systemd_sh --> tool_cat
 shell_scripts_install_bug_sweep_agentic_systemd_sh --> tool_systemctl
 shell_scripts_install_ci_repair_agentic_systemd_sh --> tool_cat
 shell_scripts_install_ci_repair_agentic_systemd_sh --> tool_systemctl
+shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_cat
+shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_systemctl
 shell_scripts_install_portfolio_audit_systemd_sh --> tool_cat
 shell_scripts_install_portfolio_audit_systemd_sh --> tool_systemctl
 shell_scripts_install_template_consolidation_agentic_systemd_sh --> tool_cat
@@ -258,6 +270,33 @@ shell_scripts_portfolio_audit_sh --> tool_repo_architecture_puml
 shell_scripts_portfolio_audit_sh --> tool_sort
 shell_scripts_portfolio_audit_sh --> tool_tee
 shell_scripts_portfolio_audit_sh --> tool_warn
+shell_scripts_refs_audit_agentic_sh --> tool_py
+shell_scripts_refs_audit_agentic_sh --> tool_sh
+shell_scripts_refs_audit_agentic_sh --> tool_toml
+shell_scripts_refs_audit_agentic_sh --> tool_ts
+shell_scripts_refs_audit_agentic_sh --> tool_tsx
+shell_scripts_refs_audit_agentic_sh --> tool_yaml
+shell_scripts_refs_audit_agentic_sh --> tool_yml
+shell_scripts_refs_audit_agentic_sh --> tool_cat
+shell_scripts_refs_audit_agentic_sh --> tool_claude
+shell_scripts_refs_audit_agentic_sh --> tool_cmd_model
+shell_scripts_refs_audit_agentic_sh --> tool_copilot
+shell_scripts_refs_audit_agentic_sh --> tool_dirty_count
+shell_scripts_refs_audit_agentic_sh --> tool_flock
+shell_scripts_refs_audit_agentic_sh --> tool_has_refs_refs_public_md_present_audit_for_gaps_or_stale_entries
+shell_scripts_refs_audit_agentic_sh --> tool_has_refs_count
+shell_scripts_refs_audit_agentic_sh --> tool_ln
+shell_scripts_refs_audit_agentic_sh --> tool_mapfile
+shell_scripts_refs_audit_agentic_sh --> tool_missing_refs_count
+shell_scripts_refs_audit_agentic_sh --> tool_mkdir
+shell_scripts_refs_audit_agentic_sh --> tool_package_json
+shell_scripts_refs_audit_agentic_sh --> tool_pyproject_toml
+shell_scripts_refs_audit_agentic_sh --> tool_requirements_txt
+shell_scripts_refs_audit_agentic_sh --> tool_setup_py
+shell_scripts_refs_audit_agentic_sh --> tool_skip_count
+shell_scripts_refs_audit_agentic_sh --> tool_sort
+shell_scripts_refs_audit_agentic_sh --> tool_tee
+shell_scripts_refs_audit_agentic_sh --> tool_tr
 shell_scripts_run_tachometer_profile_sh --> tool_run
 shell_scripts_run_tachometer_profile_sh --> tool_summarize
 shell_scripts_run_tachometer_profile_sh --> tool_tachometer
@@ -274,8 +313,8 @@ shell_scripts_template_consolidation_agentic_sh --> tool_null
 shell_scripts_template_consolidation_agentic_sh --> tool_sort
 shell_scripts_template_consolidation_agentic_sh --> tool_tee
 note as shellGraphSummary
-Scanned 15 shell scripts.
+Scanned 17 shell scripts.
 Detected 0 local shell edges.
-Detected 97 external tools.
+Detected 105 external tools.
 end note
 @enduml
