@@ -1,8 +1,43 @@
 @startuml classes_traction-control
 set namespaceSeparator none
-note as archilityPythonSurfaceNote
-Minimal class surface detected.
-Scanned 1 Python module.
-See python-import-deps-scripts-check_security_md.svg for module-level imports.
-end note
+class "GitHubCiEmail" as monitor_github_ci_emails.GitHubCiEmail {
+  annotation_counts : dict[str, int]
+  branch : str
+  cancelled_jobs : tuple[str, ...]
+  failed_jobs : tuple[str, ...]
+  head_sha : str
+  message_id : str
+  received_at : str
+  repo_rel : str | None
+  repo_slug : str
+  run_id : str | None
+  run_url : str | None
+  sender : str
+  snippet : str
+  subject : str
+  workflow_name : str
+}
+class "MonitorConfig" as monitor_github_ci_emails.MonitorConfig {
+  from_filter : str
+  gmail_config : Path
+  limit : int
+  mailbox : str
+  messages_file : Path | None
+  output_json : bool
+  portfolio_root : Path
+  processed_label : str
+  shock_relay_root : Path
+  since_days : int
+  state_file : Path
+  subject_filter : str
+  unseen_only : bool
+}
+class "<color:red>MonitorError</color>" as monitor_github_ci_emails.MonitorError {
+}
+class "ParsedDetection" as monitor_github_ci_emails.ParsedDetection {
+  email
+  mailbox : str
+  uid : int | None
+}
+monitor_github_ci_emails.ParsedDetection --> monitor_github_ci_emails.GitHubCiEmail : email
 @enduml
