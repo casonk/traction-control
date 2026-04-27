@@ -69,6 +69,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `crew-chief` | `./util-repos/crew-chief` | Python package / Container | Local Ollama LLM service (Podman) and zero-dependency Python client for portfolio-wide trivial inference tasks |
+| `windshield` | `./util-repos/windshield` | Python package | Reusable Playwright browser automation utilities — Chrome management, page interaction, debugging, challenge detection, and stealth helpers |
 | `wiring-harness` | `./util-repos/wiring-harness` | Python / Ops | Shared Caddy, mTLS, and DNS infrastructure for home services |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
 
@@ -91,6 +92,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
 - `./util-repos/dyno-lab`: unified test bench utilities — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: local Ollama LLM service (Podman container) and zero-dependency Python client for trivial inference tasks across portfolio repos
+- `./util-repos/windshield`: reusable Playwright browser automation — Chrome management, page interaction, debugging, challenge detection, and stealth helpers
 - `./util-repos/wiring-harness`: shared Caddy, mTLS, and DNS infrastructure for home-service ingress
 
 When another repo needs one of these capabilities, prefer integrating with the relevant shared utility repo instead of re-implementing the capability locally.
@@ -235,6 +237,7 @@ Add:
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
 - `./util-repos/dyno-lab`: standard unified test bench utility — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: standard local LLM inference utility — Podman-hosted Ollama service and zero-dependency Python client for trivial tasks across portfolio repos
+- `./util-repos/windshield`: standard Playwright browser automation utility — Chrome management, page interaction, stealth helpers, and challenge detection for provider downloaders
 - `./util-repos/wiring-harness`: standard shared HTTPS ingress, mTLS, and DNS service inventory for home services
 - `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
