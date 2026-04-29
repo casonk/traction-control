@@ -60,6 +60,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `clockwork` | `./util-repos/clockwork` | Python package | Shared cron and systemd scheduler manifest rendering and install guidance |
 | `tachometer` | `./util-repos/tachometer` | Python package | Shared repo and resource profiling helpers plus manifest-driven local profile conventions |
 | `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
+| `ignition` | `./util-repos/ignition` | Bash / Shell | TPM2/clevis LUKS auto-unlock for home desktop data volumes (private) |
 | `nordility` | `./util-repos/nordility` | Python package | NordVPN CLI/API automation |
 | `shock-relay` | `./util-repos/shock-relay` | Python / Shell | Cross-platform messaging relay tooling |
 | `pit-box` | `./util-repos/pit-box` | Bash / Shell | WireGuard + SSH hardened remote-access scaffold with settings-driven config rendering |
