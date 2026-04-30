@@ -12,6 +12,23 @@
 
 ## Lessons
 
+### 2026-04-29 — auto-pass requires --env-file when invoked outside its repo CWD
+
+- `auto-pass get ...` looks for `config/auto-pass.env.local` relative to the shell's CWD. Running it from any directory other than the auto-pass repo root causes it to silently return empty output instead of an error.
+- Always pass `--env-file /path/to/auto-pass/config/auto-pass.env.local` when invoking auto-pass from automation scripts or from a different working directory.
+- Do not suppress stderr with `2>/dev/null` without also validating that the returned value is non-empty; an empty PAT stored as a GitHub secret will fail just as the original missing secret did.
+
+### 2026-04-29 — Fine-grained GitHub PATs need explicit repo grants; use classic PAT for cross-repo pip installs
+
+- Fine-grained PATs only cover the specific repos listed when the token was created. A token intended for CI-agent use (`GitHub-PAT-AGENT`) will return 404 for any repo not explicitly added, even within the same account.
+- For `pip install git+https://...` of private sibling repos, use a classic PAT (`ghp_...`) with `repo` scope (e.g. `/dev/github/GitHub-PAT-MCP` in the master KeePass DB) rather than a fine-grained PAT unless the fine-grained PAT has been confirmed to include that repo.
+- When using a fine-grained PAT in a git URL, the username must be `x-access-token`, not `${{ github.actor }}`. Classic PATs work with either.
+
+### 2026-04-29 — pylint matrix must not exceed windshield's Python floor
+
+- If a pylint workflow matrix includes Python versions below `3.10` but the repo installs windshield as a dependency (which declares `requires-python = ">=3.10"`), pip will refuse the install on older interpreters.
+- Either narrow the pylint matrix to only versions that meet the highest `requires-python` floor among all dependencies, or use `--ignore-requires-python` only when the version mismatch is intentional and understood.
+
 ### 2026-04-25 — Gmail IMAP label names with spaces must be mailbox-quoted for create/copy operations
 
 - Gmail label application over IMAP is not just a `SELECT` problem; `CREATE` and `UID COPY` can also fail with `BAD Could not parse command` when the target label contains spaces.
