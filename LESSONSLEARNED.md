@@ -18,11 +18,12 @@
 - Always pass `--env-file /path/to/auto-pass/config/auto-pass.env.local` when invoking auto-pass from automation scripts or from a different working directory.
 - Do not suppress stderr with `2>/dev/null` without also validating that the returned value is non-empty; an empty PAT stored as a GitHub secret will fail just as the original missing secret did.
 
-### 2026-04-29 — Fine-grained GitHub PATs need explicit repo grants; use classic PAT for cross-repo pip installs
+### 2026-04-29 — Fine-grained GitHub PATs need explicit repo grants and the correct auth username in git URLs
 
-- Fine-grained PATs only cover the specific repos listed when the token was created. A token intended for CI-agent use (`GitHub-PAT-AGENT`) will return 404 for any repo not explicitly added, even within the same account.
-- For `pip install git+https://...` of private sibling repos, use a classic PAT (`ghp_...`) with `repo` scope (e.g. `/dev/github/GitHub-PAT-MCP` in the master KeePass DB) rather than a fine-grained PAT unless the fine-grained PAT has been confirmed to include that repo.
-- When using a fine-grained PAT in a git URL, the username must be `x-access-token`, not `${{ github.actor }}`. Classic PATs work with either.
+- Fine-grained PATs only cover the specific repos listed when the token was created; a token that excludes a private sibling repo will return 404 at `pip install` time even within the same account.
+- When using a fine-grained PAT in a git URL, the username **must** be `x-access-token`, not `${{ github.actor }}`; classic PATs work with either.
+- If a fine-grained PAT is later updated to cover "all repositories" (or to explicitly add the missing repos), switch CI secrets to it as the canonical agent token rather than keeping a classic PAT as a workaround.
+- `/dev/github/GitHub-PAT-AGENT` (fine-grained, all repos, code read + workflows write) is the correct long-term token for portfolio CI secrets; `/dev/github/GitHub-PAT-MCP` (classic, `repo` scope) is the fallback.
 
 ### 2026-04-29 — pylint matrix must not exceed windshield's Python floor
 
