@@ -616,6 +616,14 @@
 - Command: `python3 SHOCK_RELAY_ROOT_PLACEHOLDER/services/gmail-imap/send_email.py <to> <subject> <body>`
 - The config is at `./util-repos/shock-relay/services/gmail-imap/config.local.yaml` and is already provisioned — no setup required.
 
+### 2026-05-01 — Tachometer [notify] fields contain PII and must never be tracked
+
+- Every repo's `config/tachometer/profile.toml` had a `[notify]` section with a personal phone number (`target`) and a local filesystem path (`shock_relay_root`) committed in tracked history across 26 repos.
+- These fields are machine-local personal contact info — treat them exactly like `REFS-LOCAL.md`: gitignore them or leave them empty in the tracked file.
+- The safe tracked state: `shock_relay_root = ""` and `target = ""` with a comment directing contributors to set them via local config. Never seed these with real values in the shared template.
+- Remediation required `git-filter-repo --replace-text` (for blobs) AND `git-filter-repo --replace-message` (for commit messages) applied separately — `--replace-text` does not touch commit message bodies. Run both together in a single invocation to avoid partial scrubs: `git-filter-repo --replace-text <file> --replace-message <file> --force`.
+- For mirror/bare clones, filter-repo does not update `refs/heads/*` correctly (known limitation) — always do history rewrites on a regular (non-mirror, non-bare) clone, then force-push.
+
 ### 2026-04-22 — Sibling-repo shims and test helpers must resolve through the git common dir to stay worktree-safe
 
 - Clean publish worktrees under `/tmp` break any repo code or tests that assume a sibling utility repo lives next to the checked-out worktree path.
