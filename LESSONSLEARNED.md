@@ -12,6 +12,24 @@
 
 ## Lessons
 
+### 2026-05-01 — gitleaks allowlist regex matches against the captured match text, not the full line
+
+- When a gitleaks rule captures a short regex (e.g., `target\s*=\s*"\+1`), the global `[allowlist]` regexes are tested against that captured text, not the full file line.
+- An allowlist entry like `\+1[Xx]{5,}` cannot suppress a rule whose regex only captures `+1` followed by a digit before the allowlist is even tested.
+- Fix: make the detection regex itself specific enough that it never matches the known-safe pattern (e.g., change to full E.164 `\+1[2-9]\d{9}` so `+1XXXXXXXXXX` doesn't match in the first place).
+
+### 2026-05-01 — `pre-commit run --files` crashes when called from a different repo's context
+
+- Running `pre-commit run --files /path/to/other-repo/file` from inside repo A crashes `check-added-large-files` with a `git check-attr` non-zero exit (exit 128) because git tries to resolve the path relative to repo A, not the file's actual repo.
+- Deploy scripts that call `pre-commit run --files <target-repo-file>` while cwd is the control-plane repo will always hit this error.
+- The WARN+continue fallback in the deploy script is correct behavior here. If strict validation is needed, change to `git -C <target-repo> diff --cached | pre-commit run --stdin-filename ...` or just skip the pre-commit sanity check step entirely in cross-repo deploy scripts.
+
+### 2026-05-01 — Tachometer [notify] fields contain PII and must never be tracked
+
+- `config/tachometer/profile.toml`'s `[notify]` section contains `target` (phone number) and `shock_relay_root` (absolute machine path) — both machine-local PII.
+- Always commit these fields as empty strings with a comment; populate them only via `REFS-LOCAL.md` or a local env file that is gitignored.
+- If a real value ever lands in git history: run `git-filter-repo --replace-text <file> --replace-message <file>` (BOTH flags in ONE invocation) to scrub blobs and commit messages simultaneously. Use a regular `git clone`, not a bare/mirror clone — filter-repo cannot update `refs/heads/*` in a bare repo.
+
 ### 2026-04-29 — auto-pass requires --env-file when invoked outside its repo CWD
 
 - `auto-pass get ...` looks for `config/auto-pass.env.local` relative to the shell's CWD. Running it from any directory other than the auto-pass repo root causes it to silently return empty output instead of an error.
