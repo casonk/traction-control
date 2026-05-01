@@ -5,7 +5,8 @@
 #   1. Copies .gitleaks.toml from the template (or updates it if already present)
 #   2. Adds the gitleaks pre-commit hook (idempotent — skips if already present)
 #   3. Copies .github/workflows/secret-scan.yml
-#   4. Commits and pushes (skips if nothing changed)
+#   4. Generates .gitleaks-baseline.json (full-history scan, captures known findings)
+#   5. Commits and pushes (skips if nothing changed)
 #
 # Usage:
 #   bash scripts/deploy-secret-scan.sh [--dry-run]
@@ -19,6 +20,7 @@ PORTFOLIO_ROOT="$(cd "$REPO_ROOT/../.." && pwd)"
 GITLEAKS_TOML="$REPO_ROOT/docs/templates/.gitleaks.toml"
 SECRET_SCAN_WORKFLOW="$REPO_ROOT/docs/templates/secret-scan.yml"
 GITLEAKS_VERSION="v8.30.1"
+GITLEAKS_BIN="${GITLEAKS_BIN:-gitleaks}"
 DRY_RUN=false
 
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
@@ -53,12 +55,13 @@ REPOS=(
     "$PORTFOLIO_ROOT/drawio-templates"
 )
 
-COMMIT_MSG="ci: add gitleaks secret-scan guardrails
+COMMIT_MSG="ci: update gitleaks config, workflow, and baseline
 
-Add .gitleaks.toml with portfolio-specific PII rules (phone numbers,
-local machine paths, tachometer notify fields, biometric data) and a
-.github/workflows/secret-scan.yml that runs on push, PR, and weekly.
-Gitleaks pre-commit hook added to .pre-commit-config.yaml.
+Refresh .gitleaks.toml with 555-area-code allowlist entries and
+documentation path exclusions for the workspace-path rule. Update
+secret-scan.yml to pass --baseline-path on scheduled full-history runs.
+Add .gitleaks-baseline.json capturing known historical findings so the
+weekly scan suppresses false positives without blocking new violations.
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
@@ -126,6 +129,27 @@ PRECOMMIT_EOF
         changed=true
     fi
 
+    # 4. gitleaks baseline (generate / regenerate whenever .gitleaks.toml changed or baseline missing)
+    BASELINE="$REPO/.gitleaks-baseline.json"
+    if command -v "$GITLEAKS_BIN" >/dev/null 2>&1; then
+        if [[ ! -f "$BASELINE" ]] || [[ "$REPO/.gitleaks.toml" -nt "$BASELINE" ]] || ! git -C "$REPO" ls-files --error-unmatch "$BASELINE" >/dev/null 2>&1; then
+            echo "  + .gitleaks-baseline.json (scanning full history)"
+            if ! $DRY_RUN; then
+                "$GITLEAKS_BIN" detect \
+                    --source "$REPO" \
+                    --config "$REPO/.gitleaks.toml" \
+                    --report-format json \
+                    --report-path "$BASELINE" \
+                    --log-opts "--all" \
+                    --exit-code 0 \
+                    2>/dev/null || true
+            fi
+            changed=true
+        fi
+    else
+        echo "  WARN: gitleaks not found — skipping baseline generation (set GITLEAKS_BIN)"
+    fi
+
     if ! $changed; then
         echo "  (already up to date)"
         (( skipped++ )) || true
@@ -147,7 +171,8 @@ PRECOMMIT_EOF
     git -C "$REPO" add \
         "$REPO/.gitleaks.toml" \
         "$REPO/.pre-commit-config.yaml" \
-        "$REPO/.github/workflows/secret-scan.yml" 2>/dev/null || true
+        "$REPO/.github/workflows/secret-scan.yml" \
+        "$REPO/.gitleaks-baseline.json" 2>/dev/null || true
     git -C "$REPO" diff --cached --quiet && { echo "  nothing staged"; continue; }
     git -C "$REPO" commit -m "$COMMIT_MSG"
     git -C "$REPO" push origin "$BRANCH" && echo "  Pushed."
