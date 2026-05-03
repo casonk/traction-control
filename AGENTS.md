@@ -72,6 +72,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `crew-chief` | `./util-repos/crew-chief` | Python package / Container | Local Ollama LLM service (Podman) and zero-dependency Python client for portfolio-wide trivial inference tasks |
 | `windshield` | `./util-repos/windshield` | Python package | Reusable Playwright browser automation utilities — Chrome management, page interaction, debugging, challenge detection, and stealth helpers |
+| `magneto` | `./util-repos/magneto` | Python / Flask | Transmission RPC web control UI for Snowbridge torrent share (private) |
 | `wiring-harness` | `./util-repos/wiring-harness` | Python / Ops | Shared Caddy, mTLS, and DNS infrastructure for home services |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
 
