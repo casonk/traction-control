@@ -12,6 +12,19 @@
 
 ## Lessons
 
+### 2026-05-03 — .gitleaks-baseline.json must be excluded from the portfolio-git-workspace-path rule
+
+- The `.gitleaks-baseline.json` file records known findings with their `Match` and `Secret` values verbatim, which include the local machine path `/mnt/4tb-m2/git/`.
+- When the baseline file is committed and pushed, the push-triggered gitleaks CI scan finds those path values in the new file and fails.
+- Fix: add `'''\.gitleaks-baseline\.json$'''` to the `[rules.allowlist]` paths for `portfolio-git-workspace-path` in `.gitleaks.toml`. The baseline is an internal gitleaks artifact; scanning it for violations is self-defeating.
+- When deploying the secret-scan guardrails with `deploy-secret-scan.sh`, always confirm the baseline file is excluded from scanning before pushing.
+
+### 2026-05-03 — CI repair agent must use claude, not codex
+
+- The `ci-repair-agentic.service` used `CI_REPAIR_AGENTIC_PROVIDER=auto`, which selected codex first. Codex passed the readiness probe but produced no output and made no fixes (exit 0, empty output).
+- Changed the service to `CI_REPAIR_AGENTIC_PROVIDER=claude` so the repair agent uses the Claude CLI, which reliably works for this cross-repo repair workflow.
+- When reviewing the agent logs, check `~/.local/share/ci-repair-agentic/latest-output.txt` for empty output as a signal the wrong provider was selected.
+
 ### 2026-05-01 — gitleaks allowlist regex matches against the captured match text, not the full line
 
 - When a gitleaks rule captures a short regex (e.g., `target\s*=\s*"\+1`), the global `[allowlist]` regexes are tested against that captured text, not the full file line.
