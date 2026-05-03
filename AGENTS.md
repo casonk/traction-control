@@ -67,6 +67,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
 | `snowbridge` | `./util-repos/snowbridge` | SMB / Ops | SMB-based private file-sharing and phone-access utility repo |
 | `intake` | `./util-repos/intake` | Python | Receipt PDF ingestion, categorization, SQLite storage, and Markdown/HTML reporting from snowbridge share |
+| `session-control` | `./util-repos/session-control` | Python / Flask | Private AI session review, resume-command, and delete-to-trash web UI |
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
 | `crew-chief` | `./util-repos/crew-chief` | Python package / Container | Local Ollama LLM service (Podman) and zero-dependency Python client for portfolio-wide trivial inference tasks |
@@ -91,6 +92,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
+- `./util-repos/session-control`: private web and CLI control plane for reviewing, resuming, and deleting local AI assistant sessions
 - `./util-repos/dyno-lab`: unified test bench utilities — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: local Ollama LLM service (Podman container) and zero-dependency Python client for trivial inference tasks across portfolio repos
 - `./util-repos/windshield`: reusable Playwright browser automation — Chrome management, page interaction, debugging, challenge detection, and stealth helpers
@@ -236,6 +238,7 @@ Add:
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./util-repos/short-circuit`: standard WireGuard VPN setup and configuration utility for other repos
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
+- `./util-repos/session-control`: standard local AI-session inventory and cleanup utility for Codex, Claude Code, Continue, and GitHub Copilot CLI
 - `./util-repos/dyno-lab`: standard unified test bench utility — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: standard local LLM inference utility — Podman-hosted Ollama service and zero-dependency Python client for trivial tasks across portfolio repos
 - `./util-repos/windshield`: standard Playwright browser automation utility — Chrome management, page interaction, stealth helpers, and challenge detection for provider downloaders
