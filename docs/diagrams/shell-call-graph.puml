@@ -10,6 +10,7 @@ rectangle "scripts/archility-weekly.sh\n0 local shell edges\n6 external tools" a
 rectangle "scripts/bug_sweep_agentic.sh\n0 local shell edges\n40 external tools" as shell_scripts_bug_sweep_agentic_sh #DBEAFE
 rectangle "scripts/check_github_push_ci.sh\n0 local shell edges\n9 external tools" as shell_scripts_check_github_push_ci_sh #DBEAFE
 rectangle "scripts/ci_repair_agentic.sh\n0 local shell edges\n26 external tools" as shell_scripts_ci_repair_agentic_sh #DBEAFE
+rectangle "scripts/deploy-secret-scan.sh\n0 local shell edges\n38 external tools" as shell_scripts_deploy_secret_scan_sh #DBEAFE
 rectangle "scripts/install_archility_daily_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_archility_daily_systemd_sh #DBEAFE
 rectangle "scripts/install_archility_weekly_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_archility_weekly_systemd_sh #DBEAFE
 rectangle "scripts/install_bug_sweep_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_bug_sweep_agentic_systemd_sh #DBEAFE
@@ -46,11 +47,14 @@ cloud "*.yml" as tool_yml #FEF3C7
 cloud "*.zsh" as tool_zsh #FEF3C7
 cloud ".editorconfig" as tool_editorconfig #FEF3C7
 cloud ".gitignore" as tool_gitignore #FEF3C7
+cloud ".gitleaks-baseline.json" as tool_gitleaks_baseline_json #FEF3C7
 cloud "AGENTS.md" as tool_agents_md #FEF3C7
+cloud "Add" as tool_add #FEF3C7
 cloud "BACKLOG.md" as tool_backlog_md #FEF3C7
 cloud "CHANGELOG.md" as tool_changelog_md #FEF3C7
 cloud "CODE_OF_CONDUCT.md" as tool_code_of_conduct_md #FEF3C7
 cloud "CONTRIBUTING.md" as tool_contributing_md #FEF3C7
+cloud "Certifications" as tool_certifications #FEF3C7
 cloud "Dockerfile" as tool_dockerfile #FEF3C7
 cloud "Gemfile" as tool_gemfile #FEF3C7
 cloud "LESSONSLEARNED.md" as tool_lessonslearned_md #FEF3C7
@@ -58,14 +62,20 @@ cloud "Makefile" as tool_makefile #FEF3C7
 cloud "PULL_REQUEST_TEMPLATE.md" as tool_pull_request_template_md #FEF3C7
 cloud "README.md" as tool_readme_md #FEF3C7
 cloud "Rakefile" as tool_rakefile #FEF3C7
+cloud "Refresh" as tool_refresh #FEF3C7
 cloud "SECURITY.md" as tool_security_md #FEF3C7
 cloud "[failure," as tool_failure #FEF3C7
+cloud "archility" as tool_archility #FEF3C7
+cloud "auto-pass" as tool_auto_pass #FEF3C7
 cloud "bug_report.md" as tool_bug_report_md #FEF3C7
 cloud "candidate_count" as tool_candidate_count #FEF3C7
+cloud "casonk.github.io" as tool_casonk_github_io #FEF3C7
 cloud "cat" as tool_cat #FEF3C7
+cloud "citegres" as tool_citegres #FEF3C7
 cloud "claude" as tool_claude #FEF3C7
 cloud "clean code-focused repo" as tool_clean_code_focused_repo #FEF3C7
 cloud "clean_count" as tool_clean_count #FEF3C7
+cloud "clockwork" as tool_clockwork #FEF3C7
 cloud "cmd+=(--model" as tool_cmd_model #FEF3C7
 cloud "cmd+=(-C" as tool_cmd_c #FEF3C7
 cloud "codex" as tool_codex #FEF3C7
@@ -73,17 +83,26 @@ cloud "contributor-architecture-blueprint.md" as tool_contributor_architecture_b
 cloud "copilot" as tool_copilot #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "credit" as tool_credit #FEF3C7
+cloud "crew-chief" as tool_crew_chief #FEF3C7
 cloud "dirty_count" as tool_dirty_count #FEF3C7
+cloud "documentation" as tool_documentation #FEF3C7
+cloud "doseido" as tool_doseido #FEF3C7
+cloud "drawio-templates" as tool_drawio_templates #FEF3C7
+cloud "dyno-lab" as tool_dyno_lab #FEF3C7
 cloud "error_count" as tool_error_count #FEF3C7
 cloud "fail" as tool_fail #FEF3C7
 cloud "failure_count" as tool_failure_count #FEF3C7
 cloud "feature_request.md" as tool_feature_request_md #FEF3C7
+cloud "fedora-debugg" as tool_fedora_debugg #FEF3C7
 cloud "flock" as tool_flock #FEF3C7
+cloud "fred-public-data" as tool_fred_public_data #FEF3C7
 cloud "gh" as tool_gh #FEF3C7
 cloud "git" as tool_git #FEF3C7
 cloud "has_refs: REFS-PUBLIC.md present — audit for gaps or stale entries" as tool_has_refs_refs_public_md_present_audit_for_gaps_or_stale_entries #FEF3C7
 cloud "has_refs_count" as tool_has_refs_count #FEF3C7
+cloud "ignition" as tool_ignition #FEF3C7
 cloud "insufficient" as tool_insufficient #FEF3C7
+cloud "intake" as tool_intake #FEF3C7
 cloud "invalid_count" as tool_invalid_count #FEF3C7
 cloud "latest default-branch push CI is failing" as tool_latest_default_branch_push_ci_is_failing #FEF3C7
 cloud "latest default-branch push CI is green or non-actionable" as tool_latest_default_branch_push_ci_is_green_or_non_actionable #FEF3C7
@@ -96,11 +115,16 @@ cloud "mapfile" as tool_mapfile #FEF3C7
 cloud "missing_refs_count" as tool_missing_refs_count #FEF3C7
 cloud "mkdir" as tool_mkdir #FEF3C7
 cloud "model" as tool_model #FEF3C7
+cloud "my-consent" as tool_my_consent #FEF3C7
 cloud "no_ci_count" as tool_no_ci_count #FEF3C7
+cloud "nordility" as tool_nordility #FEF3C7
 cloud "null" as tool_null #FEF3C7
 cloud "over[-" as tool_over #FEF3C7
 cloud "package.json" as tool_package_json #FEF3C7
 cloud "pending_count" as tool_pending_count #FEF3C7
+cloud "personal-finance" as tool_personal_finance #FEF3C7
+cloud "pit-box" as tool_pit_box #FEF3C7
+cloud "pushshift_python" as tool_pushshift_python #FEF3C7
 cloud "pyproject.toml" as tool_pyproject_toml #FEF3C7
 cloud "quota" as tool_quota #FEF3C7
 cloud "rate" as tool_rate #FEF3C7
@@ -108,12 +132,17 @@ cloud "repo-architecture.drawio" as tool_repo_architecture_drawio #FEF3C7
 cloud "repo-architecture.puml" as tool_repo_architecture_puml #FEF3C7
 cloud "requirements.txt" as tool_requirements_txt #FEF3C7
 cloud "run" as tool_run #FEF3C7
+cloud "secret-scan.yml" as tool_secret_scan_yml #FEF3C7
 cloud "select(((.conclusion" as tool_select_conclusion #FEF3C7
 cloud "select(.headSha" as tool_select_headsha #FEF3C7
 cloud "setup.py" as tool_setup_py #FEF3C7
+cloud "shock-relay" as tool_shock_relay #FEF3C7
+cloud "short-circuit" as tool_short_circuit #FEF3C7
 cloud "skip_count" as tool_skip_count #FEF3C7
 cloud "skipped_count" as tool_skipped_count #FEF3C7
 cloud "sleep" as tool_sleep #FEF3C7
+cloud "snowbridge" as tool_snowbridge #FEF3C7
+cloud "sonetsim" as tool_sonetsim #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
 cloud "success_count" as tool_success_count #FEF3C7
 cloud "summarize" as tool_summarize #FEF3C7
@@ -121,12 +150,16 @@ cloud "systemctl" as tool_systemctl #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
 cloud "temporarily" as tool_temporarily #FEF3C7
+cloud "terminility" as tool_terminility #FEF3C7
 cloud "timeout_count" as tool_timeout_count #FEF3C7
 cloud "too" as tool_too #FEF3C7
 cloud "tostring]" as tool_tostring #FEF3C7
 cloud "tr" as tool_tr #FEF3C7
+cloud "university-coursework" as tool_university_coursework #FEF3C7
 cloud "usage" as tool_usage #FEF3C7
 cloud "warn" as tool_warn #FEF3C7
+cloud "weekly" as tool_weekly #FEF3C7
+cloud "zillow-public-data" as tool_zillow_public_data #FEF3C7
 shell_scripts_archility_daily_sh --> tool_ln
 shell_scripts_archility_daily_sh --> tool_log
 shell_scripts_archility_daily_sh --> tool_mapfile
@@ -214,6 +247,44 @@ shell_scripts_ci_repair_agentic_sh --> tool_sort
 shell_scripts_ci_repair_agentic_sh --> tool_tee
 shell_scripts_ci_repair_agentic_sh --> tool_tostring
 shell_scripts_ci_repair_agentic_sh --> tool_tr
+shell_scripts_deploy_secret_scan_sh --> tool_gitleaks_baseline_json
+shell_scripts_deploy_secret_scan_sh --> tool_add
+shell_scripts_deploy_secret_scan_sh --> tool_certifications
+shell_scripts_deploy_secret_scan_sh --> tool_refresh
+shell_scripts_deploy_secret_scan_sh --> tool_archility
+shell_scripts_deploy_secret_scan_sh --> tool_auto_pass
+shell_scripts_deploy_secret_scan_sh --> tool_casonk_github_io
+shell_scripts_deploy_secret_scan_sh --> tool_cat
+shell_scripts_deploy_secret_scan_sh --> tool_citegres
+shell_scripts_deploy_secret_scan_sh --> tool_clockwork
+shell_scripts_deploy_secret_scan_sh --> tool_cp
+shell_scripts_deploy_secret_scan_sh --> tool_crew_chief
+shell_scripts_deploy_secret_scan_sh --> tool_documentation
+shell_scripts_deploy_secret_scan_sh --> tool_doseido
+shell_scripts_deploy_secret_scan_sh --> tool_drawio_templates
+shell_scripts_deploy_secret_scan_sh --> tool_dyno_lab
+shell_scripts_deploy_secret_scan_sh --> tool_fedora_debugg
+shell_scripts_deploy_secret_scan_sh --> tool_fred_public_data
+shell_scripts_deploy_secret_scan_sh --> tool_git
+shell_scripts_deploy_secret_scan_sh --> tool_ignition
+shell_scripts_deploy_secret_scan_sh --> tool_intake
+shell_scripts_deploy_secret_scan_sh --> tool_mkdir
+shell_scripts_deploy_secret_scan_sh --> tool_my_consent
+shell_scripts_deploy_secret_scan_sh --> tool_nordility
+shell_scripts_deploy_secret_scan_sh --> tool_null
+shell_scripts_deploy_secret_scan_sh --> tool_personal_finance
+shell_scripts_deploy_secret_scan_sh --> tool_pit_box
+shell_scripts_deploy_secret_scan_sh --> tool_pushshift_python
+shell_scripts_deploy_secret_scan_sh --> tool_secret_scan_yml
+shell_scripts_deploy_secret_scan_sh --> tool_shock_relay
+shell_scripts_deploy_secret_scan_sh --> tool_short_circuit
+shell_scripts_deploy_secret_scan_sh --> tool_snowbridge
+shell_scripts_deploy_secret_scan_sh --> tool_sonetsim
+shell_scripts_deploy_secret_scan_sh --> tool_tachometer
+shell_scripts_deploy_secret_scan_sh --> tool_terminility
+shell_scripts_deploy_secret_scan_sh --> tool_university_coursework
+shell_scripts_deploy_secret_scan_sh --> tool_weekly
+shell_scripts_deploy_secret_scan_sh --> tool_zillow_public_data
 shell_scripts_install_archility_daily_systemd_sh --> tool_cat
 shell_scripts_install_archility_daily_systemd_sh --> tool_systemctl
 shell_scripts_install_archility_weekly_systemd_sh --> tool_cat
@@ -313,8 +384,8 @@ shell_scripts_template_consolidation_agentic_sh --> tool_null
 shell_scripts_template_consolidation_agentic_sh --> tool_sort
 shell_scripts_template_consolidation_agentic_sh --> tool_tee
 note as shellGraphSummary
-Scanned 17 shell scripts.
+Scanned 18 shell scripts.
 Detected 0 local shell edges.
-Detected 105 external tools.
+Detected 137 external tools.
 end note
 @enduml
