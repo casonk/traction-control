@@ -45,15 +45,11 @@
 
 ### 2026-05-01 — Tachometer [notify] fields contain PII and must never be tracked
 
-- `config/tachometer/profile.toml`'s `[notify]` section contains `target` (phone number) and `shock_relay_root` (absolute machine path) — both machine-local PII.
-- Always commit these fields as empty strings with a comment; populate them only via `REFS-LOCAL.md` or a local env file that is gitignored.
-- If a real value ever lands in git history: run `git-filter-repo --replace-text <file> --replace-message <file>` (BOTH flags in ONE invocation) to scrub blobs and commit messages simultaneously. Use a regular `git clone`, not a bare/mirror clone — filter-repo cannot update `refs/heads/*` in a bare repo.
-
-### 2026-04-29 — auto-pass requires --env-file when invoked outside its repo CWD
-
-- `auto-pass get ...` looks for `config/auto-pass.env.local` relative to the shell's CWD. Running it from any directory other than the auto-pass repo root causes it to silently return empty output instead of an error.
-- Always pass `--env-file /path/to/auto-pass/config/auto-pass.env.local` when invoking auto-pass from automation scripts or from a different working directory.
-- Do not suppress stderr with `2>/dev/null` without also validating that the returned value is non-empty; an empty PAT stored as a GitHub secret will fail just as the original missing secret did.
+- Every repo's `config/tachometer/profile.toml` had a `[notify]` section with a personal phone number (`target`) and a local filesystem path (`shock_relay_root`) committed in tracked history across 26 repos.
+- These fields are machine-local personal contact info — treat them exactly like `REFS-LOCAL.md`: gitignore them or leave them empty in the tracked file.
+- The safe tracked state: `shock_relay_root = ""` and `target = ""` with a comment directing contributors to set them via local config. Never seed these with real values in the shared template.
+- Remediation required `git-filter-repo --replace-text` (for blobs) AND `git-filter-repo --replace-message` (for commit messages) applied separately — `--replace-text` does not touch commit message bodies. Run both together in a single invocation to avoid partial scrubs: `git-filter-repo --replace-text <file> --replace-message <file> --force`.
+- For mirror/bare clones, filter-repo does not update `refs/heads/*` correctly (known limitation) — always do history rewrites on a regular (non-mirror, non-bare) clone, then force-push.
 
 ### 2026-04-29 — Fine-grained GitHub PATs need explicit repo grants and the correct auth username in git URLs
 
@@ -67,12 +63,6 @@
 - If a pylint workflow matrix includes Python versions below `3.10` but the repo installs windshield as a dependency (which declares `requires-python = ">=3.10"`), pip will refuse the install on older interpreters.
 - Either narrow the pylint matrix to only versions that meet the highest `requires-python` floor among all dependencies, or use `--ignore-requires-python` only when the version mismatch is intentional and understood.
 
-### 2026-04-25 — Gmail IMAP label names with spaces must be mailbox-quoted for create/copy operations
-
-- Gmail label application over IMAP is not just a `SELECT` problem; `CREATE` and `UID COPY` can also fail with `BAD Could not parse command` when the target label contains spaces.
-- If a monitor applies a processed label after parsing mail, quote mailbox-style label names before attempting `CREATE`/`COPY` rather than assuming the helper's select-time quoting is enough.
-- Apply the live label before saving the local dedupe state so a labeling failure stays retryable on the next run instead of being silently marked as already handled.
-
 ### 2026-04-21 — Expand consent categories when AI/model or health-adjacent workflows become first-class
 
 - A broad personal-tools consent statement is not precise enough once the portfolio grows into explicit model-mediated workflows or health-adjacent research datasets.
@@ -84,12 +74,6 @@
 - A local workspace with sibling utility repos can hide CI failures when tests accidentally rely on those siblings existing next to the repo under test; browser/credential fallback tests should stub shared-repo lookups instead of depending on `./util-repos/*` being present in GitHub Actions.
 - When a repo still lints or tests against Python `3.10` or `3.11`, avoid writing syntax that only parses on newer local interpreters such as Python `3.12+`; nested f-string quote reuse can pass locally and still fail hosted lint.
 - During post-push CI repair, compare hosted failures against local environment assumptions first before assuming the underlying feature logic is broken.
-
-### 2026-04-25 — GitHub Actions failure emails must be parsed against the IMAP text shape, not only the Gmail/web rendering
-
-- The same GitHub Actions failure notice can appear as a markdown-like table in Gmail's rendered body but as a flattened bullet summary in IMAP text, for example `* lint-and-test (3.11) failed (2 annotations)`.
-- Inbox monitors should parse both body shapes and key their dedupe on the run URL / run id rather than on the exact body text layout.
-- When validating an email parser, use a live inbox sample once before trusting an offline fixture built from a different rendering path.
 
 ### 2026-04-19 — Scheduled bug sweeps should stay review-first and target clean code repos
 
@@ -158,17 +142,17 @@
 - Before committing any scripted file edit, verify with `od -c <file> | tail -2` that the file ends with exactly `.\n` and not `.\n\n`.
 - In Python: `content.rstrip(b'\n\r\t ') + b'\n'` is the safe normalization pattern.
 
-### 2026-04-07 — Pin ruff version consistently between local dev, pre-commit, and CI
+### 2026-04-07 — Pin ruff and black versions consistently between local dev, pre-commit, and CI
 
 - Different ruff versions can disagree on import sort order (I001) and formatting choices, causing local-clean code to fail CI.
-- When the portfolio standardizes on a new ruff version, update the CI `pip install ruff==X.Y.Z` pin and the `.pre-commit-config.yaml` `rev: vX.Y.Z` in the same change.
+- When the portfolio standardizes on a new ruff or black version, update the CI `pip install ruff==X.Y.Z black==X.Y.Z` pins and the `.pre-commit-config.yaml` `rev: vX.Y.Z` entries in the same change.
 - Always validate locally with the same ruff version that CI uses: `pip install ruff==0.15.9` before running `ruff check .` and `ruff format --check .` before any push.
-- Never push code that has only been validated by a mismatched ruff version.
+- After any bulk pre-commit rev bump, scan all repo CI workflows for hard-pinned formatter versions and update them in the same change. Repos that install formatters only via pre-commit are safe; only repos with explicit `pip install ruff` steps need the pin update.
 
 ### 2026-04-07 — Run pre-commit locally before every push; repo AGENTS.md specifies exact commands
 
 - Every repo's `AGENTS.md` now contains a "Local CI Verification" section with the exact commands to run before pushing.
-- The portfolio-wide rule (traction-control AGENTS.md rule 8) is non-negotiable: do not push code that has not passed local verification.
+- The portfolio-wide rule (traction-control AGENTS.md rule 9) is non-negotiable: do not push code that has not passed local verification.
 - For Python repos: `pre-commit run --all-files` then `pytest -q`.
 - For docs/ops repos: `pre-commit run --all-files` is the full gate.
 
@@ -270,94 +254,12 @@
 - PlantUML and Draw.io can emit different default filenames than the portfolio convention unless `archility` normalizes them explicitly.
 - After changing shared architecture render orchestration, verify the exact expected artifacts such as `repo-architecture.puml.svg` and `repo-architecture.drawio.svg`, not only aggregate diagram counts.
 
-### 2026-03-27 — Starter PlantUML diagrams should avoid hard dependency on Graphviz
+### 2026-03-27 — Architecture docs must center on the primary execution or data flow, not folder structure
 
-- The shared `repo-architecture.puml` baseline is more portable when it uses PlantUML's Smetana layout instead of depending on a machine-local `dot` install.
-- Reserve Graphviz-dependent layouts for richer repo-specific diagrams that actually need them.
-
-### 2026-03-27 — Archility should keep deterministic and agentic architecture paths separate
-
-- Treat `archility generate` as the deterministic programmatic path that derives starter architecture strictly from repository structure and code markers.
-- Treat deeper AI-authored repository architecture as a separate, intentionally non-deterministic path that follows full repository inspection and understanding.
-- Keep both paths on the same standard file layout under `docs/` so shared render/audit orchestration still works across the portfolio.
-
-### 2026-03-27 — Draw.io PNG exports should avoid backticked label text
-
-- Draw.io's direct PNG export can format backticked identifiers oddly even when the matching SVG looks fine.
-- When checked-in PNG render quality matters, prefer plain identifier text in draw.io box labels instead of Markdown-style backticks.
-- Keep the shared draw.io wrapper in `archility` friendly to headless environments by passing `--no-sandbox`.
-
-### 2026-03-27 — Taxonomy-heavy archive repos need grouped architecture starters
-
-- Repositories whose top-level structure is a large coded taxonomy, such as course archives, should not be summarized as only the first few directories.
-- Prefer grouping those repos by their stable prefixes, such as `CSC/`, `ECN/`, `INB/`, and `MTH/`, and then listing the course directories inside each subject area.
-- Keep the shared `archility` starter aware of that pattern so the baseline diagram is readable before any deeper agent-authored architecture pass.
-
-### 2026-03-27 — Facade-based repos need architecture from internal module flow, not only top-level folders
-
-- When a repo exposes a stable public entrypoint that re-exports internal modules, do not describe it as monolithic or reduce the architecture to the visible folder list.
-- Inspect the internal module graph, the ingestion paths, and the downstream consumers before rewriting the architecture docs.
-- Generated starter diagrams are an acceptable baseline, but repos with a facade-plus-internal-modules design need a deeper pass that shows the real code and data flow.
-
-### 2026-03-27 — Scrape-to-schema repos need diagrams built around the data lifecycle
-
-- For data-ingest applications, the architecture should show how external sources become intermediate frames, staging tables, normalized tables, and downstream analytics or graph views.
-- A module list alone is too vague for repos whose real implementation value is in the import pipeline and schema transitions.
-- When rewriting those diagrams, inspect the orchestrator entrypoint and the canonical ingest function before deciding what the architecture centers on.
-
-### 2026-03-27 — Simulation libraries need diagrams built around the experiment loop
-
-- For research libraries, the architecture should show how inputs are validated, simulations are generated, algorithm backends are invoked, and metrics are aggregated.
-- Package layout and tests matter, but they are secondary to the synthesis-and-evaluation loop when explaining the implementation.
-- When rewriting those diagrams, inspect the public package exports, the generator class, the evaluator class, and the invariant tests before deciding what the architecture centers on.
-
-### 2026-03-27 — Refresh-oriented repos need architecture that separates automatic generation from manual publication
-
-- For repos that download data and generate large local artifact corpora, show the automatic runtime boundary explicitly.
-- Distinguish pipeline-owned outputs such as `data/` and `viz/` from curated repo-root artifacts that are copied or published manually after review.
-- Do not imply that a refresh command updates tracked README-facing artifacts unless the code path actually performs that publish step.
-
-### 2026-03-27 — Multi-provider utility repos need architecture centered on adapter families
-
-- For messaging or integration utilities, do not stop at the top-level `services/` folder list when the real implementation is several transport families with different execution models.
-- Distinguish direct subprocess wrappers, shared HTTP helper layers, and protocol-specific mail adapters when those are the actual seams in the codebase.
-- Include end-to-end confirmation scripts in the architecture when they are the main integration harness rather than optional examples.
-
-### 2026-03-27 — Control-plane repos need architecture centered on the governance loop
-
-- For governance repos like `traction-control`, the real implementation is often a policy-and-continuity workflow rather than a local executable.
-- Center the architecture on the scan boundary, shared utility references, target-repo remediation flow, verification steps, and continuity updates.
-- Make it explicit when the repo is documentation-driven today and reserve local automation boxes for code that actually exists.
-
-### 2026-03-27 — Crash-triage repos need architecture centered on the evidence loop
-
-- For local debug toolkits, a shell-folder inventory is too vague to explain the implementation.
-- Center the architecture on the orchestrator, the captured evidence bundle, the heuristic analysis stage, the remediation helpers, and the local handoff log.
-- When the repo also contains broader hardware or software audits, show those as separate sidecar lanes rather than pretending they are part of the main crash-snapshot pipeline.
-
-### 2026-03-28 — Secret-wrapper utility repos need architecture centered on config, context, and subprocess branches
-
-- For utilities that wrap external secret-management CLIs, do not stop at the package or module list.
-- Show how local config and environment overrides become the effective runtime context, including any local-only cache or prompt path used to materialize secrets safely.
-- Separate the read and write subprocess lanes when the implementation has materially different behaviors such as lookup, create-group, edit, and add-on-miss flows.
-
-### 2026-03-28 — Documentation archive repos need architecture centered on curation and evidence surfaces
-
-- For archive-style documentation repos, the real implementation is often the curation workflow rather than any executable code.
-- Center the architecture on the canonical index, provider or category drilldown indexes, the grouped local evidence buckets, and the external proof links they curate.
-- Keep local archived artifacts distinct from public verification links so the diagrams reflect both the stored evidence and the outward-facing catalog.
-
-### 2026-03-28 — Architecture-tooling repos need diagrams centered on the lifecycle they orchestrate
-
-- For repos like `archility`, a vague `src/` and `tests/` summary hides the real implementation.
-- Center the architecture on the public CLI surface, the inspect / scaffold / render lifecycle, the agentic authoring boundary, the shared toolchain bootstrap, and the target-repo artifacts produced downstream.
-- Treat tests, CI, and reference docs as validation and contributor-support layers around that lifecycle rather than as the primary architecture.
-
-### 2026-03-28 — Static Jekyll sites need architecture centered on content assembly and offline authoring helpers
-
-- For portfolio sites like `casonk.github.io`, a folder inventory is too vague to explain the real implementation.
-- Center the architecture on the authored pages and collections, config and structured data, layouts and includes, the Jekyll build into `_site/`, and any optional helper lanes that precompute content or data before the site build.
-- Keep private local sources, reference-only config examples, and excluded helper outputs explicit so the diagrams distinguish the public site pipeline from offline authoring workflows.
+- For any repo type, architecture documentation should show how data or control flows through the system — ingestion, transformation, output, and confirmation paths — not just a listing of top-level directories or module names.
+- Common failure mode: a diagram that names `src/`, `tests/`, and `scripts/` without showing how they connect or what the system actually does at runtime. Add type-specific context: what enters the system, what the primary computation or curation is, and what artifacts or side-effects leave it.
+- Detailed per-repo-type authoring guidance (data-ingest lifecycle, simulation-evaluation loop, secret-wrapper subprocess branches, governance loop, etc.) lives in `./util-repos/archility/LESSONSLEARNED.md` and in the `archility` blueprint templates. Use `archility generate` to produce a deterministic starter, then deepen with an agent-authored pass that reads the actual code and data flow.
+- Keep both paths on the same standard layout under `docs/` (`contributor-architecture-blueprint.md`, `docs/diagrams/repo-architecture.puml`, `docs/diagrams/repo-architecture.drawio`) so shared render and audit orchestration still works across the portfolio.
 
 ### 2026-03-28 — New repos should start with seeded durable lessons, not an empty placeholder
 
@@ -384,30 +286,12 @@
 - Keep the host-specific config templates (example and local files) in the service repo where they are semantically owned; move only the generic installer and tooling to the utility repo.
 - Document the split clearly in both repos: the service repo keeps its configs and references the utility repo for the tooling.
 
-### 2026-04-01 — Pin ruff version in pre-commit and CI to avoid format drift
+### 2026-04-01 — Architecture diagram authoring rules (PlantUML and draw.io)
 
-- Mismatched ruff versions between local pre-commit and hosted CI produce implicit string-concat formatting differences that pass locally but fail `ruff format --check` in CI.
-- Pin the `rev:` in `.pre-commit-config.yaml` and install the same pinned version in CI instead of installing latest.
-- When upgrading ruff, update both together and re-run pre-commit before pushing.
-
-### 2026-04-01 — Avoid reserved PlantUML keywords as element aliases
-
-- `init` is a reserved PlantUML keyword (initial pseudostate) that silently switches diagram interpretation to activity mode, breaking `rectangle` + `-->` arrow syntax.
-- Avoid `init`, `end`, `start`, `stop`, `fork`, `join`, `kill`, and other activity-diagram keywords as element aliases in component/package diagrams.
-- Use descriptive names like `publicapi`, `pkg_init`, or `entrypoint` instead.
-
-### 2026-04-01 — Use elk layout for cross-package arrows in PlantUML
-
-- `!pragma layout elk` handles cross-package arrows reliably and matches the portfolio's established diagram style.
-- `smetana` is more portable but has bugs with `rectangle` elements linked across package boundaries.
-- Reserve `smetana` only for simple diagrams with no cross-package relationships.
-
-### 2026-04-01 — draw.io cells must use overflow=hidden and adequate sizing
-
-- Always add `overflow=hidden` to draw.io cell styles — on both leaf cells and swimlane containers.  Without it, text visually escapes the block boundary in the exported SVG/PNG.
-- Size every cell with adequate height for its text content.  At font size 12, allow at least 22px per line plus 16px padding (a 3-line box needs ≥ 82px height; a 2-line box needs ≥ 60px).
-- Never size a swimlane container smaller than its tallest child row plus the `startSize` header plus row margins.
-- Replace "Focus Root" archility template placeholder labels with actual module or component names before the diagram is committed.
+- **PlantUML**: avoid reserved activity-diagram keywords (`init`, `end`, `start`, `stop`, `fork`, `join`, `kill`) as element aliases — they silently switch the interpreter to activity mode and break `rectangle` + `-->` arrow syntax. Use names like `publicapi` or `pkg_init` instead.
+- **PlantUML**: prefer `!pragma layout elk` over `smetana` for component/package diagrams with cross-package arrows. `elk` is bundled and handles cross-boundary `rectangle` links reliably; `smetana` fails on those cases.
+- **draw.io**: always add `overflow=hidden` to cell styles (leaf cells and swimlane containers) and size with adequate height — at font size 12, allow at least 22 px per line plus 16 px padding (3-line box ≥ 82 px). Never commit diagrams with "Focus Root" placeholder labels.
+- Prefer plain identifier text in draw.io box labels over Markdown backticks; backticked text formats oddly in direct PNG exports even when SVG looks fine.
 
 ### 2026-04-02 — Portfolio-wide test audit and dyno-lab integration
 
@@ -422,35 +306,6 @@
   `pip install git+https://github.com/casonk/dyno-lab.git`
   until it is published to PyPI.
 
-### 2026-04-03 — dyno-lab API signatures (from integration test authoring)
-
-- `SubprocessPatch(side_effect)` — takes a **callable** as the first arg, not
-  keyword `returncode=`/`stdout=`. Wrap `build_completed_process` in a lambda:
-  `SubprocessPatch(lambda *a, **kw: build_completed_process(0, "out", ""))`.
-- `EnvPatch({"KEY": "val"})` — positional dict, not keyword args.
-  `clear=True` wipes the entire environment for the block.
-- `TempWorkdir()` has no `cd=` parameter; use `.path` attribute for the
-  directory, or `os.chdir(ctx.path)` if a chdir is needed.
-- `load_module_by_path(path, name, repo_root=REPO_ROOT)` is a drop-in
-  replacement for hand-rolled `importlib.util.spec_from_file_location` patterns.
-
-### 2026-04-03 — dyno-lab v0.2.0 new modules and CI pre-flight patterns
-
-- `dyno_lab.preflight` adds `requires_tool`, `requires_env`, `requires_import` pytest marks
-  that auto-skip tests when tools/env vars/packages are absent. Add
-  `pytest_plugins = ["dyno_lab.fixtures"]` to `conftest.py` to activate the hook.
-- `PreflightSuite` can be run as a standalone CI step before pytest to surface environment
-  problems early (missing binaries, unset keys, unreachable ports).
-- `dyno_lab.time.FrozenTime` freezes `time.time()`, `time.monotonic()`, and
-  `datetime.datetime.now()` via a subclass override — no freezegun dependency required.
-- `dyno_lab.time.FastSleep` replaces `time.sleep()` with a no-op and records all calls;
-  use `fs.total_slept` / `fs.call_count` to assert retry/backoff timing.
-- `dyno_lab.log.LogCapture` captures Python logging records; use `assert_logged(level, fragment)`
-  and `assert_not_logged(level, fragment)` to assert on log output without relying on stdout.
-- `dyno_lab.patch.AttrPatch(obj, attr=value)` patches and auto-restores object/class/module
-  attributes; if the attribute didn't exist before, it is deleted on exit.
-- All four modules are exported from `dyno_lab` top level; 174 internal tests pass.
-
 ### 2026-04-03 — Always run ruff format after ruff --fix
 
 - `ruff check --fix` fixes lint violations (F401, I001, etc.) but does NOT apply the
@@ -459,70 +314,14 @@
   otherwise `ruff format --check` in CI will fail on a separate step.
 - Quickest pattern: `ruff check --fix . && ruff format .`
 
-### 2026-04-03 — Know which formatter each repo uses before reformatting
+### 2026-04-04 — Portfolio-wide Python formatter and linter canonical config
 
-- Some repos use `black` for CI formatting checks, others use `ruff format`. They are
-  mostly compatible but differ on edge cases (e.g. trailing commas, magic trailing comma).
-- Before running a formatter on a repo, check its CI step to determine which formatter
-  it expects: `black --check` or `ruff format --check`.
-- Never run `ruff format` on a repo whose CI uses `black --check` unless you also confirm
-  the output is black-compatible (run `black --check` to verify after).
-- Multi-line `run:` blocks in GitHub Actions YAML **require** the `|` block scalar indicator.
-  A bare `run: first-command\n  second-command` is NOT two commands — it concatenates into one,
-  causing mysterious "package not found" pip errors. Always use `run: |` for multi-step installs.
-
-### 2026-04-04 — ruff line-length belongs in [tool.ruff], not [tool.ruff.format]
-
-- Ruff rejects `line-length` in `[tool.ruff.format]` — it must live in the parent `[tool.ruff]`
-  table. The `[tool.ruff.format]` subtable accepts `quote-style` and `indent-style` only.
-  Confirmed in ruff 0.15.9. Do not put line-length in [tool.ruff.format] regardless of what
-  documentation or instructions say — always verify against installed ruff version.
-- When standardizing formatter config, always put `line-length = 100` under `[tool.ruff]` and
-  keep `[tool.ruff.format]` limited to `quote-style = "double"` and `indent-style = "space"`.
-
-### 2026-04-04 — black and ruff format can genuinely disagree on some constructs
-
-- At `line-length = 88`, black and ruff format agree on the vast majority of code, but genuine
-  incompatibilities exist: multiline `if`-condition wrapping, magic trailing comma handling,
-  and certain lambda / inline comment edge cases.
-- When both formatters must coexist during a transition period, make the deprecated formatter
-  (`black`) non-fatal in CI (`|| true` or `|| echo "NOTE: ..."`) so the primary formatter
-  (`ruff format`) is the enforcing check.
-- For per-site circular disagreements: use `# fmt: skip` on the offending line or extract the
-  problematic construct to a named variable — both formatters then skip or agree on the result.
-- `# noqa` comments that exist solely to suppress lint rules not in the repo's selected ruff
-  rule set can be safely removed when they are the sole cause of a formatter conflict.
-
-### 2026-04-04 — Portfolio-wide formatter standardization pattern
-
-- Standard config for every Python repo: `[tool.ruff]` with `line-length = 100`,
-  `[tool.ruff.format]` with `quote-style = "double"` and `indent-style = "space"`,
-  and `[tool.black]` with `line-length = 100` and repo-appropriate `target-version`.
-- Standard `[tool.ruff.lint]`: `select = ["E","F","I","UP","B","SIM"]`, `ignore = ["E501","B008","SIM108"]`.
-  Add `SIM117` (nested with) to ignore for test-heavy repos where that pattern aids readability.
-- Pre-commit ordering: `ruff-format` (preferred) appears BEFORE `black` (deprecated).
-- CI ordering: `ruff format --check .` (primary enforcing step) BEFORE `black --check --diff .`
-  (deprecated, non-fatal if genuine incompatibility exists).
-- Always run `ruff check --fix --unsafe-fixes .` then `ruff format .` then `black .` in that order.
-- For repos without pyproject.toml (personal-finance), add `--line-length 100` flags to all
-  ruff and black CI commands instead of creating a pyproject.toml.
-
-### 2026-04-XX — SIM117 is commonly noisy in test-heavy repos
-
-- `SIM117` warns about nested `with` statements that could be combined into one.
-- In test code, nested `with` statements (e.g. `with patch(...):` inside `with pytest.raises():`)
-  are often intentionally separate for readability and should not be auto-combined.
-- Add `SIM117` to `ignore` in `[tool.ruff.lint]` for repos where nested `with` is a common
-  test pattern rather than trying to fix each instance individually.
-
-### 2026-04-XX — Portfolio-wide lint select is now E/F/I/UP/B/SIM at line-length=100
-
-- All Python repos now have `[tool.ruff.lint]` with `select = ["E","F","I","UP","B","SIM"]`
-  and `line-length = 100` in `[tool.ruff]` and `[tool.black]`.
-- ruff target-version is a string (`"py310"`); black target-version is a list (`["py310"]`).
-- sonetsim keeps `target-version = "py38"` (ruff) and `["py38","py39","py310"]` (black) due to
-  min Python 3.8 requirement; UP fixes were safe at py38 for this repo.
-- citegres has one remaining E722 (bare except) in legacy code that is not auto-fixable.
+- Standard `pyproject.toml` config for every Python repo: `[tool.ruff]` with `line-length = 100`; `[tool.ruff.format]` with `quote-style = "double"` and `indent-style = "space"` (note: `line-length` is rejected by ruff in `[tool.ruff.format]` — it must live in the parent `[tool.ruff]` table); `[tool.black]` with `line-length = 100` and repo-appropriate `target-version`.
+- Standard `[tool.ruff.lint]`: `select = ["E","F","I","UP","B","SIM"]`, `ignore = ["E501","B008","SIM108"]`. Add `SIM117` to `ignore` for test-heavy repos — nested `with` blocks in tests are often intentionally separate for readability. `ruff` target-version is a string (`"py310"`); `black` target-version is a list (`["py310"]`).
+- Pre-commit ordering: `ruff-format` (preferred) BEFORE `black` (deprecated). CI ordering mirrors this: `ruff format --check .` (primary enforcing step) BEFORE `black --check --diff .` (deprecated, non-fatal when genuine incompatibility exists).
+- Workflow: `ruff check --fix --unsafe-fixes . && ruff format . && black .` in that order. For repos without `pyproject.toml`, add `--line-length 100` flags to all ruff and black CLI commands.
+- When both formatters coexist and genuinely disagree (multiline `if`-condition wrapping, magic trailing comma), use `# fmt: skip` on the offending line or extract the construct to a named variable — both formatters then agree or skip.
+- Before running any formatter on a repo, check its CI step to confirm which formatter it enforces; the repo's `AGENTS.md` "Local CI Verification" section has the exact commands.
 
 ### 2026-04-03 — Inline `||` with quoted colon in GitHub Actions `run:` breaks YAML
 
@@ -532,15 +331,6 @@
 - Fix: always use `run: |` block scalar when the command contains `||`, `&&`, or any string
   with a `:` that might be mistaken for a YAML key.
 - Validate locally with `python3 -c "import yaml; yaml.safe_load(open(f).read())"` before pushing.
-
-### 2026-04-03 — Both ruff format and black are now portfolio-wide with black deprecated
-
-- All Python repos now run `ruff format --check` (primary) and `black --check` (deprecated)
-  in CI and pre-commit.
-- `[tool.ruff.format]` and `[tool.black]` with `line-length = 88` are in all `pyproject.toml` files.
-- `# TODO: remove black once ruff format is confirmed stable portfolio-wide` marks black steps.
-- `line-length` must go in `[tool.ruff]`, NOT `[tool.ruff.format]` — ruff rejects it in the
-  format subtable.
 
 ### 2026-04-04 — Use a clean worktree for CI repairs when the main checkout is dirty
 
@@ -597,12 +387,6 @@
 - A full-repo `pre-commit run --all-files` in those clean worktrees will surface baseline drift that the dirty checkout may be hiding, including whitespace debt, invalid example YAML, brittle tests tied to a checkout directory name, and repo-local import assumptions. Treat those as real blockers and fix them in the clean worktree instead of weakening verification.
 - If hosted CI installs formatter packages directly, pin the workflow formatter versions and arguments to match `.pre-commit-config.yaml` exactly. Otherwise a repo can pass local `pre-commit` but fail GitHub Actions on the same commit because the workflow pulled a newer or differently configured formatter.
 
-### 2026-04-19 — When upgrading ruff/black pre-commit versions, also update any CI pip pins in the same commit
-
-- Upgrading the `rev:` in `.pre-commit-config.yaml` without updating matching `pip install black==X ruff==Y` lines in `.github/workflows/ci.yml` will break CI: the workflow pins the old version, which may disagree with how the new version formatted the code.
-- After any bulk pre-commit rev bump, scan all repo CI workflows for hard-pinned formatter versions and update them in the same change.
-- Repos that install formatters only via pre-commit (no direct `pip install ruff`) are safe; only repos with explicit formatter steps in the workflow need the pin update.
-
 ### 2026-04-19 — SVG files generated by archility must end with a trailing newline
 
 - PlantUML-generated `.svg` and `.puml.svg` artifacts sometimes omit the final newline, causing the `end-of-file-fixer` pre-commit hook to fail in CI.
@@ -654,16 +438,32 @@
 - Command: `python3 SHOCK_RELAY_ROOT_PLACEHOLDER/services/gmail-imap/send_email.py <to> <subject> <body>`
 - The config is at `./util-repos/shock-relay/services/gmail-imap/config.local.yaml` and is already provisioned — no setup required.
 
-### 2026-05-01 — Tachometer [notify] fields contain PII and must never be tracked
-
-- Every repo's `config/tachometer/profile.toml` had a `[notify]` section with a personal phone number (`target`) and a local filesystem path (`shock_relay_root`) committed in tracked history across 26 repos.
-- These fields are machine-local personal contact info — treat them exactly like `REFS-LOCAL.md`: gitignore them or leave them empty in the tracked file.
-- The safe tracked state: `shock_relay_root = ""` and `target = ""` with a comment directing contributors to set them via local config. Never seed these with real values in the shared template.
-- Remediation required `git-filter-repo --replace-text` (for blobs) AND `git-filter-repo --replace-message` (for commit messages) applied separately — `--replace-text` does not touch commit message bodies. Run both together in a single invocation to avoid partial scrubs: `git-filter-repo --replace-text <file> --replace-message <file> --force`.
-- For mirror/bare clones, filter-repo does not update `refs/heads/*` correctly (known limitation) — always do history rewrites on a regular (non-mirror, non-bare) clone, then force-push.
-
 ### 2026-04-22 — Sibling-repo shims and test helpers must resolve through the git common dir to stay worktree-safe
 
 - Clean publish worktrees under `/tmp` break any repo code or tests that assume a sibling utility repo lives next to the checked-out worktree path.
 - When a repo needs a sibling like `dyno-lab` or `tachometer`, first try the normal local path search, then fall back to `git rev-parse --git-common-dir` and search upward from the real shared repo path behind the worktree.
 - This keeps `pytest -q` and local compatibility shims valid in clean worktrees without forcing editable installs or special-case `PYTHONPATH` setup during cross-repo publish sweeps.
+
+### 2026-05-08 — Caddy TLS cert changes require a full service restart, not a reload
+
+- `systemctl --user reload caddy` does not re-read certificate files when cert content changes (e.g. after renewal or replacement). Only a full restart picks up the new certs.
+- After updating or renewing a Caddy-managed TLS certificate, run `systemctl --user restart caddy` and confirm the new cert expiry in the browser or with `openssl s_client`.
+- Applies to the shared Caddy instance managed by `./util-repos/wiring-harness`; any repo adding a Caddyfile.d drop-in should note this in its own deployment docs.
+
+### 2026-05-08 — All new internal services must integrate via Caddyfile.d drop-in, not a competing proxy
+
+- This machine runs a single shared Caddy instance managed by `./util-repos/wiring-harness` as the portfolio reverse proxy. All new internal web services must be wired in via a `Caddyfile.d/` drop-in rather than installing nginx, another Caddy instance, or any competing HTTP server on the same ports.
+- Before adding any web-facing service, confirm what is already on 80/443: `ss -tlnp | grep ':80\|:443'` and `systemctl list-units --type=service --state=running | grep -iE 'http|web|caddy|apache'`.
+- A conflicting port 80/443 bind will prevent the shared Caddy from starting after a reboot; competing proxy installs cause silent routing failures.
+
+### 2026-05-08 — systemd service units require the execute bit on wrapped shell scripts
+
+- A systemd service that calls a shell script via `ExecStart=` fails silently with `203/EXEC` if the script does not have the execute bit set.
+- After creating or updating a service's wrapper script, run `chmod +x <script>` and then `systemctl --user daemon-reload` + `systemctl --user restart <service>` to confirm the unit starts cleanly.
+- When shipping a new systemd service in a repo, include `chmod +x` in the install docs or Makefile target so the failure does not occur during setup.
+
+### 2026-05-08 — systemctl read-only status commands need no special permissions; mutating commands do
+
+- `systemctl --user status`, `is-active`, `list-units`, and `list-timers` can run as the service owner from any context (scripts, cron, agent prompts) with no special permissions.
+- `systemctl --user restart`, `stop`, `start`, `daemon-reload`, and `enable` mutate unit state and must run from a process that inherits the user's login session; they fail from a subprocess launched by an agent that does not inherit that session.
+- In automation scripts that read then conditionally act on unit state, separate the read check from the mutating action and document that the action requires the correct user context.
