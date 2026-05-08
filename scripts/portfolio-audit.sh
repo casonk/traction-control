@@ -4,6 +4,7 @@
 # Scans every git repository under PORTFOLIO_ROOT and reports:
 #   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, BACKLOG.md, etc.)
 #   - missing CHATHISTORY.md entry in .gitignore
+#   - missing AGENTS.md sudo-boundary guidance
 #   - missing .pre-commit-config.yaml in non-doc code repos
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
 #
@@ -71,6 +72,7 @@ log ""
 
 # ── audit ─────────────────────────────────────────────────────────────────────
 GAP_COUNT=0
+AGENTS_SUDO_MARKER='Agents will never be able to run `sudo` commands'
 
 for repo in "${REPO_DIRS[@]}"; do
     rel="${repo#${PORTFOLIO_ROOT}/}"
@@ -80,6 +82,11 @@ for repo in "${REPO_DIRS[@]}"; do
     for f in "${TIER1_FILES[@]}"; do
         [[ ! -f "${repo}/${f}" ]] && missing+=("$f")
     done
+
+    # AGENTS.md must include the standard sudo handoff boundary.
+    if [[ -f "${repo}/AGENTS.md" ]] && ! grep -qF "${AGENTS_SUDO_MARKER}" "${repo}/AGENTS.md"; then
+        missing+=("AGENTS.md missing sudo boundary")
+    fi
 
     # CHATHISTORY.md must be gitignored
     if ! grep -q "CHATHISTORY.md" "${repo}/.gitignore" 2>/dev/null; then

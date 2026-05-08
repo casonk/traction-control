@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-05-06 — Agents must hand off sudo commands to humans
+
+- Agents in this portfolio cannot complete interactive `sudo` prompts. Treat any sudo-required step as a human handoff, not as an agent-executable action.
+- When work requires elevated system changes, finish and validate the non-sudo repo changes first, then give the user the exact `sudo` command(s) to run and ask them to share the output.
+- Do not repeatedly retry `sudo -n` after it reports that a password is required, and do not report a live sudo-backed deployment as complete until the user has run it.
+
 ### 2026-05-03 — .gitleaks-baseline.json must be excluded from the portfolio-git-workspace-path rule
 
 - The `.gitleaks-baseline.json` file records known findings with their `Match` and `Secret` values verbatim, which include the local machine path `/mnt/4tb-m2/git/`.

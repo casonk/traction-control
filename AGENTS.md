@@ -108,6 +108,7 @@ Current strong baseline across the portfolio:
 - every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
 - every repo now has `REFS-PUBLIC.md` (tracked, public external references) and `REFS-LOCAL.md` (gitignored, machine-specific local paths)
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
+- every tracked `AGENTS.md` should include the standard "Sudo Boundary" note that agents cannot run `sudo` and must hand exact elevated commands to the user
 - every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, unified test bench utilities, and local LLM inference
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
@@ -186,6 +187,7 @@ Every new repository should start with:
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
+Repo-level `AGENTS.md` files should include the standard "Sudo Boundary" section explaining that agents cannot run `sudo` commands and must hand exact elevated commands to the user.
 Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
@@ -257,12 +259,19 @@ Add:
 5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
 6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
 7. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
-8. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
-9. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
-10. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-11. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
-12. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
-13. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+8. Agents will never be able to run `sudo` commands in this environment. Finish non-sudo repo work and hand exact elevated command(s) to the user instead of retrying `sudo`.
+9. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
+10. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
+11. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
+12. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
+13. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
+14. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+
+## Sudo Boundary
+
+Agents will never be able to run `sudo` commands in this environment. If a task requires elevated system changes, make the repo edits and run the validation that can be done without `sudo`, then give the user the exact command(s) to run.
+
+Always require the user to run those commands instead of retrying `sudo`; do not claim a sudo-backed live change was applied until the user shares the result.
 
 ## Local CI Verification — traction-control
 
