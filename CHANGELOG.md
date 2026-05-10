@@ -23,3 +23,4 @@ All notable changes to `traction-control` are documented here.
 - Added the daily governance audit flow that checks baseline files across the portfolio and now lints `SECURITY.md` files for private-reporting, disclosure, and sensitive-content policy coverage.
 - Updated the shared `archility-weekly` job to a twice-weekly `Wed,Sun` schedule and aligned the related scripts, templates, and backlog guidance with that cadence.
 - Ignored repo-local `__pycache__/` artifacts in the control-plane repo.
+- Added the tachometer disk-pressure agentic remediation wrapper, prompt, and `clockwork` timer installer so disk red lights route to reversible repo-local archive automation.
