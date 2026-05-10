@@ -88,7 +88,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
 - `./util-repos/bit-byte-block`: local Bitcoin mining ingress via transparent Stratum proxying, upstream failover, and Solo CKPool status inspection
 - `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
-- `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, and local JSON summary generation
+- `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, local JSON summary generation, and disk-pressure signals that route to traction-control remediation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
@@ -157,6 +157,7 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 - Keep `.editorconfig`, pre-commit, and architecture docs aligned with actual repo behavior.
 - Keep the architecture starter filenames and directory layout stable across repos so `archility` automation stays deterministic.
 - Avoid stale scaffolding: if workflows, diagrams, or contributor docs stop matching reality, update them in the same change.
+- Treat tachometer disk-pressure backlog/summary entries as the standard trigger for `traction-control`'s disk-pressure remediation agent, which should add reversible repo-local archive automation before any ad hoc cleanup.
 
 ### P3 — CI And Verification
 
