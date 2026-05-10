@@ -55,6 +55,8 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
 - `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
+- `scripts/tachometer_disk_pressure_agentic.sh`: unattended tachometer disk-pressure remediation handoff for clean candidate repos
+- `scripts/install_tachometer_disk_pressure_agentic_systemd.sh`: `clockwork` installer for the disk-pressure remediation timer
 - `scripts/template_consolidation_agentic.sh`: unattended review pass that scans repo `SECURITY.md` and `LESSONSLEARNED.md` files for guidance worth promoting into the shared templates
 
 ## Control-Plane Flow
@@ -160,6 +162,26 @@ To install the user-level systemd timer through `clockwork`, use:
 
 ```bash
 bash scripts/install_ci_repair_agentic_systemd.sh --provider auto --model gpt-5.4
+```
+
+For tachometer-triggered disk-pressure remediation, use:
+
+```bash
+bash scripts/tachometer_disk_pressure_agentic.sh --dry-run
+```
+
+The wrapper scans repo-local `.tachometer/backlog.json`,
+`.tachometer/host-backlog.json`, `.tachometer/summary.json`, and
+`.tachometer/host-summary.json` files across the portfolio. It exits without an
+agent when no disk pressure is present, skips dirty worktrees by default, and
+only hands clean candidate repos to the agent. The standard remediation pattern
+is reversible repo-local archive automation for local-only caches, generated
+artifacts, temporary downloads, and debug snapshots.
+
+To install the user-level systemd timer through `clockwork`, use:
+
+```bash
+bash scripts/install_tachometer_disk_pressure_agentic_systemd.sh --provider auto --model gpt-5.4
 ```
 
 For Gmail-based GitHub Actions failure monitoring, use:

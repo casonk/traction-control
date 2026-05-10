@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-05-10 — Tachometer disk pressure should trigger reversible repo archive automation
+
+- Treat open tachometer `system.disk` / `host.disk` backlog entries and summary disk utilization above threshold as automation triggers, not just dashboard warnings.
+- The control-plane response is `scripts/tachometer_disk_pressure_agentic.sh`: inventory tachometer backlog/summary files, skip dirty repos by default, and only launch an agent for clean candidate repos.
+- The agent should implement or repair reversible repo-local compression/decompression for local-only caches, generated artifacts, temporary downloads, and debug snapshots. Do not delete source data, credentials, raw private inputs, or irreplaceable user data as the default disk-pressure response.
+
 ### 2026-05-06 — Agents must hand off sudo commands to humans
 
 - Agents in this portfolio cannot complete interactive `sudo` prompts. Treat any sudo-required step as a human handoff, not as an agent-executable action.
