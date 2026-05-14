@@ -17,11 +17,13 @@ rectangle "scripts/install_bug_sweep_agentic_systemd.sh\n0 local shell edges\n2 
 rectangle "scripts/install_ci_repair_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_ci_repair_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_github_ci_email_monitor_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_github_ci_email_monitor_systemd_sh #DBEAFE
 rectangle "scripts/install_portfolio_audit_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_portfolio_audit_systemd_sh #DBEAFE
+rectangle "scripts/install_tachometer_disk_pressure_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_tachometer_disk_pressure_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_template_consolidation_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_template_consolidation_agentic_systemd_sh #DBEAFE
 rectangle "scripts/lib/agentic_provider.sh\n0 local shell edges\n19 external tools" as shell_scripts_lib_agentic_provider_sh #DBEAFE
 rectangle "scripts/portfolio-audit.sh\n0 local shell edges\n23 external tools" as shell_scripts_portfolio_audit_sh #DBEAFE
 rectangle "scripts/refs_audit_agentic.sh\n0 local shell edges\n27 external tools" as shell_scripts_refs_audit_agentic_sh #DBEAFE
 rectangle "scripts/run_tachometer_profile.sh\n0 local shell edges\n3 external tools" as shell_scripts_run_tachometer_profile_sh #DBEAFE
+rectangle "scripts/tachometer_disk_pressure_agentic.sh\n0 local shell edges\n17 external tools" as shell_scripts_tachometer_disk_pressure_agentic_sh #DBEAFE
 rectangle "scripts/template_consolidation_agentic.sh\n0 local shell edges\n12 external tools" as shell_scripts_template_consolidation_agentic_sh #DBEAFE
 cloud "*.bash" as tool_bash #FEF3C7
 cloud "*.c" as tool_c #FEF3C7
@@ -100,6 +102,7 @@ cloud "gh" as tool_gh #FEF3C7
 cloud "git" as tool_git #FEF3C7
 cloud "has_refs: REFS-PUBLIC.md present — audit for gaps or stale entries" as tool_has_refs_refs_public_md_present_audit_for_gaps_or_stale_entries #FEF3C7
 cloud "has_refs_count" as tool_has_refs_count #FEF3C7
+cloud "host_pressure_count" as tool_host_pressure_count #FEF3C7
 cloud "ignition" as tool_ignition #FEF3C7
 cloud "insufficient" as tool_insufficient #FEF3C7
 cloud "intake" as tool_intake #FEF3C7
@@ -124,8 +127,10 @@ cloud "package.json" as tool_package_json #FEF3C7
 cloud "pending_count" as tool_pending_count #FEF3C7
 cloud "personal-finance" as tool_personal_finance #FEF3C7
 cloud "pit-box" as tool_pit_box #FEF3C7
+cloud "pressure_count" as tool_pressure_count #FEF3C7
 cloud "pushshift_python" as tool_pushshift_python #FEF3C7
 cloud "pyproject.toml" as tool_pyproject_toml #FEF3C7
+cloud "python3" as tool_python3 #FEF3C7
 cloud "quota" as tool_quota #FEF3C7
 cloud "rate" as tool_rate #FEF3C7
 cloud "repo-architecture.drawio" as tool_repo_architecture_drawio #FEF3C7
@@ -297,6 +302,8 @@ shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_cat
 shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_systemctl
 shell_scripts_install_portfolio_audit_systemd_sh --> tool_cat
 shell_scripts_install_portfolio_audit_systemd_sh --> tool_systemctl
+shell_scripts_install_tachometer_disk_pressure_agentic_systemd_sh --> tool_cat
+shell_scripts_install_tachometer_disk_pressure_agentic_systemd_sh --> tool_systemctl
 shell_scripts_install_template_consolidation_agentic_systemd_sh --> tool_cat
 shell_scripts_install_template_consolidation_agentic_systemd_sh --> tool_systemctl
 shell_scripts_lib_agentic_provider_sh --> tool_claude
@@ -371,6 +378,23 @@ shell_scripts_refs_audit_agentic_sh --> tool_tr
 shell_scripts_run_tachometer_profile_sh --> tool_run
 shell_scripts_run_tachometer_profile_sh --> tool_summarize
 shell_scripts_run_tachometer_profile_sh --> tool_tachometer
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_cat
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_claude
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_clean_count
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_cmd_model
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_copilot
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_dirty_count
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_flock
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_host_pressure_count
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_ln
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_mapfile
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_mkdir
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_pressure_count
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_python3
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_skip_count
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_sort
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_tee
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_tr
 shell_scripts_template_consolidation_agentic_sh --> tool_cat
 shell_scripts_template_consolidation_agentic_sh --> tool_claude
 shell_scripts_template_consolidation_agentic_sh --> tool_cmd_model
@@ -384,8 +408,8 @@ shell_scripts_template_consolidation_agentic_sh --> tool_null
 shell_scripts_template_consolidation_agentic_sh --> tool_sort
 shell_scripts_template_consolidation_agentic_sh --> tool_tee
 note as shellGraphSummary
-Scanned 18 shell scripts.
+Scanned 20 shell scripts.
 Detected 0 local shell edges.
-Detected 137 external tools.
+Detected 140 external tools.
 end note
 @enduml
