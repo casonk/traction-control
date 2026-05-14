@@ -74,7 +74,6 @@ agentic_provider_readiness_probe() {
         --output-format text
         --permission-mode dontAsk
         --no-session-persistence
-        --tools ""
       )
       if [[ -n "${model}" ]]; then
         cmd+=(--model "${model}")
