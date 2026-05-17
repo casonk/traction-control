@@ -59,7 +59,9 @@ COMMIT_MSG="ci: update gitleaks config, workflow, and baseline
 
 Refresh .gitleaks.toml with 555-area-code allowlist entries and
 documentation path exclusions for the workspace-path rule. Update
-secret-scan.yml to pass --baseline-path on scheduled full-history runs.
+secret-scan.yml to run scheduled full-history scans through the Gitleaks
+CLI with --baseline-path, while leaving push/PR scans on the GitHub Action's
+event-aware defaults.
 Add .gitleaks-baseline.json capturing known historical findings so the
 weekly scan suppresses false positives without blocking new violations.
 
