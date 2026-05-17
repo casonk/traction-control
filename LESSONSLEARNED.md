@@ -17,6 +17,7 @@
 - `gitleaks/gitleaks-action@v2` does not declare an `args` input. GitHub Actions logs this as `Unexpected input(s) 'args'`, then runs the action's default event behavior.
 - For scheduled full-history scans that need `.gitleaks-baseline.json`, run the Gitleaks CLI directly with `--baseline-path` instead of trying to pass CLI flags through the action.
 - Keep push/PR scans on the action's event-aware defaults only when the workflow does not need custom CLI flags.
+- CI-repair discovery must include scheduled workflow runs, not only `push` runs, because weekly full-history scans can fail after the latest push run has already passed.
 
 ### 2026-05-10 — Tachometer disk pressure should trigger reversible repo archive automation
 
