@@ -1,7 +1,7 @@
 You are running an unattended GitHub Actions CI-repair task inside `./util-repos/traction-control`.
 
 Goal:
-- Review the current failing default-branch push CI runs listed below.
+- Review the current failing default-branch CI runs listed below.
 - Repair failing CI in the affected clean repos and get the hosted workflows green again.
 
 Working rules:
