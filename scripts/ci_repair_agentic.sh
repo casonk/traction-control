@@ -2,7 +2,7 @@
 # ci_repair_agentic.sh — unattended GitHub Actions CI discovery and repair pass
 # across clean portfolio repos.
 #
-# The wrapper inventories the latest default-branch push runs across local
+# The wrapper inventories the latest default-branch workflow runs across local
 # GitHub repos, skips dirty worktrees by default, and only invokes an agent CLI
 # when one or more repos have currently failing CI.
 
@@ -26,7 +26,7 @@ usage() {
   cat <<EOF
 Usage: ci_repair_agentic.sh [options]
 
-Scan the portfolio for failing GitHub Actions push CI on the latest default-branch
+Scan the portfolio for failing GitHub Actions CI on the latest default-branch
 commit of each clean GitHub repo, then invoke an unattended agent to repair the
 affected repos.
 
@@ -264,9 +264,8 @@ for repo in "${REPO_DIRS[@]}"; do
   if ! runs_json="$(gh run list \
     --repo "${repo_slug}" \
     --branch "${branch}" \
-    --event push \
     --limit "${RUN_LIMIT}" \
-    --json databaseId,headSha,status,conclusion,url,workflowName,createdAt 2>&1)"; then
+    --json databaseId,headSha,status,conclusion,url,workflowName,createdAt,event 2>&1)"; then
     record_inventory "error" "${repo_rel}" "${repo_slug}" "${branch}" "-" "-" "-" "-" "${runs_json}"
     error_count=$(( error_count + 1 ))
     continue
@@ -324,7 +323,7 @@ for repo in "${REPO_DIRS[@]}"; do
       "${run_ids}" \
       "${workflows}" \
       "${urls}" \
-      "latest default-branch push CI is failing"
+      "latest default-branch CI is failing"
     candidate_count=$(( candidate_count + 1 ))
     continue
   fi
@@ -338,7 +337,7 @@ for repo in "${REPO_DIRS[@]}"; do
     "-" \
     "-" \
     "-" \
-    "latest default-branch push CI is green or non-actionable"
+    "latest default-branch CI is green or non-actionable"
   clean_count=$(( clean_count + 1 ))
 done
 
@@ -350,7 +349,7 @@ awk -F '\t' 'NR == 1 || $1 == "candidate"' "${INVENTORY_FILE}" > "${CANDIDATE_FI
 log "inventory summary: candidate=${candidate_count} clean=${clean_count} dirty=${dirty_count} pending=${pending_count} no_ci=${no_ci_count} skipped=${skipped_count} error=${error_count}"
 
 if (( candidate_count == 0 )); then
-  log "no failing default-branch push CI detected in clean GitHub repos"
+  log "no failing default-branch CI detected in clean GitHub repos"
   exit 0
 fi
 

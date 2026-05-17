@@ -1,6 +1,6 @@
 [[jobs]]
 name = "ci-repair-agentic"
-description = "Every-other-day agentic scan for failing GitHub Actions push CI across clean portfolio repos"
+description = "Every-other-day agentic scan for failing GitHub Actions CI across clean portfolio repos"
 scope = "user"
 service_type = "oneshot"
 working_directory = "__REPO_ROOT__"

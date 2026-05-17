@@ -154,7 +154,7 @@ For the every-other-day agentic CI-repair pass, use:
 bash scripts/ci_repair_agentic.sh
 ```
 
-The wrapper inventories the latest default-branch push CI across clean GitHub
+The wrapper inventories the latest default-branch CI across clean GitHub
 repos, skips dirty worktrees by default, and only invokes an agent when one or
 more repos are currently failing.
 
