@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-06-02 — GNOME auto-suspend can drop all services when UPower cannot detect a power supply
+
+- On a desktop with no battery or UPS, UPower may report `battery-missing-symbolic` and `unknown` power state.
+- When this happens, GNOME `gsd-power` defaults to the battery idle policy (`sleep-inactive-battery-type`), which was configured to `suspend` after 900 seconds (15 minutes) of session idle.
+- The resulting `systemd-logind.Suspend()` call drops the ethernet link entirely (`enp5s0: Link is Down`), taking down Caddy, Samba, all Flask web services, and WireGuard tunnels.
+- Fix for any machine running persistent services: `gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'` and `sleep-inactive-battery-timeout 0`. This persists across reboots via dconf and takes effect immediately.
+- Also verify `sleep-inactive-ac-type` is `'nothing'` and confirm `loginctl show` shows `IdleAction=ignore` (the systemd default).
+- Symptom pattern: "services go offline ~30 minutes after boot" = ~15 min active use + ~15 min GNOME idle timer firing on battery policy.
+
 ### 2026-05-17 — Gitleaks Action v2 ignores unsupported `args` input
 
 - `gitleaks/gitleaks-action@v2` does not declare an `args` input. GitHub Actions logs this as `Unexpected input(s) 'args'`, then runs the action's default event behavior.
