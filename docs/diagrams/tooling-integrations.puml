@@ -6,13 +6,13 @@ skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
 rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
-rectangle ".github/workflows/secret-scan.yml\n2 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
+rectangle ".github/workflows/secret-scan.yml\n5 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
 rectangle "scripts/archility-daily.sh\n6 detected tools" as source_scripts_archility_daily_sh #E0F2FE
 rectangle "scripts/archility-weekly.sh\n6 detected tools" as source_scripts_archility_weekly_sh #E0F2FE
 rectangle "scripts/bug_sweep_agentic.sh\n40 detected tools" as source_scripts_bug_sweep_agentic_sh #E0F2FE
 rectangle "scripts/check_github_push_ci.sh\n9 detected tools" as source_scripts_check_github_push_ci_sh #E0F2FE
 rectangle "scripts/ci_repair_agentic.sh\n26 detected tools" as source_scripts_ci_repair_agentic_sh #E0F2FE
-rectangle "scripts/deploy-secret-scan.sh\n38 detected tools" as source_scripts_deploy_secret_scan_sh #E0F2FE
+rectangle "scripts/deploy-secret-scan.sh\n39 detected tools" as source_scripts_deploy_secret_scan_sh #E0F2FE
 rectangle "scripts/install_archility_daily_systemd.sh\n2 detected tools" as source_scripts_install_archility_daily_systemd_sh #E0F2FE
 rectangle "scripts/install_archility_weekly_systemd.sh\n2 detected tools" as source_scripts_install_archility_weekly_systemd_sh #E0F2FE
 rectangle "scripts/install_bug_sweep_agentic_systemd.sh\n2 detected tools" as source_scripts_install_bug_sweep_agentic_systemd_sh #E0F2FE
@@ -71,6 +71,7 @@ cloud "SECURITY.md" as tool_security_md #FEF3C7
 cloud "[failure," as tool_failure #FEF3C7
 cloud "actions/checkout" as tool_actions_checkout #FEF3C7
 cloud "actions/setup-python" as tool_actions_setup_python #FEF3C7
+cloud "actions/upload-artifact" as tool_actions_upload_artifact #FEF3C7
 cloud "archility" as tool_archility #FEF3C7
 cloud "auto-pass" as tool_auto_pass #FEF3C7
 cloud "bug_report.md" as tool_bug_report_md #FEF3C7
@@ -90,12 +91,14 @@ cloud "copilot" as tool_copilot #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "credit" as tool_credit #FEF3C7
 cloud "crew-chief" as tool_crew_chief #FEF3C7
+cloud "curl" as tool_curl #FEF3C7
 cloud "dirty_count" as tool_dirty_count #FEF3C7
 cloud "documentation" as tool_documentation #FEF3C7
 cloud "doseido" as tool_doseido #FEF3C7
 cloud "drawio-templates" as tool_drawio_templates #FEF3C7
 cloud "dyno-lab" as tool_dyno_lab #FEF3C7
 cloud "error_count" as tool_error_count #FEF3C7
+cloud "event-aware" as tool_event_aware #FEF3C7
 cloud "fail" as tool_fail #FEF3C7
 cloud "failure_count" as tool_failure_count #FEF3C7
 cloud "feature_request.md" as tool_feature_request_md #FEF3C7
@@ -112,8 +115,8 @@ cloud "ignition" as tool_ignition #FEF3C7
 cloud "insufficient" as tool_insufficient #FEF3C7
 cloud "intake" as tool_intake #FEF3C7
 cloud "invalid_count" as tool_invalid_count #FEF3C7
-cloud "latest default-branch push CI is failing" as tool_latest_default_branch_push_ci_is_failing #FEF3C7
-cloud "latest default-branch push CI is green or non-actionable" as tool_latest_default_branch_push_ci_is_green_or_non_actionable #FEF3C7
+cloud "latest default-branch CI is failing" as tool_latest_default_branch_ci_is_failing #FEF3C7
+cloud "latest default-branch CI is green or non-actionable" as tool_latest_default_branch_ci_is_green_or_non_actionable #FEF3C7
 cloud "latest push run still in progress" as tool_latest_push_run_still_in_progress #FEF3C7
 cloud "limit" as tool_limit #FEF3C7
 cloud "line_number" as tool_line_number #FEF3C7
@@ -160,6 +163,7 @@ cloud "success_count" as tool_success_count #FEF3C7
 cloud "summarize" as tool_summarize #FEF3C7
 cloud "systemctl" as tool_systemctl #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
+cloud "tar" as tool_tar #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
 cloud "temporarily" as tool_temporarily #FEF3C7
 cloud "terminility" as tool_terminility #FEF3C7
@@ -177,7 +181,10 @@ source_github_workflows_ci_yml --> tool_actions_setup_python
 source_github_workflows_ci_yml --> tool_pip
 source_github_workflows_ci_yml --> tool_pre_commit
 source_github_workflows_secret_scan_yml --> tool_actions_checkout
+source_github_workflows_secret_scan_yml --> tool_actions_upload_artifact
+source_github_workflows_secret_scan_yml --> tool_curl
 source_github_workflows_secret_scan_yml --> tool_gitleaks_gitleaks_action
+source_github_workflows_secret_scan_yml --> tool_tar
 source_scripts_archility_daily_sh --> tool_ln
 source_scripts_archility_daily_sh --> tool_log
 source_scripts_archility_daily_sh --> tool_mapfile
@@ -251,8 +258,8 @@ source_scripts_ci_repair_agentic_sh --> tool_error_count
 source_scripts_ci_repair_agentic_sh --> tool_flock
 source_scripts_ci_repair_agentic_sh --> tool_gh
 source_scripts_ci_repair_agentic_sh --> tool_git
-source_scripts_ci_repair_agentic_sh --> tool_latest_default_branch_push_ci_is_failing
-source_scripts_ci_repair_agentic_sh --> tool_latest_default_branch_push_ci_is_green_or_non_actionable
+source_scripts_ci_repair_agentic_sh --> tool_latest_default_branch_ci_is_failing
+source_scripts_ci_repair_agentic_sh --> tool_latest_default_branch_ci_is_green_or_non_actionable
 source_scripts_ci_repair_agentic_sh --> tool_latest_push_run_still_in_progress
 source_scripts_ci_repair_agentic_sh --> tool_ln
 source_scripts_ci_repair_agentic_sh --> tool_mapfile
@@ -281,6 +288,7 @@ source_scripts_deploy_secret_scan_sh --> tool_documentation
 source_scripts_deploy_secret_scan_sh --> tool_doseido
 source_scripts_deploy_secret_scan_sh --> tool_drawio_templates
 source_scripts_deploy_secret_scan_sh --> tool_dyno_lab
+source_scripts_deploy_secret_scan_sh --> tool_event_aware
 source_scripts_deploy_secret_scan_sh --> tool_fedora_debugg
 source_scripts_deploy_secret_scan_sh --> tool_fred_public_data
 source_scripts_deploy_secret_scan_sh --> tool_git
@@ -422,6 +430,6 @@ source_scripts_template_consolidation_agentic_sh --> tool_sort
 source_scripts_template_consolidation_agentic_sh --> tool_tee
 note as toolingGraphSummary
 Scanned 22 tooling entrypoints.
-Detected 145 third-party tools.
+Detected 149 third-party tools.
 end note
 @enduml
