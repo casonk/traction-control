@@ -17,9 +17,16 @@
 - On a desktop with no battery or UPS, UPower may report `battery-missing-symbolic` and `unknown` power state.
 - When this happens, GNOME `gsd-power` defaults to the battery idle policy (`sleep-inactive-battery-type`), which was configured to `suspend` after 900 seconds (15 minutes) of session idle.
 - The resulting `systemd-logind.Suspend()` call drops the ethernet link entirely (`enp5s0: Link is Down`), taking down Caddy, Samba, all Flask web services, and WireGuard tunnels.
-- Fix for any machine running persistent services: `gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'` and `sleep-inactive-battery-timeout 0`. This persists across reboots via dconf and takes effect immediately.
-- Also verify `sleep-inactive-ac-type` is `'nothing'` and confirm `loginctl show` shows `IdleAction=ignore` (the systemd default).
 - Symptom pattern: "services go offline ~30 minutes after boot" = ~15 min active use + ~15 min GNOME idle timer firing on battery policy.
+
+**Two separate dconf databases must both be fixed:**
+
+1. **User session (gsettings):** `gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'` and `sleep-inactive-battery-timeout 0`. Set both AC and battery variants. This persists via dconf and takes effect immediately for the logged-in user.
+2. **GDM login screen (system dconf):** The GDM greeter runs as the `gdm` user with its own dconf database at `/etc/dconf/db/gdm.d/`. It does NOT read the desktop user's gsettings. Use `fedora-debugg/scripts/install_gdm_no_auto_suspend.sh` to install a locked GDM dconf policy, then run `sudo dconf update`. Requires a reboot or GDM restart to take effect.
+
+Fixing only the user gsettings is insufficient — the machine will still suspend when the login screen is shown (e.g., after a fresh boot before login, or after screen lock).
+
+**Do not use `systemd-inhibit --mode=block` from a system service:** polkit denies `org.freedesktop.login1.inhibit-block-sleep` to non-interactive system services even when running as root. The service loops with exit status 1 until systemd's restart rate-limit disables it. The dconf fix is the correct and sufficient solution.
 
 ### 2026-05-17 — Gitleaks Action v2 ignores unsupported `args` input
 
