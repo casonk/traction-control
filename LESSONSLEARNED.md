@@ -484,8 +484,10 @@
 - After creating or updating a service's wrapper script, run `chmod +x <script>` and then `systemctl --user daemon-reload` + `systemctl --user restart <service>` to confirm the unit starts cleanly.
 - When shipping a new systemd service in a repo, include `chmod +x` in the install docs or Makefile target so the failure does not occur during setup.
 
-### 2026-05-08 — systemctl read-only status commands need no special permissions; mutating commands do
+### 2026-05-08 — systemctl user commands need the user's D-Bus environment
 
-- `systemctl --user status`, `is-active`, `list-units`, and `list-timers` can run as the service owner from any context (scripts, cron, agent prompts) with no special permissions.
-- `systemctl --user restart`, `stop`, `start`, `daemon-reload`, and `enable` mutate unit state and must run from a process that inherits the user's login session; they fail from a subprocess launched by an agent that does not inherit that session.
+- `systemctl --user status`, `is-active`, `list-units`, and `list-timers` can run as the service owner without elevated privileges, but they still need access to the user's D-Bus session.
+- `systemctl --user restart`, `stop`, `start`, `daemon-reload`, and `enable` mutate unit state and also need the same user-bus context; they fail from agent subprocesses when `$DBUS_SESSION_BUS_ADDRESS` / `$XDG_RUNTIME_DIR` are unset.
+- In this Codex environment, if `/run/user/1000/bus` exists, use `XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus systemctl --user <command>` and run it outside the sandbox when required.
+- `systemctl --machine=user@.host --user ...` may be suggested by the error text but can still fail with machine-transport permission errors; prefer the explicit user-bus environment first.
 - In automation scripts that read then conditionally act on unit state, separate the read check from the mutating action and document that the action requires the correct user context.
