@@ -1,31 +1,48 @@
 #!/usr/bin/env bash
-# install_no_auto_suspend.sh — install a system-level sleep block inhibitor so
-# that Caddy, Samba, Flask services, and WireGuard stay online indefinitely.
+# LEGACY — this script is superseded and the service it installs does not work.
 #
-# Root cause this fixes: gsd-power running under the gdm-greeter session reads
-# the gdm user's dconf (not the desktop user's), and if UPower reports an
-# unknown power state the greeter falls back to the 900 s battery-idle-suspend
-# policy, suspending the machine and dropping all network services.
+# Why it was written:
+#   gsd-power running under the GDM greeter session reads the gdm user's dconf
+#   (not the desktop user's). When UPower reports an unknown power state, GDM
+#   falls back to the 900 s battery-idle-suspend policy, suspending the machine
+#   and dropping Caddy, Samba, Flask services, and WireGuard tunnels.
 #
-# The fix creates /etc/systemd/system/no-auto-suspend.service, which holds an
-# open logind block-mode inhibitor on "sleep" for the lifetime of the machine.
-# A block-mode inhibitor prevents any caller — including gsd-power — from
-# suspending the system via systemd-logind, regardless of which GNOME session
-# owns the request.
+# Why it does not work:
+#   systemd-inhibit --mode=block requires the polkit action
+#   org.freedesktop.login1.inhibit-block-sleep with interactive authentication.
+#   A system service (root, no active session) is denied by polkit even on
+#   Fedora with default rules. The service fails immediately on every boot and
+#   loops through 224+ restarts before systemd's rate-limit disables it.
+#   Observed error: "systemd-inhibit: must failed with exit status 1".
+#
+# Correct fix (already applied 2026-06-05):
+#   Install a GDM-specific dconf policy via
+#   ./util-repos/fedora-debugg/scripts/install_gdm_no_auto_suspend.sh
+#   That script writes /etc/dconf/db/gdm.d/99-fedora-debugg-disable-auto-suspend
+#   and locks it, preventing GDM from suspending regardless of UPower state.
+#   Combine with the user-session gsettings fix:
+#     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+#     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout 0
+#
+# Current status:
+#   no-auto-suspend.service is disabled and inactive. The unit file at
+#   /etc/systemd/system/no-auto-suspend.service is kept for reference only.
+#   Run this script with --uninstall to remove the unit file if desired.
 
 set -euo pipefail
 
 UNIT_NAME="no-auto-suspend.service"
 UNIT_DEST="/etc/systemd/system/${UNIT_NAME}"
-TMP_UNIT="$(mktemp /tmp/${UNIT_NAME}.XXXXXX)"
 UNINSTALL=0
 
 usage() {
   cat <<EOF
 Usage: install_no_auto_suspend.sh [--uninstall] [--help]
 
+LEGACY — this script no longer installs anything. See the header for context.
+
 Options:
-  --uninstall   Stop and remove the service (reverse this installation).
+  --uninstall   Remove the legacy unit file if it still exists on disk.
   --help        Show this message.
 EOF
 }
@@ -43,8 +60,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-command -v systemd-inhibit >/dev/null 2>&1 || fail "systemd-inhibit not found — is systemd installed?"
-
 # ── uninstall ────────────────────────────────────────────────────────────────
 if (( UNINSTALL == 1 )); then
   if ! [[ -f "${UNIT_DEST}" ]]; then
@@ -52,53 +67,29 @@ if (( UNINSTALL == 1 )); then
     exit 0
   fi
   printf 'Stopping and disabling %s …\n' "${UNIT_NAME}"
-  sudo systemctl disable --now "${UNIT_NAME}"
+  sudo systemctl disable --now "${UNIT_NAME}" 2>/dev/null || true
   sudo rm -f "${UNIT_DEST}"
   sudo systemctl daemon-reload
   printf 'Removed %s\n' "${UNIT_DEST}"
   exit 0
 fi
 
-# ── install ──────────────────────────────────────────────────────────────────
-trap 'rm -f "${TMP_UNIT}"' EXIT
+# ── install path is disabled ─────────────────────────────────────────────────
+cat <<'EOF'
+LEGACY: this script no longer installs no-auto-suspend.service.
 
-cat > "${TMP_UNIT}" <<'UNIT'
-[Unit]
-Description=Block automatic system suspend for persistent services
-DefaultDependencies=no
-After=sysinit.target
+The systemd-inhibit --mode=block approach does not work from a system service
+because polkit denies the inhibitor-block-sleep action without interactive auth.
 
-[Service]
-Type=simple
-ExecStart=/usr/bin/systemd-inhibit \
-    --what=sleep \
-    --who=desk-local-services \
-    --why=persistent-network-services \
-    --mode=block \
-    sleep infinity
-Restart=on-failure
-RestartSec=5
+Use the GDM dconf fix instead:
+  sudo ./util-repos/fedora-debugg/scripts/install_gdm_no_auto_suspend.sh
 
-[Install]
-WantedBy=multi-user.target
-UNIT
+And verify the user-session gsettings are set:
+  gsettings get org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type
+  gsettings get org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type
+  (both should be 'nothing')
 
-printf 'Installing %s …\n' "${UNIT_DEST}"
-sudo cp "${TMP_UNIT}" "${UNIT_DEST}"
-sudo chmod 644 "${UNIT_DEST}"
-sudo systemctl daemon-reload
-sudo systemctl stop "${UNIT_NAME}" 2>/dev/null || true
-sudo systemctl reset-failed "${UNIT_NAME}" 2>/dev/null || true
-sudo systemctl enable "${UNIT_NAME}"
-sudo systemctl start "${UNIT_NAME}"
-
-# ── verify ───────────────────────────────────────────────────────────────────
-printf '\nService status:\n'
-systemctl status "${UNIT_NAME}" --no-pager -l
-
-printf '\nActive sleep inhibitors:\n'
-systemd-inhibit --list | head -1          # header
-systemd-inhibit --list | grep -i "sleep\|suspend" || true
-
-printf '\nDone. The block inhibitor is active and will re-arm on every boot.\n'
-printf 'To reverse: %s --uninstall\n' "$(basename "$0")"
+To remove the legacy unit file from disk:
+  bash scripts/install_no_auto_suspend.sh --uninstall
+EOF
+exit 0
