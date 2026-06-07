@@ -14,6 +14,9 @@ timer_description = "Monitor GitHub Actions failure emails in Gmail"
 
 [jobs.environment]
 PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+GITHUB_CI_EMAIL_PROCESSED_LABEL = "GitHub/CI/processed"
+GITHUB_CI_EMAIL_NOTIFY_LABEL = "GitHub/CI/notify"
+GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES = "60"
 # Set GITHUB_CI_FIXED_NOTIFY_TO in the optional local env file to enable
 # resolved-CI notification emails.
 
