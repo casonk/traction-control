@@ -498,3 +498,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - In this Codex environment, if `/run/user/1000/bus` exists, use `XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus systemctl --user <command>` and run it outside the sandbox when required.
 - `systemctl --machine=user@.host --user ...` may be suggested by the error text but can still fail with machine-transport permission errors; prefer the explicit user-bus environment first.
 - In automation scripts that read then conditionally act on unit state, separate the read check from the mutating action and document that the action requires the correct user context.
+
+### 2026-06-07 — CI failure monitors and repair timers are separate loops
+
+- The Gmail-based GitHub CI monitor detects and labels failure emails; it does not by itself trigger `ci-repair-agentic.service`.
+- When a user expects "fixed" notification emails, the monitor needs an explicit resolved-state check against GitHub Actions plus an opt-in recipient such as `GITHUB_CI_FIXED_NOTIFY_TO`.
+- A repaired repo should only be announced as fixed after a later default-branch SHA has completed green, not merely because an older push workflow was green while a scheduled workflow failed on the same SHA.

@@ -27,6 +27,14 @@ DEFAULT_PROCESSED_LABEL = "GitHub/CI Failure Processed"
 DEFAULT_LIMIT = 20
 DEFAULT_SINCE_DAYS = 14
 MAX_REPO_DEPTH = 4
+BAD_RUN_CONCLUSIONS = {
+    "action_required",
+    "cancelled",
+    "failure",
+    "stale",
+    "startup_failure",
+    "timed_out",
+}
 
 SUBJECT_RE = re.compile(
     r"^\[(?P<repo_slug>[^\]]+)\]\s+Run failed:\s+(?P<workflow_and_branch>.+?)\s+\((?P<head_sha>[0-9a-fA-F]{7,40})\)\s*$"
@@ -64,6 +72,8 @@ class MonitorConfig:
     since_days: int
     unseen_only: bool
     messages_file: Path | None
+    fixed_notify_to: tuple[str, ...]
+    fixed_notify_subject_prefix: str
     output_json: bool
 
 
@@ -91,6 +101,18 @@ class ParsedDetection:
     email: GitHubCiEmail
     mailbox: str
     uid: int | None
+
+
+@dataclass(frozen=True)
+class FixedCiRun:
+    key: str
+    repo_slug: str
+    repo_rel: str | None
+    branch: str
+    failed_head_sha: str
+    fixed_head_sha: str
+    workflow_names: tuple[str, ...]
+    run_urls: tuple[str, ...]
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -172,6 +194,23 @@ def parse_args() -> MonitorConfig:
         help="Optional JSON file containing pre-fetched Gmail messages for offline parsing/tests.",
     )
     parser.add_argument(
+        "--fixed-notify-to",
+        action="append",
+        default=[],
+        help=(
+            "Recipient for fixed CI notifications. May be supplied multiple times or "
+            "comma-separated. Defaults to GITHUB_CI_FIXED_NOTIFY_TO."
+        ),
+    )
+    parser.add_argument(
+        "--fixed-notify-subject-prefix",
+        default=os.environ.get(
+            "GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX",
+            "[traction-control] GitHub CI fixed",
+        ),
+        help="Subject prefix for fixed CI notification emails.",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the final summary as JSON instead of human-readable log lines.",
@@ -196,8 +235,28 @@ def parse_args() -> MonitorConfig:
         since_days=max(1, int(args.since_days)),
         unseen_only=bool(args.unseen or env_bool("GITHUB_CI_EMAIL_UNSEEN_ONLY")),
         messages_file=Path(args.messages_file).expanduser().resolve() if args.messages_file else None,
+        fixed_notify_to=tuple(
+            _split_csv_values(
+                [
+                    os.environ.get("GITHUB_CI_FIXED_NOTIFY_TO", ""),
+                    *args.fixed_notify_to,
+                ]
+            )
+        ),
+        fixed_notify_subject_prefix=str(args.fixed_notify_subject_prefix).strip()
+        or "[traction-control] GitHub CI fixed",
         output_json=bool(args.json),
     )
+
+
+def _split_csv_values(values: Iterable[str]) -> list[str]:
+    parts: list[str] = []
+    for value in values:
+        for part in str(value or "").split(","):
+            cleaned = part.strip()
+            if cleaned:
+                parts.append(cleaned)
+    return list(dict.fromkeys(parts))
 
 
 def load_state(path: Path) -> dict[str, Any]:
@@ -476,17 +535,156 @@ def emit_json_summary(
     parsed: list[GitHubCiEmail],
     new_items: list[GitHubCiEmail],
     tagged_keys: set[str],
+    fixed_notifications: list[FixedCiRun],
 ) -> str:
     payload = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "matching_messages": len(parsed),
         "new_detections": len(new_items),
         "tagged_messages": len(tagged_keys),
+        "fixed_notifications": len(fixed_notifications),
         "emails": [asdict(item) for item in parsed],
         "new_emails": [asdict(item) for item in new_items],
         "tagged_detection_keys": sorted(tagged_keys),
+        "fixed": [asdict(item) for item in fixed_notifications],
     }
     return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def _gh_json(args: list[str]) -> Any:
+    result = subprocess.run(
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        message = result.stderr.strip() or result.stdout.strip() or "gh command failed"
+        raise MonitorError(message)
+    try:
+        return json.loads(result.stdout or "null")
+    except json.JSONDecodeError as exc:
+        raise MonitorError(f"gh returned invalid JSON: {exc}") from exc
+
+
+def latest_branch_run_state(repo_slug: str, branch: str) -> dict[str, Any] | None:
+    runs = _gh_json(
+        [
+            "run",
+            "list",
+            "--repo",
+            repo_slug,
+            "--branch",
+            branch,
+            "--limit",
+            "20",
+            "--json",
+            "databaseId,headSha,status,conclusion,url,workflowName,createdAt,event",
+        ]
+    )
+    if not isinstance(runs, list) or not runs:
+        return None
+    latest_head_sha = str(runs[0].get("headSha") or "")
+    if not latest_head_sha:
+        return None
+    latest_runs = [run for run in runs if str(run.get("headSha") or "") == latest_head_sha]
+    if not latest_runs:
+        return None
+    pending = [run for run in latest_runs if run.get("status") != "completed"]
+    bad = [
+        run
+        for run in latest_runs
+        if str(run.get("conclusion") or "") in BAD_RUN_CONCLUSIONS
+    ]
+    successes = [
+        run for run in latest_runs if str(run.get("conclusion") or "") == "success"
+    ]
+    return {
+        "head_sha": latest_head_sha,
+        "is_green": not pending and not bad and bool(successes),
+        "workflow_names": tuple(
+            dict.fromkeys(str(run.get("workflowName") or "") for run in latest_runs if run.get("workflowName"))
+        ),
+        "run_urls": tuple(
+            str(run.get("url") or "") for run in latest_runs if run.get("url")
+        ),
+    }
+
+
+def find_fixed_runs(config: MonitorConfig, state: dict[str, Any]) -> list[FixedCiRun]:
+    if not config.fixed_notify_to:
+        return []
+    known_runs = state.get("runs", {})
+    if not isinstance(known_runs, dict):
+        return []
+
+    fixed: list[FixedCiRun] = []
+    checked: dict[tuple[str, str], dict[str, Any] | None] = {}
+    for key, record in known_runs.items():
+        if not isinstance(record, dict) or record.get("fixed_notified_at"):
+            continue
+        repo_slug = str(record.get("repo_slug") or "").strip()
+        branch = str(record.get("branch") or "").strip()
+        failed_head_sha = str(record.get("head_sha") or "").strip()
+        if not repo_slug or not branch or not failed_head_sha:
+            continue
+        cache_key = (repo_slug, branch)
+        if cache_key not in checked:
+            checked[cache_key] = latest_branch_run_state(repo_slug, branch)
+        branch_state = checked[cache_key]
+        if not branch_state or not branch_state["is_green"]:
+            continue
+        fixed_head_sha = str(branch_state["head_sha"] or "")
+        if not fixed_head_sha or fixed_head_sha == failed_head_sha:
+            continue
+        fixed.append(
+            FixedCiRun(
+                key=str(key),
+                repo_slug=repo_slug,
+                repo_rel=record.get("repo_rel"),
+                branch=branch,
+                failed_head_sha=failed_head_sha,
+                fixed_head_sha=fixed_head_sha,
+                workflow_names=tuple(branch_state["workflow_names"]),
+                run_urls=tuple(branch_state["run_urls"]),
+            )
+        )
+    return fixed
+
+
+def send_fixed_notifications(config: MonitorConfig, fixed_runs: list[FixedCiRun]) -> None:
+    if not fixed_runs:
+        return
+    common = _load_shock_relay_common(config.shock_relay_root)
+    try:
+        gmail_config = common.load_config(str(config.gmail_config))
+    except Exception as exc:
+        raise MonitorError(f"cannot load Gmail config for fixed notification email: {exc}") from exc
+
+    for item in fixed_runs:
+        workflows = ", ".join(item.workflow_names) or "workflows"
+        run_urls = "\n".join(f"- {url}" for url in item.run_urls) or "- no run URL recorded"
+        subject = f"{config.fixed_notify_subject_prefix}: {item.repo_slug}"
+        body = (
+            f"GitHub Actions is green again for {item.repo_slug}.\n\n"
+            f"Repository: {item.repo_slug}\n"
+            f"Local path: {item.repo_rel or '-'}\n"
+            f"Branch: {item.branch}\n"
+            f"Failed SHA: {item.failed_head_sha}\n"
+            f"Fixed SHA: {item.fixed_head_sha}\n"
+            f"Workflow(s): {workflows}\n\n"
+            f"Current run(s):\n{run_urls}\n"
+        )
+        try:
+            common.send_email(
+                gmail_config,
+                to_addresses=list(config.fixed_notify_to),
+                subject=subject,
+                body=body,
+                headers={"X-Portfolio-Service": "traction-control"},
+            )
+        except Exception as exc:
+            raise MonitorError(f"failed sending fixed CI notification email: {exc}") from exc
 
 
 def should_apply_processed_label(
@@ -585,6 +783,7 @@ def update_state(
     *,
     processed_label: str,
     labeled_keys: set[str],
+    fixed_notifications: Iterable[FixedCiRun],
 ) -> dict[str, Any]:
     runs = existing.get("runs", {})
     if not isinstance(runs, dict):
@@ -617,10 +816,28 @@ def update_state(
                 record["processed_label"] = prior_label
             if prior_applied_at:
                 record["processed_label_applied_at"] = prior_applied_at
+            for fixed_key in (
+                "fixed_notified_at",
+                "fixed_head_sha",
+                "fixed_workflows",
+                "fixed_run_urls",
+            ):
+                if fixed_key in previous:
+                    record[fixed_key] = previous[fixed_key]
         if key in labeled_keys:
             record["processed_label"] = processed_label
             record["processed_label_applied_at"] = checked_at
         updated_runs[key] = record
+    for item in fixed_notifications:
+        record = updated_runs.get(item.key)
+        if not isinstance(record, dict):
+            continue
+        updated = dict(record)
+        updated["fixed_notified_at"] = checked_at
+        updated["fixed_head_sha"] = item.fixed_head_sha
+        updated["fixed_workflows"] = list(item.workflow_names)
+        updated["fixed_run_urls"] = list(item.run_urls)
+        updated_runs[item.key] = updated
     return {
         "checked_at": checked_at,
         "runs": updated_runs,
@@ -652,14 +869,22 @@ def main() -> int:
         known_runs = {}
     new_items = [item for item in parsed if detection_key(item) not in known_runs]
     tagged_keys = apply_processed_labels(config, parsed_detections, known_runs)
+    fixed_notifications = find_fixed_runs(config, state)
+    send_fixed_notifications(config, fixed_notifications)
 
     if config.output_json:
-        print(emit_json_summary(parsed, new_items, tagged_keys))
+        print(emit_json_summary(parsed, new_items, tagged_keys, fixed_notifications))
     else:
         for line in summarize_for_humans(
             parsed=parsed, new_items=new_items, tagged_count=len(tagged_keys)
         ):
             print(line)
+        for item in fixed_notifications:
+            print(
+                "info: fixed GitHub CI notification sent: "
+                f"repo={item.repo_slug} branch={item.branch} "
+                f"failed_sha={item.failed_head_sha} fixed_sha={item.fixed_head_sha}"
+            )
 
     save_state(
         config.state_file,
@@ -668,6 +893,7 @@ def main() -> int:
             parsed,
             processed_label=config.processed_label,
             labeled_keys=tagged_keys,
+            fixed_notifications=fixed_notifications,
         ),
     )
     return 0

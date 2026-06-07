@@ -198,6 +198,12 @@ file, applies a processed Gmail label after a successful live scan, and emits
 compatible with `clockwork`'s warning surfacing without needing another alert
 channel.
 
+If `GITHUB_CI_FIXED_NOTIFY_TO` is set, the same monitor also checks previously
+recorded failures against current GitHub Actions status through `gh run list`.
+It sends a Gmail notification when a later default-branch SHA has completed
+green, then marks that failure as fixed in the local state file so the resolved
+email is sent once.
+
 The default Gmail config path is the sibling
 `./util-repos/shock-relay/services/gmail-imap/config.local.yaml`. Override any
 runtime settings through the optional local-only env file:
@@ -209,7 +215,9 @@ runtime settings through the optional local-only env file:
 Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 `GITHUB_CI_EMAIL_STATE_FILE`, `GITHUB_CI_EMAIL_MAILBOX`,
 `GITHUB_CI_EMAIL_SINCE_DAYS`, `GITHUB_CI_EMAIL_UNSEEN_ONLY`, and
-`GITHUB_CI_EMAIL_PROCESSED_LABEL`. The default processed label is
+`GITHUB_CI_EMAIL_PROCESSED_LABEL`. Fixed-run emails are opt-in with
+`GITHUB_CI_FIXED_NOTIFY_TO`, and their subject prefix can be changed with
+`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. The default processed label is
 `GitHub/CI Failure Processed`.
 
 To install the user-level systemd timer through `clockwork`, use:
