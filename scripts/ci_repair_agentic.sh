@@ -36,7 +36,7 @@ Options:
   --portfolio-root PATH  Override the portfolio scan root.
   --log-dir DIR          Override the run-log directory.
   --prompt-file PATH     Override the maintenance prompt file.
-  --run-limit N          How many recent push runs to inspect per repo (default: 30).
+  --run-limit N          How many recent branch workflow runs to inspect per repo (default: 30).
   --force                Ignore dirty worktrees and scan them anyway.
   --help                 Show this help text.
 EOF
@@ -273,7 +273,7 @@ for repo in "${REPO_DIRS[@]}"; do
 
   head_sha="$(printf '%s' "${runs_json}" | jq -r '.[0].headSha // empty')"
   if [[ -z "${head_sha}" ]]; then
-    record_inventory "no_ci" "${repo_rel}" "${repo_slug}" "${branch}" "-" "-" "-" "-" "no push workflow runs found"
+    record_inventory "no_ci" "${repo_rel}" "${repo_slug}" "${branch}" "-" "-" "-" "-" "no default-branch workflow runs found"
     no_ci_count=$(( no_ci_count + 1 ))
     continue
   fi
@@ -299,7 +299,7 @@ for repo in "${REPO_DIRS[@]}"; do
       "-" \
       "-" \
       "${pending_urls}" \
-      "latest push run still in progress"
+      "latest default-branch workflow run still in progress"
     pending_count=$(( pending_count + 1 ))
     continue
   fi
