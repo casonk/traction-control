@@ -26,3 +26,4 @@ All notable changes to `traction-control` are documented here.
 - Added the tachometer disk-pressure agentic remediation wrapper, prompt, and `clockwork` timer installer so disk red lights route to reversible repo-local archive automation.
 - Added opt-in fixed-run email notifications to the GitHub CI failure email monitor.
 - Changed the GitHub CI email monitor to file failure emails into a processed folder and generated fixed notifications into a notify folder after a grace window.
+- Added delayed `ci-repair-agentic.service` scheduling when the GitHub CI email monitor detects new failure emails.

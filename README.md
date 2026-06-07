@@ -210,6 +210,12 @@ If they appear in the monitored inbox, the monitor leaves them there for the
 configured grace window so Gmail/device notifications can fire, then moves them
 to the configured notify folder without marking them read.
 
+When `GITHUB_CI_EMAIL_TRIGGER_REPAIR=1`, each newly detected failure email also
+schedules a delayed user-systemd trigger for `ci-repair-agentic.service`. The
+default delay is 30 minutes so an agent or human that just pushed a change has
+time to finish before the autonomous repair sweep starts. Duplicate failure
+emails coalesce behind one transient trigger unit.
+
 The default Gmail config path is the sibling
 `./util-repos/shock-relay/services/gmail-imap/config.local.yaml`. Override any
 runtime settings through the optional local-only env file:
@@ -227,6 +233,10 @@ Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 be narrowed with `GITHUB_CI_FIXED_NOTIFY_REPO` or `--fixed-notify-repo`.
 Notify-folder routing uses
 `GITHUB_CI_EMAIL_NOTIFY_LABEL` and `GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES`.
+Delayed repair scheduling uses `GITHUB_CI_EMAIL_TRIGGER_REPAIR`,
+`GITHUB_CI_EMAIL_TRIGGER_REPAIR_DELAY_MINUTES`,
+`GITHUB_CI_EMAIL_TRIGGER_REPAIR_SERVICE`, and
+`GITHUB_CI_EMAIL_TRIGGER_REPAIR_UNIT`.
 The default folders are `GitHub/CI/processed` and `GitHub/CI/notify`.
 
 To install the user-level systemd timer through `clockwork`, use:
