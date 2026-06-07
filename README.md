@@ -193,8 +193,9 @@ python3 scripts/monitor_github_ci_emails.py
 The monitor scans the configured Gmail inbox for GitHub notification emails
 from `notifications@github.com` whose subject contains `Run failed:`, parses
 the repo/workflow/run metadata, dedupes detections through a local JSON state
-file, applies a processed Gmail label after a successful live scan, and emits
-`WARNING ...` log lines for newly detected failures. This keeps the job
+file, marks handled failure emails read, moves them to the configured
+processed Gmail folder, and emits `WARNING ...` log lines for newly detected
+failures. This keeps the job
 compatible with `clockwork`'s warning surfacing without needing another alert
 channel.
 
@@ -203,6 +204,11 @@ recorded failures against current GitHub Actions status through `gh run list`.
 It sends a Gmail notification when a later default-branch SHA has completed
 green, then marks that failure as fixed in the local state file so the resolved
 email is sent once.
+
+Monitor-generated fixed-CI emails use `X-Portfolio-Service: traction-control`.
+If they appear in the monitored inbox, the monitor leaves them there for the
+configured grace window so Gmail/device notifications can fire, then moves them
+to the configured notify folder without marking them read.
 
 The default Gmail config path is the sibling
 `./util-repos/shock-relay/services/gmail-imap/config.local.yaml`. Override any
@@ -217,8 +223,9 @@ Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 `GITHUB_CI_EMAIL_SINCE_DAYS`, `GITHUB_CI_EMAIL_UNSEEN_ONLY`, and
 `GITHUB_CI_EMAIL_PROCESSED_LABEL`. Fixed-run emails are opt-in with
 `GITHUB_CI_FIXED_NOTIFY_TO`, and their subject prefix can be changed with
-`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. The default processed label is
-`GitHub/CI Failure Processed`.
+`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. Notify-folder routing uses
+`GITHUB_CI_EMAIL_NOTIFY_LABEL` and `GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES`.
+The default folders are `GitHub/CI/processed` and `GitHub/CI/notify`.
 
 To install the user-level systemd timer through `clockwork`, use:
 

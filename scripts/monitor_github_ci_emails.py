@@ -23,7 +23,9 @@ DEFAULT_STATE_FILE = Path.home() / ".local" / "share" / "traction-control" / "gi
 DEFAULT_MAILBOX = "INBOX"
 DEFAULT_FROM_FILTER = "notifications@github.com"
 DEFAULT_SUBJECT_FILTER = "Run failed:"
-DEFAULT_PROCESSED_LABEL = "GitHub/CI Failure Processed"
+DEFAULT_PROCESSED_LABEL = "GitHub/CI/processed"
+DEFAULT_NOTIFY_LABEL = "GitHub/CI/notify"
+DEFAULT_NOTIFY_GRACE_MINUTES = 60
 DEFAULT_LIMIT = 20
 DEFAULT_SINCE_DAYS = 14
 MAX_REPO_DEPTH = 4
@@ -68,6 +70,8 @@ class MonitorConfig:
     from_filter: str
     subject_filter: str
     processed_label: str
+    notify_label: str
+    notify_grace_minutes: int
     limit: int
     since_days: int
     unseen_only: bool
@@ -172,6 +176,28 @@ def parse_args() -> MonitorConfig:
         ),
     )
     parser.add_argument(
+        "--notify-label",
+        default=os.environ.get("GITHUB_CI_EMAIL_NOTIFY_LABEL", DEFAULT_NOTIFY_LABEL),
+        help=(
+            "Gmail label/folder for monitor-generated notification emails after "
+            f"the grace period (default: {DEFAULT_NOTIFY_LABEL!r})."
+        ),
+    )
+    parser.add_argument(
+        "--notify-grace-minutes",
+        type=int,
+        default=int(
+            os.environ.get(
+                "GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES",
+                str(DEFAULT_NOTIFY_GRACE_MINUTES),
+            )
+        ),
+        help=(
+            "Minutes to leave monitor-generated notification emails in the inbox "
+            f"before filing them (default: {DEFAULT_NOTIFY_GRACE_MINUTES})."
+        ),
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=int(os.environ.get("GITHUB_CI_EMAIL_LIMIT", str(DEFAULT_LIMIT))),
@@ -231,6 +257,8 @@ def parse_args() -> MonitorConfig:
         from_filter=str(args.from_filter).strip() or DEFAULT_FROM_FILTER,
         subject_filter=str(args.subject_filter).strip() or DEFAULT_SUBJECT_FILTER,
         processed_label=str(args.processed_label).strip() or DEFAULT_PROCESSED_LABEL,
+        notify_label=str(args.notify_label).strip() or DEFAULT_NOTIFY_LABEL,
+        notify_grace_minutes=max(0, int(args.notify_grace_minutes)),
         limit=max(1, int(args.limit)),
         since_days=max(1, int(args.since_days)),
         unseen_only=bool(args.unseen or env_bool("GITHUB_CI_EMAIL_UNSEEN_ONLY")),
@@ -320,6 +348,30 @@ def load_messages(config: MonitorConfig) -> list[dict[str, Any]]:
     if not isinstance(messages, list):
         raise MonitorError("shock-relay returned an invalid message payload")
     return [item for item in messages if isinstance(item, dict)]
+
+
+def load_notification_messages(config: MonitorConfig) -> list[dict[str, Any]]:
+    if config.messages_file is not None or not config.notify_label:
+        return []
+
+    common = _load_shock_relay_common(config.shock_relay_root)
+    try:
+        gmail_config = common.load_config(str(config.gmail_config))
+        payload = common.list_messages(
+            gmail_config,
+            mailboxes=[config.mailbox],
+            limit=config.limit,
+            unseen_only=False,
+            from_contains="",
+            subject_contains=config.fixed_notify_subject_prefix,
+            since_days=config.since_days,
+        )
+    except Exception as exc:
+        raise MonitorError(f"gmail notification filing check failed: {exc}") from exc
+    messages = payload.get("messages", [])
+    if not isinstance(messages, list):
+        raise MonitorError("shock-relay returned an invalid notification message payload")
+    return [item for item in messages if is_monitor_notification(item, config)]
 
 
 def parse_github_slug(remote_url: str) -> str | None:
@@ -452,6 +504,77 @@ def apply_gmail_label(conn: Any, uid: int, label: str) -> None:
     )
 
 
+def _normalized_mailbox_name(value: str) -> str:
+    return str(value or "").strip().strip('"').lower()
+
+
+def same_mailbox_label(left: str, right: str) -> bool:
+    return _normalized_mailbox_name(left) == _normalized_mailbox_name(right)
+
+
+def move_gmail_message(conn: Any, uid: int, dest_mailbox: str) -> None:
+    last_status = ""
+    last_data: Any = []
+    last_exception: Exception | None = None
+    for candidate in mailbox_name_candidates(dest_mailbox):
+        try:
+            conn.create(candidate)
+        except Exception as exc:
+            last_exception = exc
+        try:
+            status, data = conn.uid("copy", str(uid), candidate)
+        except Exception as exc:
+            last_exception = exc
+            continue
+        if status != "OK":
+            last_status, last_data = status, data
+            continue
+        try:
+            status, data = conn.uid("store", str(uid), "+FLAGS", r"(\Deleted)")
+        except Exception as exc:
+            last_exception = exc
+            continue
+        if status == "OK":
+            return
+        last_status, last_data = status, data
+    if last_exception is not None:
+        raise last_exception
+    raise MonitorError(
+        "IMAP UID move failed while filing message to "
+        f"{dest_mailbox!r}: status={last_status} data={last_data!r}"
+    )
+
+
+def mark_gmail_message_read(conn: Any, uid: int) -> None:
+    status, data = conn.uid("store", str(uid), "+FLAGS", r"(\Seen)")
+    if status != "OK":
+        raise MonitorError(f"IMAP UID mark-read failed for uid={uid}: status={status} data={data!r}")
+
+
+def is_monitor_notification(message: dict[str, Any], config: MonitorConfig) -> bool:
+    headers = message.get("headers", {})
+    if isinstance(headers, dict):
+        service = str(headers.get("X-Portfolio-Service") or "").strip().lower()
+        if service == "traction-control":
+            return True
+    subject = str(message.get("subject") or "").strip()
+    return bool(subject and subject.startswith(config.fixed_notify_subject_prefix))
+
+
+def notification_ready_to_file(
+    message: dict[str, Any],
+    *,
+    grace_minutes: int,
+) -> bool:
+    if grace_minutes <= 0:
+        return True
+    timestamp = message.get("timestamp")
+    if isinstance(timestamp, (int, float)):
+        age_seconds = datetime.now(timezone.utc).timestamp() - float(timestamp)
+        return age_seconds >= grace_minutes * 60
+    return True
+
+
 def parse_ci_email(message: dict[str, Any], repo_index: dict[str, str]) -> GitHubCiEmail | None:
     subject = str(message.get("subject") or "").strip()
     sender = str(message.get("from") or "").strip()
@@ -506,7 +629,8 @@ def summarize_for_humans(
     *,
     parsed: list[GitHubCiEmail],
     new_items: list[GitHubCiEmail],
-    tagged_count: int,
+    filed_count: int,
+    filed_notification_count: int,
 ) -> list[str]:
     lines: list[str] = []
     if not parsed:
@@ -514,7 +638,9 @@ def summarize_for_humans(
         return lines
 
     lines.append(
-        f"info: matching GitHub CI failure emails found={len(parsed)} new={len(new_items)} tagged={tagged_count}"
+        "info: matching GitHub CI failure emails "
+        f"found={len(parsed)} new={len(new_items)} filed={filed_count} "
+        f"notify_filed={filed_notification_count}"
     )
     for item in new_items:
         failed_jobs = ", ".join(item.failed_jobs) or "-"
@@ -534,18 +660,22 @@ def summarize_for_humans(
 def emit_json_summary(
     parsed: list[GitHubCiEmail],
     new_items: list[GitHubCiEmail],
-    tagged_keys: set[str],
+    filed_keys: set[str],
+    filed_notification_count: int,
     fixed_notifications: list[FixedCiRun],
 ) -> str:
     payload = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "matching_messages": len(parsed),
         "new_detections": len(new_items),
-        "tagged_messages": len(tagged_keys),
+        "filed_messages": len(filed_keys),
+        "filed_notifications": filed_notification_count,
+        "tagged_messages": len(filed_keys),
         "fixed_notifications": len(fixed_notifications),
         "emails": [asdict(item) for item in parsed],
         "new_emails": [asdict(item) for item in new_items],
-        "tagged_detection_keys": sorted(tagged_keys),
+        "filed_detection_keys": sorted(filed_keys),
+        "tagged_detection_keys": sorted(filed_keys),
         "fixed": [asdict(item) for item in fixed_notifications],
     }
     return json.dumps(payload, indent=2, sort_keys=True)
@@ -687,7 +817,7 @@ def send_fixed_notifications(config: MonitorConfig, fixed_runs: list[FixedCiRun]
             raise MonitorError(f"failed sending fixed CI notification email: {exc}") from exc
 
 
-def should_apply_processed_label(
+def should_file_processed_message(
     detection: ParsedDetection,
     known_runs: dict[str, Any],
     *,
@@ -700,11 +830,11 @@ def should_apply_processed_label(
         return True
     return not (
         prior.get("processed_label") == processed_label
-        and prior.get("processed_label_applied_at")
+        and (prior.get("processed_label_applied_at") or prior.get("processed_filed_at"))
     )
 
 
-def apply_processed_labels(
+def file_processed_messages(
     config: MonitorConfig,
     detections: Iterable[ParsedDetection],
     known_runs: dict[str, Any],
@@ -715,7 +845,7 @@ def apply_processed_labels(
     pending = [
         detection
         for detection in detections
-        if should_apply_processed_label(
+        if should_file_processed_message(
             detection,
             known_runs,
             processed_label=config.processed_label,
@@ -737,10 +867,11 @@ def apply_processed_labels(
     except Exception as exc:
         raise MonitorError(f"cannot load Gmail config for label application: {exc}") from exc
 
-    labeled_keys: set[str] = set()
+    filed_keys: set[str] = set()
     current_mailbox = ""
     try:
         with common.open_imap_connection(gmail_config) as conn:
+            needs_expunge = False
             for detection in pending:
                 assert detection.uid is not None
                 if detection.mailbox != current_mailbox:
@@ -755,26 +886,100 @@ def apply_processed_labels(
                         ) from exc
                     if status != "OK":
                         raise MonitorError(
-                            "failed selecting the Gmail mailbox for processed-label application "
+                            "failed selecting the Gmail mailbox for processed filing "
                             f"(mailbox={detection.mailbox!r}, status={status})"
                         )
                     current_mailbox = detection.mailbox
                 try:
-                    apply_gmail_label(conn, detection.uid, config.processed_label)
+                    mark_gmail_message_read(conn, detection.uid)
+                    if not same_mailbox_label(detection.mailbox, config.processed_label):
+                        move_gmail_message(conn, detection.uid, config.processed_label)
+                        needs_expunge = True
                 except Exception as exc:
                     raise MonitorError(
-                        "failed applying the processed Gmail label "
+                        "failed filing GitHub CI failure email to the processed Gmail folder "
                         f"{config.processed_label!r} to uid={detection.uid} "
                         f"in mailbox={detection.mailbox!r}: {exc}"
                     ) from exc
-                labeled_keys.add(detection_key(detection.email))
+                filed_keys.add(detection_key(detection.email))
+            if needs_expunge:
+                conn.expunge()
     except MonitorError:
         raise
     except Exception as exc:
         raise MonitorError(
-            f"processed Gmail label application failed unexpectedly: {exc}"
+            f"processed Gmail filing failed unexpectedly: {exc}"
         ) from exc
-    return labeled_keys
+    return filed_keys
+
+
+def file_notification_messages(config: MonitorConfig, messages: Iterable[dict[str, Any]]) -> int:
+    if config.messages_file is not None or not config.notify_label:
+        return 0
+    pending = [
+        message
+        for message in messages
+        if notification_ready_to_file(
+            message,
+            grace_minutes=config.notify_grace_minutes,
+        )
+    ]
+    if not pending:
+        return 0
+
+    for message in pending:
+        if parse_uid(message.get("uid")) is None or not str(message.get("mailbox") or "").strip():
+            raise MonitorError(
+                "cannot file monitor notification email because mailbox/uid metadata is missing "
+                f"(subject={str(message.get('subject') or '').strip()!r})"
+            )
+
+    common = _load_shock_relay_common(config.shock_relay_root)
+    try:
+        gmail_config = common.load_config(str(config.gmail_config))
+    except Exception as exc:
+        raise MonitorError(f"cannot load Gmail config for notification filing: {exc}") from exc
+
+    filed_count = 0
+    current_mailbox = ""
+    try:
+        with common.open_imap_connection(gmail_config) as conn:
+            needs_expunge = False
+            for message in pending:
+                uid = parse_uid(message.get("uid"))
+                assert uid is not None
+                mailbox = str(message.get("mailbox") or "").strip()
+                if mailbox != current_mailbox:
+                    try:
+                        status, _ = common.select_mailbox(conn, mailbox, readonly=False)
+                    except Exception as exc:
+                        raise MonitorError(
+                            "failed selecting the Gmail mailbox for notification filing "
+                            f"(mailbox={mailbox!r}): {exc}"
+                        ) from exc
+                    if status != "OK":
+                        raise MonitorError(
+                            "failed selecting the Gmail mailbox for notification filing "
+                            f"(mailbox={mailbox!r}, status={status})"
+                        )
+                    current_mailbox = mailbox
+                try:
+                    if not same_mailbox_label(mailbox, config.notify_label):
+                        move_gmail_message(conn, uid, config.notify_label)
+                        needs_expunge = True
+                except Exception as exc:
+                    raise MonitorError(
+                        "failed filing monitor notification email to the notify Gmail folder "
+                        f"{config.notify_label!r} for uid={uid} in mailbox={mailbox!r}: {exc}"
+                    ) from exc
+                filed_count += 1
+            if needs_expunge:
+                conn.expunge()
+    except MonitorError:
+        raise
+    except Exception as exc:
+        raise MonitorError(f"notification Gmail filing failed unexpectedly: {exc}") from exc
+    return filed_count
 
 
 def update_state(
@@ -782,7 +987,7 @@ def update_state(
     parsed: Iterable[GitHubCiEmail],
     *,
     processed_label: str,
-    labeled_keys: set[str],
+    filed_keys: set[str],
     fixed_notifications: Iterable[FixedCiRun],
 ) -> dict[str, Any]:
     runs = existing.get("runs", {})
@@ -812,10 +1017,13 @@ def update_state(
         if isinstance(previous, dict):
             prior_label = str(previous.get("processed_label") or "").strip()
             prior_applied_at = str(previous.get("processed_label_applied_at") or "").strip()
+            prior_filed_at = str(previous.get("processed_filed_at") or "").strip()
             if prior_label:
                 record["processed_label"] = prior_label
             if prior_applied_at:
                 record["processed_label_applied_at"] = prior_applied_at
+            if prior_filed_at:
+                record["processed_filed_at"] = prior_filed_at
             for fixed_key in (
                 "fixed_notified_at",
                 "fixed_head_sha",
@@ -824,9 +1032,10 @@ def update_state(
             ):
                 if fixed_key in previous:
                     record[fixed_key] = previous[fixed_key]
-        if key in labeled_keys:
+        if key in filed_keys:
             record["processed_label"] = processed_label
             record["processed_label_applied_at"] = checked_at
+            record["processed_filed_at"] = checked_at
         updated_runs[key] = record
     for item in fixed_notifications:
         record = updated_runs.get(item.key)
@@ -849,6 +1058,7 @@ def main() -> int:
     state = load_state(config.state_file)
     repo_index = build_repo_index(config.portfolio_root)
     messages = load_messages(config)
+    notification_messages = load_notification_messages(config)
     parsed_by_key: dict[str, ParsedDetection] = {}
     for message in messages:
         item = parse_ci_email(message, repo_index)
@@ -868,15 +1078,27 @@ def main() -> int:
     if not isinstance(known_runs, dict):
         known_runs = {}
     new_items = [item for item in parsed if detection_key(item) not in known_runs]
-    tagged_keys = apply_processed_labels(config, parsed_detections, known_runs)
+    filed_keys = file_processed_messages(config, parsed_detections, known_runs)
+    filed_notification_count = file_notification_messages(config, notification_messages)
     fixed_notifications = find_fixed_runs(config, state)
     send_fixed_notifications(config, fixed_notifications)
 
     if config.output_json:
-        print(emit_json_summary(parsed, new_items, tagged_keys, fixed_notifications))
+        print(
+            emit_json_summary(
+                parsed,
+                new_items,
+                filed_keys,
+                filed_notification_count,
+                fixed_notifications,
+            )
+        )
     else:
         for line in summarize_for_humans(
-            parsed=parsed, new_items=new_items, tagged_count=len(tagged_keys)
+            parsed=parsed,
+            new_items=new_items,
+            filed_count=len(filed_keys),
+            filed_notification_count=filed_notification_count,
         ):
             print(line)
         for item in fixed_notifications:
@@ -892,7 +1114,7 @@ def main() -> int:
             state,
             parsed,
             processed_label=config.processed_label,
-            labeled_keys=tagged_keys,
+            filed_keys=filed_keys,
             fixed_notifications=fixed_notifications,
         ),
     )

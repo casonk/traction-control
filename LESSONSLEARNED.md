@@ -504,3 +504,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - The Gmail-based GitHub CI monitor detects and labels failure emails; it does not by itself trigger `ci-repair-agentic.service`.
 - When a user expects "fixed" notification emails, the monitor needs an explicit resolved-state check against GitHub Actions plus an opt-in recipient such as `GITHUB_CI_FIXED_NOTIFY_TO`.
 - A repaired repo should only be announced as fixed after a later default-branch SHA has completed green, not merely because an older push workflow was green while a scheduled workflow failed on the same SHA.
+
+### 2026-06-07 — CI monitor email filing should mirror intake's processed/notify split
+
+- Inbound GitHub CI failure emails should be filed out of INBOX into a processed folder after parsing, not merely copied to a Gmail label.
+- Monitor-generated notification emails should use a separate notify folder and a grace window before filing so device notifications have time to fire.
+- Processed failure filing can mark messages read; notify filing should not mark generated notification emails read.
