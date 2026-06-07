@@ -223,7 +223,9 @@ Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 `GITHUB_CI_EMAIL_SINCE_DAYS`, `GITHUB_CI_EMAIL_UNSEEN_ONLY`, and
 `GITHUB_CI_EMAIL_PROCESSED_LABEL`. Fixed-run emails are opt-in with
 `GITHUB_CI_FIXED_NOTIFY_TO`, and their subject prefix can be changed with
-`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. Notify-folder routing uses
+`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. One-off fixed-notification runs can
+be narrowed with `GITHUB_CI_FIXED_NOTIFY_REPO` or `--fixed-notify-repo`.
+Notify-folder routing uses
 `GITHUB_CI_EMAIL_NOTIFY_LABEL` and `GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES`.
 The default folders are `GitHub/CI/processed` and `GitHub/CI/notify`.
 

@@ -510,3 +510,4 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - Inbound GitHub CI failure emails should be filed out of INBOX into a processed folder after parsing, not merely copied to a Gmail label.
 - Monitor-generated notification emails should use a separate notify folder and a grace window before filing so device notifications have time to fire.
 - Processed failure filing can mark messages read; notify filing should not mark generated notification emails read.
+- Fixed-CI notifications should be gated on the new processed-folder filing timestamp, not historical label-copy state, so enabling the feature does not back-send notifications for every old failure in the monitor state file.
