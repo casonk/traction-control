@@ -77,6 +77,7 @@ class MonitorConfig:
     unseen_only: bool
     messages_file: Path | None
     fixed_notify_to: tuple[str, ...]
+    fixed_notify_repos: tuple[str, ...]
     fixed_notify_subject_prefix: str
     output_json: bool
 
@@ -229,6 +230,15 @@ def parse_args() -> MonitorConfig:
         ),
     )
     parser.add_argument(
+        "--fixed-notify-repo",
+        action="append",
+        default=[],
+        help=(
+            "Optional repo slug filter for fixed CI notifications. May be supplied "
+            "multiple times or comma-separated. Defaults to GITHUB_CI_FIXED_NOTIFY_REPO."
+        ),
+    )
+    parser.add_argument(
         "--fixed-notify-subject-prefix",
         default=os.environ.get(
             "GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX",
@@ -268,6 +278,14 @@ def parse_args() -> MonitorConfig:
                 [
                     os.environ.get("GITHUB_CI_FIXED_NOTIFY_TO", ""),
                     *args.fixed_notify_to,
+                ]
+            )
+        ),
+        fixed_notify_repos=tuple(
+            _split_csv_values(
+                [
+                    os.environ.get("GITHUB_CI_FIXED_NOTIFY_REPO", ""),
+                    *args.fixed_notify_repo,
                 ]
             )
         ),
@@ -750,21 +768,38 @@ def find_fixed_runs(config: MonitorConfig, state: dict[str, Any]) -> list[FixedC
 
     fixed: list[FixedCiRun] = []
     checked: dict[tuple[str, str], dict[str, Any] | None] = {}
+    records_by_branch: dict[tuple[str, str], tuple[str, dict[str, Any]]] = {}
+    allowed_repos = set(config.fixed_notify_repos)
     for key, record in known_runs.items():
         if not isinstance(record, dict) or record.get("fixed_notified_at"):
             continue
         repo_slug = str(record.get("repo_slug") or "").strip()
+        if allowed_repos and repo_slug not in allowed_repos:
+            continue
         branch = str(record.get("branch") or "").strip()
         failed_head_sha = str(record.get("head_sha") or "").strip()
-        if not repo_slug or not branch or not failed_head_sha:
+        if not repo_slug or not branch or not failed_head_sha or not record.get("processed_filed_at"):
             continue
-        cache_key = (repo_slug, branch)
+        branch_key = (repo_slug, branch)
+        previous = records_by_branch.get(branch_key)
+        if previous is None:
+            records_by_branch[branch_key] = (str(key), record)
+            continue
+        previous_record = previous[1]
+        if str(record.get("last_seen_at") or record.get("received_at") or "") > str(
+            previous_record.get("last_seen_at") or previous_record.get("received_at") or ""
+        ):
+            records_by_branch[branch_key] = (str(key), record)
+
+    for cache_key, (key, record) in records_by_branch.items():
         if cache_key not in checked:
-            checked[cache_key] = latest_branch_run_state(repo_slug, branch)
+            checked[cache_key] = latest_branch_run_state(*cache_key)
         branch_state = checked[cache_key]
         if not branch_state or not branch_state["is_green"]:
             continue
         fixed_head_sha = str(branch_state["head_sha"] or "")
+        repo_slug, branch = cache_key
+        failed_head_sha = str(record.get("head_sha") or "").strip()
         if not fixed_head_sha or fixed_head_sha == failed_head_sha:
             continue
         fixed.append(
@@ -1038,15 +1073,17 @@ def update_state(
             record["processed_filed_at"] = checked_at
         updated_runs[key] = record
     for item in fixed_notifications:
-        record = updated_runs.get(item.key)
-        if not isinstance(record, dict):
-            continue
-        updated = dict(record)
-        updated["fixed_notified_at"] = checked_at
-        updated["fixed_head_sha"] = item.fixed_head_sha
-        updated["fixed_workflows"] = list(item.workflow_names)
-        updated["fixed_run_urls"] = list(item.run_urls)
-        updated_runs[item.key] = updated
+        for key, record in list(updated_runs.items()):
+            if not isinstance(record, dict):
+                continue
+            if record.get("repo_slug") != item.repo_slug or record.get("branch") != item.branch:
+                continue
+            updated = dict(record)
+            updated["fixed_notified_at"] = checked_at
+            updated["fixed_head_sha"] = item.fixed_head_sha
+            updated["fixed_workflows"] = list(item.workflow_names)
+            updated["fixed_run_urls"] = list(item.run_urls)
+            updated_runs[key] = updated
     return {
         "checked_at": checked_at,
         "runs": updated_runs,
