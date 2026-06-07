@@ -501,7 +501,8 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 
 ### 2026-06-07 — CI failure monitors and repair timers are separate loops
 
-- The Gmail-based GitHub CI monitor detects and labels failure emails; it does not by itself trigger `ci-repair-agentic.service`.
+- The Gmail-based GitHub CI monitor detects and files failure emails; when repair triggering is enabled, it should schedule `ci-repair-agentic.service` with a delay rather than starting it inline.
+- Keep the delay long enough for the change-making agent or human to finish the current push before the autonomous repair pass scans for remaining failures.
 - When a user expects "fixed" notification emails, the monitor needs an explicit resolved-state check against GitHub Actions plus an opt-in recipient such as `GITHUB_CI_FIXED_NOTIFY_TO`.
 - A repaired repo should only be announced as fixed after a later default-branch SHA has completed green, not merely because an older push workflow was green while a scheduled workflow failed on the same SHA.
 
@@ -511,3 +512,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - Monitor-generated notification emails should use a separate notify folder and a grace window before filing so device notifications have time to fire.
 - Processed failure filing can mark messages read; notify filing should not mark generated notification emails read.
 - Fixed-CI notifications should be gated on the new processed-folder filing timestamp, not historical label-copy state, so enabling the feature does not back-send notifications for every old failure in the monitor state file.
+
+### 2026-06-07 — Disable working-tree timers while editing their scripts
+
+- User-level timers installed from this repo execute the checked-out working tree, not only committed code.
+- Before editing a timer-owned script such as `monitor_github_ci_emails.py`, stop the corresponding user timer; restart it only after validation and push.
+- This avoids a live timer running partially implemented code and causing duplicate emails or other side effects.

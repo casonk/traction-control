@@ -28,6 +28,9 @@ DEFAULT_NOTIFY_LABEL = "GitHub/CI/notify"
 DEFAULT_NOTIFY_GRACE_MINUTES = 60
 DEFAULT_LIMIT = 20
 DEFAULT_SINCE_DAYS = 14
+DEFAULT_TRIGGER_REPAIR_DELAY_MINUTES = 30
+DEFAULT_TRIGGER_REPAIR_SERVICE = "ci-repair-agentic.service"
+DEFAULT_TRIGGER_REPAIR_UNIT = "ci-repair-agentic-email-trigger"
 MAX_REPO_DEPTH = 4
 BAD_RUN_CONCLUSIONS = {
     "action_required",
@@ -79,6 +82,10 @@ class MonitorConfig:
     fixed_notify_to: tuple[str, ...]
     fixed_notify_repos: tuple[str, ...]
     fixed_notify_subject_prefix: str
+    trigger_repair: bool
+    trigger_repair_delay_minutes: int
+    trigger_repair_service: str
+    trigger_repair_unit: str
     output_json: bool
 
 
@@ -118,6 +125,18 @@ class FixedCiRun:
     fixed_head_sha: str
     workflow_names: tuple[str, ...]
     run_urls: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RepairTriggerResult:
+    attempted: bool
+    scheduled: bool
+    already_scheduled: bool
+    reason: str
+    unit: str
+    service: str
+    delay_minutes: int
+    new_detection_count: int
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -247,6 +266,57 @@ def parse_args() -> MonitorConfig:
         help="Subject prefix for fixed CI notification emails.",
     )
     parser.add_argument(
+        "--trigger-repair",
+        action="store_true",
+        default=env_bool("GITHUB_CI_EMAIL_TRIGGER_REPAIR", False),
+        help=(
+            "Schedule the CI repair agent after new failure emails are detected. "
+            "Defaults to GITHUB_CI_EMAIL_TRIGGER_REPAIR."
+        ),
+    )
+    parser.add_argument(
+        "--no-trigger-repair",
+        action="store_false",
+        dest="trigger_repair",
+        help="Disable delayed CI repair scheduling even if the env var enables it.",
+    )
+    parser.add_argument(
+        "--trigger-repair-delay-minutes",
+        type=int,
+        default=int(
+            os.environ.get(
+                "GITHUB_CI_EMAIL_TRIGGER_REPAIR_DELAY_MINUTES",
+                str(DEFAULT_TRIGGER_REPAIR_DELAY_MINUTES),
+            )
+        ),
+        help=(
+            "Minutes to delay before starting the CI repair agent "
+            f"(default: {DEFAULT_TRIGGER_REPAIR_DELAY_MINUTES})."
+        ),
+    )
+    parser.add_argument(
+        "--trigger-repair-service",
+        default=os.environ.get(
+            "GITHUB_CI_EMAIL_TRIGGER_REPAIR_SERVICE",
+            DEFAULT_TRIGGER_REPAIR_SERVICE,
+        ),
+        help=(
+            "User systemd service to start after the delay "
+            f"(default: {DEFAULT_TRIGGER_REPAIR_SERVICE})."
+        ),
+    )
+    parser.add_argument(
+        "--trigger-repair-unit",
+        default=os.environ.get(
+            "GITHUB_CI_EMAIL_TRIGGER_REPAIR_UNIT",
+            DEFAULT_TRIGGER_REPAIR_UNIT,
+        ),
+        help=(
+            "Transient user systemd unit name used for the delayed trigger "
+            f"(default: {DEFAULT_TRIGGER_REPAIR_UNIT})."
+        ),
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the final summary as JSON instead of human-readable log lines.",
@@ -291,6 +361,12 @@ def parse_args() -> MonitorConfig:
         ),
         fixed_notify_subject_prefix=str(args.fixed_notify_subject_prefix).strip()
         or "[traction-control] GitHub CI fixed",
+        trigger_repair=bool(args.trigger_repair),
+        trigger_repair_delay_minutes=max(0, int(args.trigger_repair_delay_minutes)),
+        trigger_repair_service=str(args.trigger_repair_service).strip()
+        or DEFAULT_TRIGGER_REPAIR_SERVICE,
+        trigger_repair_unit=str(args.trigger_repair_unit).strip()
+        or DEFAULT_TRIGGER_REPAIR_UNIT,
         output_json=bool(args.json),
     )
 
@@ -643,6 +719,119 @@ def detection_key(email: GitHubCiEmail) -> str:
     return email.run_id or email.message_id or email.subject
 
 
+def schedule_repair_trigger(
+    config: MonitorConfig,
+    new_items: list[GitHubCiEmail],
+) -> RepairTriggerResult | None:
+    if not config.trigger_repair or not new_items:
+        return None
+    if config.messages_file is not None:
+        return RepairTriggerResult(
+            attempted=False,
+            scheduled=False,
+            already_scheduled=False,
+            reason="offline messages-file scan; repair trigger skipped",
+            unit=config.trigger_repair_unit,
+            service=config.trigger_repair_service,
+            delay_minutes=config.trigger_repair_delay_minutes,
+            new_detection_count=len(new_items),
+        )
+
+    delay_seconds = config.trigger_repair_delay_minutes * 60
+    command = [
+        "systemd-run",
+        "--user",
+        f"--unit={config.trigger_repair_unit}",
+        f"--on-active={delay_seconds}s",
+        "--collect",
+        "--description=Delayed CI repair trigger from GitHub CI email monitor",
+        "systemctl",
+        "--user",
+        "start",
+        config.trigger_repair_service,
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        return RepairTriggerResult(
+            attempted=True,
+            scheduled=False,
+            already_scheduled=False,
+            reason=f"failed to execute systemd-run: {exc}",
+            unit=config.trigger_repair_unit,
+            service=config.trigger_repair_service,
+            delay_minutes=config.trigger_repair_delay_minutes,
+            new_detection_count=len(new_items),
+        )
+
+    output = "\n".join(
+        part.strip() for part in (result.stdout, result.stderr) if part.strip()
+    )
+    if result.returncode == 0:
+        return RepairTriggerResult(
+            attempted=True,
+            scheduled=True,
+            already_scheduled=False,
+            reason=output or "delayed CI repair trigger scheduled",
+            unit=config.trigger_repair_unit,
+            service=config.trigger_repair_service,
+            delay_minutes=config.trigger_repair_delay_minutes,
+            new_detection_count=len(new_items),
+        )
+    if "already exists" in output.lower() or "unit already" in output.lower():
+        return RepairTriggerResult(
+            attempted=True,
+            scheduled=False,
+            already_scheduled=True,
+            reason=output or "delayed CI repair trigger is already scheduled",
+            unit=config.trigger_repair_unit,
+            service=config.trigger_repair_service,
+            delay_minutes=config.trigger_repair_delay_minutes,
+            new_detection_count=len(new_items),
+        )
+    return RepairTriggerResult(
+        attempted=True,
+        scheduled=False,
+        already_scheduled=False,
+        reason=output or f"systemd-run exited with status {result.returncode}",
+        unit=config.trigger_repair_unit,
+        service=config.trigger_repair_service,
+        delay_minutes=config.trigger_repair_delay_minutes,
+        new_detection_count=len(new_items),
+    )
+
+
+def summarize_repair_trigger(result: RepairTriggerResult | None) -> list[str]:
+    if result is None:
+        return []
+    if result.scheduled:
+        return [
+            "info: delayed CI repair trigger scheduled: "
+            f"unit={result.unit} service={result.service} "
+            f"delay_minutes={result.delay_minutes} new={result.new_detection_count}"
+        ]
+    if result.already_scheduled:
+        return [
+            "info: delayed CI repair trigger already scheduled: "
+            f"unit={result.unit} service={result.service} "
+            f"new={result.new_detection_count}"
+        ]
+    if result.attempted:
+        return [
+            "WARNING delayed CI repair trigger failed: "
+            f"unit={result.unit} service={result.service} reason={result.reason}"
+        ]
+    return [
+        "info: delayed CI repair trigger skipped: "
+        f"reason={result.reason} new={result.new_detection_count}"
+    ]
+
+
 def summarize_for_humans(
     *,
     parsed: list[GitHubCiEmail],
@@ -681,6 +870,7 @@ def emit_json_summary(
     filed_keys: set[str],
     filed_notification_count: int,
     fixed_notifications: list[FixedCiRun],
+    repair_trigger: RepairTriggerResult | None,
 ) -> str:
     payload = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
@@ -695,6 +885,7 @@ def emit_json_summary(
         "filed_detection_keys": sorted(filed_keys),
         "tagged_detection_keys": sorted(filed_keys),
         "fixed": [asdict(item) for item in fixed_notifications],
+        "repair_trigger": asdict(repair_trigger) if repair_trigger else None,
     }
     return json.dumps(payload, indent=2, sort_keys=True)
 
@@ -1119,6 +1310,7 @@ def main() -> int:
     filed_notification_count = file_notification_messages(config, notification_messages)
     fixed_notifications = find_fixed_runs(config, state)
     send_fixed_notifications(config, fixed_notifications)
+    repair_trigger = schedule_repair_trigger(config, new_items)
 
     if config.output_json:
         print(
@@ -1128,6 +1320,7 @@ def main() -> int:
                 filed_keys,
                 filed_notification_count,
                 fixed_notifications,
+                repair_trigger,
             )
         )
     else:
@@ -1137,6 +1330,8 @@ def main() -> int:
             filed_count=len(filed_keys),
             filed_notification_count=filed_notification_count,
         ):
+            print(line)
+        for line in summarize_repair_trigger(repair_trigger):
             print(line)
         for item in fixed_notifications:
             print(
