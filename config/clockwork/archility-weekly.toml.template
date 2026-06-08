@@ -11,6 +11,7 @@ standard_error = "journal"
 timer_description = "Run archility twice-weekly architecture audit and diagram render"
 
 [jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
 ARCHILITY_CMD = "__ARCHILITY_CMD__"
 LOG_DIR = "%h/.local/share/archility-weekly"

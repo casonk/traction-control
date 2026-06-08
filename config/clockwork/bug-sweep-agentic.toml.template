@@ -13,6 +13,7 @@ standard_error = "journal"
 timer_description = "Run the traction-control daily bug sweep agent"
 
 [jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
 LOG_DIR = "%h/.local/share/bug-sweep-agentic"
 BUG_SWEEP_AGENTIC_PROVIDER = "__PROVIDER__"
