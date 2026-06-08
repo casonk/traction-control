@@ -13,6 +13,7 @@ standard_error = "journal"
 timer_description = "Run the traction-control template consolidation agent every other day"
 
 [jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
 LOG_DIR = "%h/.local/share/template-consolidation-agentic"
 TEMPLATE_CONSOLIDATION_PROVIDER = "__PROVIDER__"
