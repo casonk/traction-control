@@ -205,6 +205,9 @@ It sends a Gmail notification when a later default-branch SHA has completed
 green, then marks that failure as fixed in the local state file so the resolved
 email is sent once.
 
+Set `GITHUB_CI_FIXED_NOTIFY_DIGEST=1` to queue those fixed-CI notices into the
+shared shock-relay Gmail digest instead of sending one email per fixed repo.
+
 Monitor-generated fixed-CI emails use `X-Portfolio-Service: traction-control`.
 If they appear in the monitored inbox, the monitor leaves them there for the
 configured grace window so Gmail/device notifications can fire, then moves them
@@ -228,9 +231,10 @@ Useful overrides include `GITHUB_CI_EMAIL_GMAIL_CONFIG`,
 `GITHUB_CI_EMAIL_STATE_FILE`, `GITHUB_CI_EMAIL_MAILBOX`,
 `GITHUB_CI_EMAIL_SINCE_DAYS`, `GITHUB_CI_EMAIL_UNSEEN_ONLY`, and
 `GITHUB_CI_EMAIL_PROCESSED_LABEL`. Fixed-run emails are opt-in with
-`GITHUB_CI_FIXED_NOTIFY_TO`, and their subject prefix can be changed with
-`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. One-off fixed-notification runs can
-be narrowed with `GITHUB_CI_FIXED_NOTIFY_REPO` or `--fixed-notify-repo`.
+`GITHUB_CI_FIXED_NOTIFY_TO`, can be aggregated with
+`GITHUB_CI_FIXED_NOTIFY_DIGEST=1`, and their subject prefix can be changed with
+`GITHUB_CI_FIXED_NOTIFY_SUBJECT_PREFIX`. One-off fixed-notification runs can be
+narrowed with `GITHUB_CI_FIXED_NOTIFY_REPO` or `--fixed-notify-repo`.
 Notify-folder routing uses
 `GITHUB_CI_EMAIL_NOTIFY_LABEL` and `GITHUB_CI_EMAIL_NOTIFY_GRACE_MINUTES`.
 Delayed repair scheduling uses `GITHUB_CI_EMAIL_TRIGGER_REPAIR`,
