@@ -518,3 +518,8 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - User-level timers installed from this repo execute the checked-out working tree, not only committed code.
 - Before editing a timer-owned script such as `monitor_github_ci_emails.py`, stop the corresponding user timer; restart it only after validation and push.
 - This avoids a live timer running partially implemented code and causing duplicate emails or other side effects.
+
+### 2026-06-07 — Generated CI notifications should be digestable separately from inbound GitHub mail
+
+- The Gmail CI monitor can file inbound GitHub failure messages, but generated fixed-CI notices should support digest queueing so a burst of repaired repos does not become a burst of outbound email.
+- Keep the distinction clear: GitHub-originated failure emails may still need GitHub/Gmail-side filtering, while monitor-generated notifications can be controlled in repo code.

@@ -23,6 +23,7 @@ GITHUB_CI_EMAIL_TRIGGER_REPAIR_SERVICE = "ci-repair-agentic.service"
 GITHUB_CI_EMAIL_TRIGGER_REPAIR_UNIT = "ci-repair-agentic-email-trigger"
 # Set GITHUB_CI_FIXED_NOTIFY_TO in the optional local env file to enable
 # resolved-CI notification emails.
+GITHUB_CI_FIXED_NOTIFY_DIGEST = "1"
 
 [jobs.timer]
 kind = "interval"
