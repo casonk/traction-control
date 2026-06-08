@@ -82,6 +82,7 @@ class MonitorConfig:
     fixed_notify_to: tuple[str, ...]
     fixed_notify_repos: tuple[str, ...]
     fixed_notify_subject_prefix: str
+    fixed_notify_digest: bool
     trigger_repair: bool
     trigger_repair_delay_minutes: int
     trigger_repair_service: str
@@ -266,6 +267,21 @@ def parse_args() -> MonitorConfig:
         help="Subject prefix for fixed CI notification emails.",
     )
     parser.add_argument(
+        "--fixed-notify-digest",
+        action="store_true",
+        default=env_bool("GITHUB_CI_FIXED_NOTIFY_DIGEST", False),
+        help=(
+            "Queue fixed CI notifications for the shock-relay Gmail digest instead "
+            "of sending immediately. Defaults to GITHUB_CI_FIXED_NOTIFY_DIGEST."
+        ),
+    )
+    parser.add_argument(
+        "--no-fixed-notify-digest",
+        action="store_false",
+        dest="fixed_notify_digest",
+        help="Send fixed CI notifications immediately even if the env var enables digest mode.",
+    )
+    parser.add_argument(
         "--trigger-repair",
         action="store_true",
         default=env_bool("GITHUB_CI_EMAIL_TRIGGER_REPAIR", False),
@@ -361,6 +377,7 @@ def parse_args() -> MonitorConfig:
         ),
         fixed_notify_subject_prefix=str(args.fixed_notify_subject_prefix).strip()
         or "[traction-control] GitHub CI fixed",
+        fixed_notify_digest=bool(args.fixed_notify_digest),
         trigger_repair=bool(args.trigger_repair),
         trigger_repair_delay_minutes=max(0, int(args.trigger_repair_delay_minutes)),
         trigger_repair_service=str(args.trigger_repair_service).strip()
@@ -406,6 +423,21 @@ def _load_shock_relay_common(shock_relay_root: Path):
         return importlib.import_module("common")
     except ImportError as exc:
         raise MonitorError(f"cannot import shock-relay gmail-imap common.py: {exc}") from exc
+
+
+def _load_shock_relay_digest_queue(shock_relay_root: Path):
+    module_dir = shock_relay_root / "services" / "gmail-imap"
+    if not module_dir.is_dir():
+        raise MonitorError(f"shock-relay gmail-imap dir not found: {module_dir}")
+    module_dir_text = str(module_dir)
+    if module_dir_text not in sys.path:
+        sys.path.insert(0, module_dir_text)
+    try:
+        return importlib.import_module("digest_queue")
+    except ImportError as exc:
+        raise MonitorError(
+            f"cannot import shock-relay gmail-imap digest_queue.py: {exc}"
+        ) from exc
 
 
 def load_messages(config: MonitorConfig) -> list[dict[str, Any]]:
@@ -1011,11 +1043,17 @@ def find_fixed_runs(config: MonitorConfig, state: dict[str, Any]) -> list[FixedC
 def send_fixed_notifications(config: MonitorConfig, fixed_runs: list[FixedCiRun]) -> None:
     if not fixed_runs:
         return
-    common = _load_shock_relay_common(config.shock_relay_root)
-    try:
-        gmail_config = common.load_config(str(config.gmail_config))
-    except Exception as exc:
-        raise MonitorError(f"cannot load Gmail config for fixed notification email: {exc}") from exc
+    common = None
+    gmail_config = None
+    digest_queue = None
+    if config.fixed_notify_digest:
+        digest_queue = _load_shock_relay_digest_queue(config.shock_relay_root)
+    else:
+        common = _load_shock_relay_common(config.shock_relay_root)
+        try:
+            gmail_config = common.load_config(str(config.gmail_config))
+        except Exception as exc:
+            raise MonitorError(f"cannot load Gmail config for fixed notification email: {exc}") from exc
 
     for item in fixed_runs:
         workflows = ", ".join(item.workflow_names) or "workflows"
@@ -1032,15 +1070,28 @@ def send_fixed_notifications(config: MonitorConfig, fixed_runs: list[FixedCiRun]
             f"Current run(s):\n{run_urls}\n"
         )
         try:
-            common.send_email(
-                gmail_config,
-                to_addresses=list(config.fixed_notify_to),
-                subject=subject,
-                body=body,
-                headers={"X-Portfolio-Service": "traction-control"},
-            )
+            if config.fixed_notify_digest:
+                digest_queue.enqueue_digest(
+                    to_addresses=list(config.fixed_notify_to),
+                    subject=subject,
+                    body=body,
+                    config_path=str(config.gmail_config),
+                    service="traction-control",
+                    kind="ci-fixed",
+                    headers={"X-Portfolio-Service": "traction-control"},
+                    summary=subject,
+                )
+            else:
+                common.send_email(
+                    gmail_config,
+                    to_addresses=list(config.fixed_notify_to),
+                    subject=subject,
+                    body=body,
+                    headers={"X-Portfolio-Service": "traction-control"},
+                )
         except Exception as exc:
-            raise MonitorError(f"failed sending fixed CI notification email: {exc}") from exc
+            action = "queueing" if config.fixed_notify_digest else "sending"
+            raise MonitorError(f"failed {action} fixed CI notification email: {exc}") from exc
 
 
 def should_file_processed_message(
