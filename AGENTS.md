@@ -66,7 +66,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `pit-box` | `./util-repos/pit-box` | Bash / Shell | WireGuard + SSH hardened remote-access scaffold with settings-driven config rendering |
 | `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
 | `snowbridge` | `./util-repos/snowbridge` | SMB / Ops | SMB-based private file-sharing and phone-access utility repo |
-| `intake` | `./util-repos/intake` | Python | Receipt PDF ingestion, categorization, SQLite storage, and Markdown/HTML reporting from snowbridge share |
+| `intake` | `./util-repos/intake` | Python | Receipt PDF ingestion, categorization, SQLite storage, Markdown/HTML reporting from snowbridge share, and CLI translation/backfill service for receipt OCR |
 | `session-control` | `./util-repos/session-control` | Python / Flask | Private AI session review, resume-command, and delete-to-trash web UI |
 | `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
 | `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
@@ -247,6 +247,7 @@ Add:
 - `./util-repos/crew-chief`: standard local LLM inference utility — Podman-hosted Ollama service and zero-dependency Python client for trivial tasks across portfolio repos
 - `./util-repos/windshield`: standard Playwright browser automation utility — Chrome management, page interaction, stealth helpers, and challenge detection for provider downloaders
 - `./util-repos/wiring-harness`: standard shared HTTPS ingress, mTLS, and DNS service inventory for home services
+- `./util-repos/intake`: standard receipt-domain OCR parsing, historical locale/translation backfill, and CLI translation service (`intake translate`) for other repos that need English translations of receipt OCR or receipt images
 - `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
 - `./doc-repos/Certifications` and `./doc-repos/university-coursework`: strong examples of documentation-first repository organization

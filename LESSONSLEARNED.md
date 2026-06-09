@@ -12,6 +12,10 @@
 
 ## Lessons
 
+### 2026-06-09 — Never silently drop UI functionality when refactoring layout
+
+When restructuring HTML layout (splitting rows, merging rows, changing toolbar structure), audit every button and link in the original against the new version before writing the file. Do not remove any interactive element without explicit user confirmation — even if it looks redundant (e.g., a `home` link that also exists in the topbar). Silently dropping functionality forces the user to catch regressions themselves and wastes round-trips.
+
 ### 2026-06-02 — GNOME auto-suspend can drop all services when UPower cannot detect a power supply
 
 - On a desktop with no battery or UPS, UPower may report `battery-missing-symbolic` and `unknown` power state.
@@ -523,3 +527,15 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 
 - The Gmail CI monitor can file inbound GitHub failure messages, but generated fixed-CI notices should support digest queueing so a burst of repaired repos does not become a burst of outbound email.
 - Keep the distinction clear: GitHub-originated failure emails may still need GitHub/Gmail-side filtering, while monitor-generated notifications can be controlled in repo code.
+
+### 2026-06-08 — Reuse `crew-chief` for local multilingual translation before paying for API translation
+
+- When a repo only needs literal translation of non-English OCR or email text, default to the shared local `crew-chief` Ollama service instead of a paid API path; this keeps token usage and recurring fees down while preserving a consistent portfolio-wide local inference surface.
+- Keep the local translation output as secondary metadata and preserve the original source text separately for audit/debugging; deterministic parsing and higher-trust correction flows should remain the source of truth for totals, currencies, and other transactional fields.
+- When integrating from another repo, prefer importing `crew-chief`'s stdlib-only client from the sibling checkout rather than re-implementing another ad hoc Ollama HTTP wrapper.
+
+### 2026-06-09 — Prefer `intake translate` for receipt-domain translation reuse
+
+- When another repo needs English translation of receipt OCR text or receipt images, prefer shelling out to `intake translate text|receipt --json` instead of cloning receipt-specific OCR/translation prompts in each repo.
+- Use `intake translate backfill` for historical receipt locale/translation cleanup so DB updates, sidecars, and downstream personal-finance sync stay on the audited repo path rather than in one-off notebooks or ad hoc scripts.
+- Keep `crew-chief` as the generic local LLM substrate; use `intake` as the receipt-domain service layer that wraps receipt OCR, locale hints, sidecar syncing, and safer backfill policy.
