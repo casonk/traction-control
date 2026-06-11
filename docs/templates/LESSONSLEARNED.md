@@ -9,6 +9,9 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
 - Add lessons that generalize beyond a single session.
 - Keep entries concise and action-oriented.
 - Do not use this file for transient status updates or full session logs.
+- Before final reporting for meaningful work, either add any durable lesson
+  discovered during the request or explicitly report why no durable lesson was
+  added.
 
 ## Lessons
 
