@@ -49,6 +49,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `LESSONSLEARNED.md`: tracked durable lessons that should influence future sessions
 - `docs/templates/SECURITY.md`: starter template for new repo security-policy files
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
+- `docs/lesson-capture-framework.md`: end-of-session gate for deciding whether a durable lesson must be recorded
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo
 - `CHANGELOG.md`: notable changes to the portfolio-governance layer
 - `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
@@ -72,6 +73,9 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
    results when CI is involved.
 6. Update `CHATHISTORY.md` and `LESSONSLEARNED.md` wherever the work produced
    new continuity or durable guidance.
+7. Before the final response, run the lesson-capture gate in
+   `docs/lesson-capture-framework.md` and report either the lesson file updated
+   or why no durable lesson was added.
 
 ## Shared Utility Repos
 
