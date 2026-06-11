@@ -12,6 +12,16 @@
 
 ## Lessons
 
+### 2026-06-11 — End each meaningful session with a lesson-capture gate
+
+Do not rely on memory to decide whether a reusable lesson should be written.
+Before final reporting, explicitly classify the session outcome: if the work
+revealed a reusable rule, failure mode, workflow pattern, provider quirk,
+verification condition, or safety boundary, update the appropriate
+`LESSONSLEARNED.md`; otherwise say no durable lesson was added and why. This
+prevents durable guidance from being buried only in `CHATHISTORY.md` or
+conversation.
+
 ### 2026-06-09 — Never silently drop UI functionality when refactoring layout
 
 When restructuring HTML layout (splitting rows, merging rows, changing toolbar structure), audit every button and link in the original against the new version before writing the file. Do not remove any interactive element without explicit user confirmation — even if it looks redundant (e.g., a `home` link that also exists in the topbar). Silently dropping functionality forces the user to catch regressions themselves and wastes round-trips.

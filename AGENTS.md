@@ -35,6 +35,10 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - Always update `CHATHISTORY.md` after a meaningful session.
 - Always report the relevant prior history you relied on when continuing work for the user.
 - When a reusable lesson is discovered during a request, add it to `LESSONSLEARNED.md`.
+- Before the final response for meaningful work, run the lesson-capture gate in
+  `docs/lesson-capture-framework.md`: either add the durable lesson to the
+  appropriate `LESSONSLEARNED.md` file or explicitly report why no durable
+  lesson was added.
 
 Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 
@@ -259,15 +263,17 @@ Add:
 3. Read the target repo’s `AGENTS.md`, `LESSONSLEARNED.md`, and `CHATHISTORY.md` before making repo-specific changes.
 4. Report the relevant prior history you relied on, and state when `CHATHISTORY.md` was updated.
 5. Capture new durable lessons in `LESSONSLEARNED.md` when they should influence future sessions.
-6. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
-7. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
-8. Agents will never be able to run `sudo` commands in this environment. Finish non-sudo repo work and hand exact elevated command(s) to the user instead of retrying `sudo`.
-9. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
-10. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
-11. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-12. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
-13. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
-14. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+6. Before the final response for meaningful work, run the lesson-capture gate:
+   add a durable lesson when one exists, or state why none was added.
+7. Never commit secrets, credentials, API keys, personal financial data, or local-only config files.
+8. Do not modify files outside the repository you are explicitly working in unless the user asks for cross-repo work.
+9. Agents will never be able to run `sudo` commands in this environment. Finish non-sudo repo work and hand exact elevated command(s) to the user instead of retrying `sudo`.
+10. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
+11. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
+12. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
+13. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
+14. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
+15. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 
 ## Sudo Boundary
 
