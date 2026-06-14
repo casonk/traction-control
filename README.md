@@ -86,6 +86,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `./util-repos/nordility`: portfolio-standard NordVPN switching/orchestration helper
 - `./util-repos/shock-relay`: portfolio-standard external messaging integration repo
 - `./util-repos/snowbridge`: portfolio-standard SMB-based private file-sharing and phone-access helper
+- `./util-repos/locility`: portfolio-standard phone GPS trace collection helper with local SQLite storage and CSV/GeoJSON exports
 - `./util-repos/session-control`: portfolio-standard local AI-session inventory, resume-command, and cleanup helper
 
 ## Architecture Layout Standard
