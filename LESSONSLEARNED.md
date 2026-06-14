@@ -12,6 +12,32 @@
 
 ## Lessons
 
+### 2026-06-13 — dnsmasq bind-interfaces and bind-dynamic are mutually exclusive across drop-in files
+
+When multiple repos (short-circuit, pit-box) each install a dnsmasq drop-in config to
+`/etc/dnsmasq.d/`, a `bind-interfaces` in one file and `bind-dynamic` in another causes
+dnsmasq to fail silently at boot with "cannot set --bind-interfaces and --bind-dynamic".
+The failure kills DNS resolution for all WireGuard peers, making all `.internal` web services
+unreachable even though Caddy and backends are running fine.
+
+Always use `bind-dynamic` for WireGuard-facing dnsmasq configs — it handles the interface
+coming up after dnsmasq starts and is compatible with multi-interface setups. Run
+`dnsmasq --test` after writing any new dnsmasq config to catch conflicts immediately.
+Add a systemd `OnFailure=` drop-in to dnsmasq so boot-time failures trigger an email
+rather than requiring manual triage.
+
+### 2026-06-11 — Stale-file rotation must target ignored generated state, not tracked history
+
+When reviewing old files for archive rotation, classify candidates by ownership
+before age or size. Good automation targets are ignored generated outputs,
+runtime caches, debug snapshots, temp downloads, reports, and browser profiles
+with a verified restore path. Do not move tracked coursework, certifications,
+source docs, credentials, raw private/account data, or irreplaceable inputs into
+generic archive rotation just because they are old. Prefer repo-local reversible
+tarball archives with manifests, retention limits, and restore commands; add
+post-run hooks when stale cleanup should happen by age, and keep tachometer
+disk-pressure automation for pressure-triggered remediation.
+
 ### 2026-06-11 — End each meaningful session with a lesson-capture gate
 
 Do not rely on memory to decide whether a reusable lesson should be written.
