@@ -12,6 +12,21 @@
 
 ## Lessons
 
+### 2026-06-14 — Wiring-harness Caddy regeneration can orphan repo-owned drop-ins
+
+When `wiring-harness/scripts/setup_caddy.py --provision` rewrites
+`/etc/caddy/Caddyfile`, it can remove the `import Caddyfile.d/*.caddy` line that
+repo-owned Caddy sites such as `pit-box-webterm` depend on. The result is a
+hostname that still resolves and still has a backend running, but Caddy serves
+an empty default response because the repo-owned drop-in is ignored.
+
+For any service with `ingress = "repo-caddy"`, verify both the drop-in file and
+the main Caddyfile import are active after wiring-harness regeneration. If a
+non-sudo emergency restore is needed, adapt a temporary Caddyfile that imports
+`/etc/caddy/Caddyfile.d/*.caddy` and POST it to Caddy's localhost admin API,
+then hand off `sudo ./scripts/rebuild_webservices.sh caddy` from the owning repo
+for the persistent `/etc/caddy/Caddyfile` fix.
+
 ### 2026-06-13 — dnsmasq bind-interfaces and bind-dynamic are mutually exclusive across drop-in files
 
 When multiple repos (short-circuit, pit-box) each install a dnsmasq drop-in config to

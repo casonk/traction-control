@@ -34,6 +34,12 @@ Mark items `[x]` when complete and move them to Done.
   choose whether refreshes should prune restored generated data immediately or
   leave pruning to disk-pressure automation.
 
+- [ ] [manual:2026-06-15] Add tradility entry to clockwork — create a
+  `GET /api/tradility-analysis` endpoint that reads
+  `exports/tradility-analysis.json` and a `to-tradility.html` page that
+  renders RSI and VWAP signals per ticker from the holdings aggregate.
+  Backlog lives in `util-repos/tradility/BACKLOG.md`.
+
 ## In Progress
 
 ## Done
