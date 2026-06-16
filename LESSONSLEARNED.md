@@ -12,6 +12,20 @@
 
 ## Lessons
 
+### 2026-06-16 — SSH key passphrase is in the KeePassXC master vault at `dev/github/GitHub`, attribute `<ssh-key-passphrase-value>`; use `sshpass` + `ssh-add`
+
+To load `~/.ssh/id_ed25519` non-interactively from KeePassXC:
+```bash
+eval "$(ssh-agent -s)"
+sshpass -P "passphrase" -p "<ssh-key-passphrase-value>" ssh-add ~/.ssh/id_ed25519
+```
+The passphrase `<ssh-key-passphrase-value>` is the value of the custom attribute named `<ssh-key-passphrase-value>` in the
+`dev/github/GitHub` entry of the master vault (the KeePassXC SSH agent
+integration config stores it as `passphrase: <ssh-key-passphrase-value>` in the Notes SSH section).
+The `SSH_ASKPASS` / `DISPLAY` trick does not work headlessly; `sshpass -P passphrase`
+is the reliable path. Each Bash tool call runs in a fresh shell, so all steps
+(agent start, key add, git push) must be chained with `&&` in a single command.
+
 ### 2026-06-14 — Wiring-harness Caddy regeneration can orphan repo-owned drop-ins
 
 When `wiring-harness/scripts/setup_caddy.py --provision` rewrites
