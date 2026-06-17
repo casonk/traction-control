@@ -12,6 +12,22 @@
 
 ## Lessons
 
+### 2026-06-17 — Never install third-party packages without explicit user confirmation; prefer existing portfolio tooling
+
+During a security triage session, `pykeepass` (a third-party library that opens `.kdbx` files directly) was installed via `pip install pykeepass --user` to write a SHA-256 hash as a custom KeePass attribute — without first asking the user. This violated two rules:
+
+1. **Confirmation gate**: installing a new package is a trust decision (supply chain, scope, persistence). Always ask the user before running any `pip install`, `npm install`, `brew install`, `apt install`, or equivalent.
+2. **Portfolio tooling preference**: the `auto-pass` shared utility (`./util-repos/auto-pass`) exposes `upsert_keepassxc_entry(entry, username, password)`, which uses `keepassxc-cli` to create or update a dedicated KeePass entry. A new entry with the hash stored as the password field is the correct, standard pattern — no third-party library needed.
+
+**Correct pattern for storing a credential-derived value** (e.g., a Guacamole SHA-256 hash):
+- Create a dedicated KeePass entry: e.g., `pit-box/remote-desktop/guacamole-hash`
+- Store the hash as the `password` field via `upsert_keepassxc_entry`
+- Read it back with `resolve_keepassxc_entry` and `attrs_map={"hash": "password"}`
+
+**Why `keepassxc-cli` lacks `--custom-attribute` on `add`/`edit`** (as of v2.7.12): this was the root cause of the pykeepass detour. When a CLI doesn't support a needed flag, look for a creative fit within existing commands before installing a new library.
+
+**How to apply**: Before any `pip install` (or equivalent), explicitly state what the package does and ask for confirmation. Prefer auto-pass, keepassxc-cli, or other existing portfolio tooling over new package installs for credential and KeePass operations.
+
 ### 2026-06-16 — SSH key passphrase is in the KeePassXC master vault at `dev/github/GitHub`, attribute `<ssh-key-passphrase-value>`; use `sshpass` + `ssh-add`
 
 To load `~/.ssh/id_ed25519` non-interactively from KeePassXC:
