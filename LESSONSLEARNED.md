@@ -16,7 +16,7 @@
 
 All portfolio CI workflow action version pins belong exclusively in `casonk/.github` (locally `./util-repos/dot-github`). Calling repos reference them as `uses: casonk/.github/.github/workflows/<name>.yml@main` — no action pins in the caller. A single Dependabot PR on `casonk/.github` propagates to all repos automatically. Because callers use `@main` (not a semver pin), Dependabot on individual repos generates no `github-actions` PRs — no conflict.
 
-When committing to a newly-initialized repo that will be pushed to GitHub, set `user.email` to `72440835+casonk@users.noreply.github.com` (GitHub no-reply) before the first commit. GitHub blocks pushes from private email addresses. The private email is `casonk@umich.edu` — never use it in commits on repos with push protection enabled.
+When committing to a newly-initialized repo that will be pushed to GitHub, set `user.email` to the GitHub no-reply address (`<userid>+<username>@users.noreply.github.com`) before the first commit. GitHub blocks pushes from private email addresses; configure the private email only in local git config, never in tracked files or commits on repos with push protection enabled.
 
 ### 2026-06-17 — Never install third-party packages without explicit user confirmation; prefer existing portfolio tooling
 
@@ -26,7 +26,7 @@ During a security triage session, `pykeepass` (a third-party library that opens 
 2. **Portfolio tooling preference**: the `auto-pass` shared utility (`./util-repos/auto-pass`) exposes `upsert_keepassxc_entry(entry, username, password)`, which uses `keepassxc-cli` to create or update a dedicated KeePass entry. A new entry with the hash stored as the password field is the correct, standard pattern — no third-party library needed.
 
 **Correct pattern for storing a credential-derived value** (e.g., a Guacamole SHA-256 hash):
-- Create a dedicated KeePass entry: e.g., `pit-box/remote-desktop/guacamole-hash`
+- Create a dedicated KeePass entry: e.g., `service-name/component/hash-entry`
 - Store the hash as the `password` field via `upsert_keepassxc_entry`
 - Read it back with `resolve_keepassxc_entry` and `attrs_map={"hash": "password"}`
 
@@ -34,16 +34,16 @@ During a security triage session, `pykeepass` (a third-party library that opens 
 
 **How to apply**: Before any `pip install` (or equivalent), explicitly state what the package does and ask for confirmation. Prefer auto-pass, keepassxc-cli, or other existing portfolio tooling over new package installs for credential and KeePass operations.
 
-### 2026-06-16 — SSH key passphrase is in the KeePassXC master vault at `dev/github/GitHub`, attribute `<ssh-key-passphrase-value>`; use `sshpass` + `ssh-add`
+### 2026-06-16 — Loading an SSH key passphrase non-interactively from KeePass; use `sshpass` + `ssh-add`
 
-To load `~/.ssh/id_ed25519` non-interactively from KeePassXC:
+To load `~/.ssh/id_ed25519` non-interactively, retrieve the passphrase from the
+relevant KeePass entry and pass it via `sshpass`:
 ```bash
 eval "$(ssh-agent -s)"
-sshpass -P "passphrase" -p "<ssh-key-passphrase-value>" ssh-add ~/.ssh/id_ed25519
+sshpass -P "passphrase" -p "<passphrase-from-keepass>" ssh-add ~/.ssh/id_ed25519
 ```
-The passphrase `<ssh-key-passphrase-value>` is the value of the custom attribute named `<ssh-key-passphrase-value>` in the
-`dev/github/GitHub` entry of the master vault (the KeePassXC SSH agent
-integration config stores it as `passphrase: <ssh-key-passphrase-value>` in the Notes SSH section).
+Store the passphrase as a custom attribute in the relevant KeePass entry (the KeePassXC SSH
+agent integration reads it from the Notes SSH section as `passphrase: <attribute-name>`).
 The `SSH_ASKPASS` / `DISPLAY` trick does not work headlessly; `sshpass -P passphrase`
 is the reliable path. Each Bash tool call runs in a fresh shell, so all steps
 (agent start, key add, git push) must be chained with `&&` in a single command.
@@ -140,7 +140,7 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 
 ### 2026-05-03 — .gitleaks-baseline.json must be excluded from the portfolio-git-workspace-path rule
 
-- The `.gitleaks-baseline.json` file records known findings with their `Match` and `Secret` values verbatim, which include the local machine path `/mnt/4tb-m2/git/`.
+- The `.gitleaks-baseline.json` file records known findings with their `Match` and `Secret` values verbatim, which include the local machine git workspace path.
 - When the baseline file is committed and pushed, the push-triggered gitleaks CI scan finds those path values in the new file and fails.
 - Fix: add `'''\.gitleaks-baseline\.json$'''` to the `[rules.allowlist]` paths for `portfolio-git-workspace-path` in `.gitleaks.toml`. The baseline is an internal gitleaks artifact; scanning it for violations is self-defeating.
 - When deploying the secret-scan guardrails with `deploy-secret-scan.sh`, always confirm the baseline file is excluded from scanning before pushing.
@@ -176,7 +176,7 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - Fine-grained PATs only cover the specific repos listed when the token was created; a token that excludes a private sibling repo will return 404 at `pip install` time even within the same account.
 - When using a fine-grained PAT in a git URL, the username **must** be `x-access-token`, not `${{ github.actor }}`; classic PATs work with either.
 - If a fine-grained PAT is later updated to cover "all repositories" (or to explicitly add the missing repos), switch CI secrets to it as the canonical agent token rather than keeping a classic PAT as a workaround.
-- `/dev/github/GitHub-PAT-AGENT` (fine-grained, all repos, code read + workflows write) is the correct long-term token for portfolio CI secrets; `/dev/github/GitHub-PAT-MCP` (classic, `repo` scope) is the fallback.
+- A fine-grained PAT (all repos, code read + workflows write) is the correct long-term token for portfolio CI secrets; a classic PAT with `repo` scope is the fallback. Store each token in a dedicated KeePass entry and reference it by name in CI secrets.
 
 ### 2026-04-29 — pylint matrix must not exceed windshield's Python floor
 
@@ -394,7 +394,7 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 
 ### 2026-04-01 — SSH key transfer to mobile devices should use snowbridge, not email or cloud
 
-- When bootstrapping SSH access from a mobile device, copy the private key to the snowbridge SMB share (`/mnt/4tb-m2/read/ssh-keys/`) so the phone can retrieve it via Files app over the LAN.
+- When bootstrapping SSH access from a mobile device, copy the private key to the snowbridge SMB share so the phone can retrieve it via Files app over the LAN.
 - Delete the key from the share immediately after the device imports it — the share is a transit medium, not a key store.
 - The `authorized_keys` entry remains on the server; only the private key moves transiently through the share.
 - This pattern avoids email, iCloud, or third-party cloud exposure of the private key while keeping the workflow simple.

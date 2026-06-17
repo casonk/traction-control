@@ -22,7 +22,7 @@ Verification:
 - If `docs/templates/SECURITY.md`, `docs/templates/LESSONSLEARNED.md`, or `LESSONSLEARNED.md` changed, run:
   - `pre-commit run --files docs/templates/SECURITY.md docs/templates/LESSONSLEARNED.md LESSONSLEARNED.md`
 - If `docs/templates/SECURITY.md` changed, run:
-  - `python3 scripts/check_security_md.py --repo /mnt/4tb-m2/git/util-repos/traction-control`
+  - `python3 scripts/check_security_md.py --repo "$(git rev-parse --show-toplevel)"`
 - If you edit repo-level `SECURITY.md` or `LESSONSLEARNED.md` elsewhere, run file-scoped verification in those repos too.
 
 Outcome:
