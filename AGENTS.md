@@ -66,6 +66,7 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
 | `ignition` | `./util-repos/ignition` | Bash / Shell | TPM2/clevis LUKS auto-unlock for home desktop data volumes (private) |
 | `nordility` | `./util-repos/nordility` | Python package | NordVPN CLI/API automation |
+| `pgpility` | `./util-repos/pgpility` | Python package | PGP encryption/decryption helpers with auto-pass key storage and shock-relay message sending |
 | `shock-relay` | `./util-repos/shock-relay` | Python / Shell | Cross-platform messaging relay tooling |
 | `pit-box` | `./util-repos/pit-box` | Bash / Shell | WireGuard + SSH hardened remote-access scaffold with settings-driven config rendering |
 | `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
@@ -97,6 +98,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
 - `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, local JSON summary generation, and disk-pressure signals that route to traction-control remediation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
+- `./util-repos/pgpility`: PGP encryption/decryption helpers, KeePassXC-backed key bundles through `auto-pass`, and encrypted email handoff through `shock-relay`
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
@@ -244,7 +246,7 @@ Every new repository should start with:
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should include the standard "Sudo Boundary" section explaining that agents cannot run `sudo` commands and must hand exact elevated commands to the user.
-Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
+Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/pgpility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, PGP encryption/decryption, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
 New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
@@ -294,6 +296,7 @@ Add:
 - `./util-repos/clockwork`: standard shared scheduler utility for cron and systemd manifests across other repos
 - `./util-repos/tachometer`: standard shared profiling utility for repo snapshots, resource measurements, and profiled command runs across other repos
 - `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
+- `./util-repos/pgpility`: standard PGP encryption/decryption and encrypted-message handoff utility for other repos
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./util-repos/short-circuit`: standard WireGuard VPN setup and configuration utility for other repos
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
