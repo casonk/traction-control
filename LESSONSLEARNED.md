@@ -12,6 +12,12 @@
 
 ## Lessons
 
+### 2026-06-17 — Reusable workflows in `casonk/.github`; git commit email must be the GitHub no-reply address
+
+All portfolio CI workflow action version pins belong exclusively in `casonk/.github` (locally `./util-repos/dot-github`). Calling repos reference them as `uses: casonk/.github/.github/workflows/<name>.yml@main` — no action pins in the caller. A single Dependabot PR on `casonk/.github` propagates to all repos automatically. Because callers use `@main` (not a semver pin), Dependabot on individual repos generates no `github-actions` PRs — no conflict.
+
+When committing to a newly-initialized repo that will be pushed to GitHub, set `user.email` to `72440835+casonk@users.noreply.github.com` (GitHub no-reply) before the first commit. GitHub blocks pushes from private email addresses. The private email is `casonk@umich.edu` — never use it in commits on repos with push protection enabled.
+
 ### 2026-06-17 — Never install third-party packages without explicit user confirmation; prefer existing portfolio tooling
 
 During a security triage session, `pykeepass` (a third-party library that opens `.kdbx` files directly) was installed via `pip install pykeepass --user` to write a SHA-256 hash as a custom KeePass attribute — without first asking the user. This violated two rules:
