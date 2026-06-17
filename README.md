@@ -84,6 +84,7 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `./util-repos/clockwork`: portfolio-standard shared cron and `systemd` scheduling helper
 - `./util-repos/tachometer`: portfolio-standard shared repo and resource profiling helper
 - `./util-repos/nordility`: portfolio-standard NordVPN switching/orchestration helper
+- `./util-repos/pgpility`: portfolio-standard PGP encryption/decryption helper with `auto-pass` key storage and `shock-relay` message handoff
 - `./util-repos/shock-relay`: portfolio-standard external messaging integration repo
 - `./util-repos/snowbridge`: portfolio-standard SMB-based private file-sharing and phone-access helper
 - `./util-repos/locility`: portfolio-standard phone GPS trace collection helper with local SQLite storage and CSV/GeoJSON exports
