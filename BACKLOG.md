@@ -12,10 +12,11 @@ Mark items `[x]` when complete and move them to Done.
 
 ### Reusable Workflow Migration
 
-- [ ] [manual:2026-06-17] **Tier 1** — Migrate 9 repos to reusable workflow callers (no blockers):
+- [x] [manual:2026-06-17] **Tier 1** — Migrate 9 repos to reusable workflow callers (no blockers):
   tradility, locility, session-control, crew-chief, magneto, bit-byte-block → `python-ci.yml`;
   casonk.github.io → `docs-ci.yml`; fedora-debugg, terminility → `shell-ci.yml`.
   Also add `ruff` lint hook to tradility pre-commit (only Tier 1 repo missing it).
+  locility push still pending — no GitHub remote yet (see locility backlog item).
 
 - [ ] [manual:2026-06-17] **Tier 2** — Add `skip-install` input to `python-ci.yml` reusable workflow,
   then migrate 5 pre-commit-only repos: traction-control, pit-box, short-circuit, snowbridge,
