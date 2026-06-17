@@ -18,7 +18,7 @@ Mark items `[x]` when complete and move them to Done.
   Also add `ruff` lint hook to tradility pre-commit (only Tier 1 repo missing it).
   private-repository push still pending — no GitHub remote yet (see private-repository backlog item).
 
-- [ ] [manual:2026-06-17] **Tier 2** — Add `skip-install` input to `python-ci.yml` reusable workflow,
+- [x] [manual:2026-06-17] **Tier 2** — Add `skip-install` input to `python-ci.yml` reusable workflow,
   then migrate 5 pre-commit-only repos: traction-control, pit-box, short-circuit, snowbridge,
   wiring-harness. Add ruff check to pre-commit configs where applicable before migrating.
 
