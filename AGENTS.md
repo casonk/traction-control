@@ -79,7 +79,9 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 | `windshield` | `./util-repos/windshield` | Python package | Reusable Playwright browser automation utilities — Chrome management, page interaction, debugging, challenge detection, and stealth helpers |
 | `magneto` | `./util-repos/magneto` | Python / Flask | Transmission RPC web control UI for Snowbridge torrent share (private) |
 | `wiring-harness` | `./util-repos/wiring-harness` | Python / Ops | Shared Caddy, mTLS, and DNS infrastructure for home services |
+| `tradility` | `./util-repos/tradility` | Python package | Technical analytics (RSI, VWAP) on investment holdings and watchlists via yfinance; JSON output |
 | `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
+| `.github` | `./util-repos/dot-github` | GitHub Config | GitHub account-level community health files and reusable CI/CD workflows (locally cloned as `dot-github`) |
 
 Non-repo folder:
 
@@ -127,6 +129,7 @@ Current strong baseline across the portfolio:
   - `docs/diagrams/repo-architecture.puml`
   - `docs/diagrams/repo-architecture.drawio`
 - code-focused repos should still carry lightweight CI and expand the starter blueprint into repo-specific flow detail when the code path is non-trivial
+- CI workflows should call reusable workflows from `casonk/.github` (locally `./util-repos/dot-github`) instead of embedding action pins directly; see the Reusable Workflow Strategy section
 
 Re-scan before making claims based on exact counts. This layer should stay accurate without becoming stale.
 
@@ -145,6 +148,52 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 - Read repo `LESSONSLEARNED.md`, `BACKLOG.md`, and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
+
+## Reusable Workflow Strategy
+
+Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). All action version pins (`actions/checkout`, `actions/setup-python`, etc.) are kept **only** in that repo's workflow files. Dependabot on `casonk/.github` keeps those pins current with a weekly PR.
+
+### Available Reusable Workflows
+
+| Workflow | Call Path | Key Inputs |
+|---|---|---|
+| Python CI | `casonk/.github/.github/workflows/python-ci.yml@main` | `python-versions`, `install-extra`, `run-pytest` |
+| Secret Scan | `casonk/.github/.github/workflows/secret-scan.yml@main` | `gitleaks-version` |
+| Python Publish | `casonk/.github/.github/workflows/python-publish.yml@main` | `package-name` |
+| Shell CI | `casonk/.github/.github/workflows/shell-ci.yml@main` | `run-tests`, `test-script` |
+| Docs CI | `casonk/.github/.github/workflows/docs-ci.yml@main` | `ruby-version`, `build-command` |
+
+### Calling Pattern (Python CI example)
+
+```yaml
+# .github/workflows/ci.yml  (in each Python repo)
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: casonk/.github/.github/workflows/python-ci.yml@main
+    with:
+      python-versions: '["3.10", "3.12"]'
+```
+
+### Dependabot Conflict Rules
+
+| Situation | Action |
+|---|---|
+| Dependabot PR on `casonk/.github` bumps an action | Review and merge — propagates to all callers |
+| Dependabot PR on an individual repo for `github-actions` | Close with label `superseded` — the repo has an unmigrated inline workflow |
+| A repo's CI diverges from the reusable workflow | Migrate the repo; remove its inline action pins |
+
+**Never** add a `github-actions` Dependabot entry to a calling repo that has already migrated. The canonical pin lives in `casonk/.github`.
+
+### Migration Status
+
+Existing repos still use inline CI workflows. Migrate them to the reusable pattern as they are touched for other reasons or in a dedicated migration sweep.
 
 ## Current Portfolio Priorities
 
