@@ -22,7 +22,7 @@ Mark items `[x]` when complete and move them to Done.
   then migrate 5 pre-commit-only repos: traction-control, pit-box, short-circuit, snowbridge,
   wiring-harness. Add ruff check to pre-commit configs where applicable before migrating.
 
-- [ ] [manual:2026-06-17] **Tier 3** — Fix pyproject.toml `[dev]` extras then migrate 5 repos:
+- [x] [manual:2026-06-17] **Tier 3** — Fix pyproject.toml `[dev]` extras then migrate 5 repos:
   `dyno-lab` (add ruff-format to [dev]); `nordility` (switch CI to pip install -e ".[dev]");
   `tachometer` (fix dyno-lab reference from PyPI name to git URL in [dev]);
   `citegres` (add networkx/matplotlib to [dev]); `zillow-public-data` (add deps to pyproject,
