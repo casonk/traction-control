@@ -15,10 +15,10 @@
 set -euo pipefail
 
 # ── configuration ────────────────────────────────────────────────────────────
-PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-/mnt/4tb-m2/git}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-$(cd "${SCRIPT_DIR}/../../.." && pwd)}"
 LOG_DIR="${LOG_DIR:-${HOME}/.local/share/portfolio-audit}"
 MAX_DEPTH=4
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ─────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"

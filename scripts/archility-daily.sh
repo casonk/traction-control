@@ -11,7 +11,11 @@
 set -euo pipefail
 
 # ── configuration ────────────────────────────────────────────────────────────
-PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-/mnt/4tb-m2/git}"
+# Derive the portfolio root from this script's location (scripts/ is three
+# levels inside util-repos/traction-control which sits two levels inside the
+# portfolio root), unless PORTFOLIO_ROOT is already set in the environment.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-$(cd "${SCRIPT_DIR}/../../.." && pwd)}"
 ARCHILITY_CMD="${ARCHILITY_CMD:-archility}"
 LOG_DIR="${LOG_DIR:-${HOME}/.local/share/archility-daily}"
 MAX_DEPTH=4   # how deep to search for .git dirs below PORTFOLIO_ROOT
