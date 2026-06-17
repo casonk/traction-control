@@ -28,7 +28,7 @@ Mark items `[x]` when complete and move them to Done.
   `citegres` (add networkx/matplotlib to [dev]); `zillow-public-data` (add deps to pyproject,
   handle PYTHONPATH). Add ruff check pre-commit hook to each before migrating.
 
-- [ ] [manual:2026-06-17] **Tier 5 — Per-repo decisions** (handle one at a time when ready):
+- [x] [manual:2026-06-17] **Tier 5 — Per-repo decisions** (handle one at a time when ready):
   archility (unittest→pytest decision, PYTHONPATH=src, smoke test),
   auto-pass (smoke test, pinned tool versions),
   clockwork (drop redundant direct lint steps, then migrate),
