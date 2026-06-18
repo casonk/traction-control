@@ -12,6 +12,42 @@
 
 ## Lessons
 
+### 2026-06-18 — WebTerm launchers must agree on the base tmux session
+
+Session launchers such as `session-control` and WebTerm must target the same
+base tmux session. If a web launcher appears to open only blank shells, first
+compare the launcher config (`SESSION_CONTROL_TMUX_SESSION`), the WebTerm local
+config (`WEBTERM_TMUX_SESSION`), and the live `ttyd.service` /
+`pit-box-api.service` `ExecStart` lines. A stale WebTerm unit can attach browser
+tabs and API state to the old base session while the launcher correctly created
+the intended resume window in the new one.
+
+Keep `WEBTERM_TMUX_SESSION` explicit in the owning repo's local `settings.env`,
+regenerate the ignored build units, and apply them with the repo's sudo rebuild
+command instead of changing provider resume-command generation.
+
+### 2026-06-18 — Claude CLI produces no stdout in `$()` subshell inside systemd user services
+
+In a systemd user service session (no controlling terminal), the Claude CLI
+exits 0 but writes nothing to stdout when its output is captured in a `$()`
+subshell. The same invocation works in an interactive shell and via direct file
+redirect (`> file`). This caused every scheduled agentic run to silently no-op.
+
+**Fix:** Always write agent output directly to a file instead of capturing
+with `OUTPUT="$(run_claude 2>&1)"`. Use:
+
+```bash
+run_claude > "${AGENT_OUTPUT_FILE}" 2>&1
+AGENT_STATUS=$?
+cat "${AGENT_OUTPUT_FILE}" >> "${LOG_FILE}"
+```
+
+This applies to all three providers (codex, claude, copilot) in any agentic
+script that runs as a systemd oneshot service. The readiness probe using
+`claude auth status` works fine (local operation, no API call). The broken
+pattern will always show `agent exit status: 0` with an empty agent-output.txt
+(1 byte, just a newline from `printf '%s\n' ""`).
+
 ### 2026-06-18 — Do not run ad hoc `/tmp` scripts that mutate shared Caddy or dnsmasq state
 
 Temporary scripts that append directly to `/etc/caddy/Caddyfile`,
