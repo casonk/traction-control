@@ -2,6 +2,54 @@
  {
   "RuleID": "portfolio-git-workspace-path",
   "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 9,
+  "EndLine": 9,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "7683d353f31bbf71a089388a0677289dbbf314ed",
+  "Link": "https://github.com/casonk/traction-control/blob/7683d353f31bbf71a089388a0677289dbbf314ed/.gitleaks-baseline.json#L9",
+  "Entropy": 3.0778196,
+  "Author": "Cason Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-05-01T11:29:14Z",
+  "Message": "ci: finalize gitleaks config, workflow, and deploy script\n\nAdd 555-area-code and synthetic test number entries to the global\nallowlist so crew-chief/shock-relay fixtures stop triggering false\npositives. Add documentation path exclusions to the workspace-path rule\nso AGENTS.md/README/CHANGELOG commits don't flag. Update secret-scan.yml\nto pass --baseline-path on scheduled full-history runs. Extend the deploy\nscript to generate and commit .gitleaks-baseline.json per repo. Add\ntraction-control baseline (1 known finding in deleted systemd file).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "7683d353f31bbf71a089388a0677289dbbf314ed:.gitleaks-baseline.json:portfolio-git-workspace-path:9"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 10,
+  "EndLine": 10,
+  "StartColumn": 15,
+  "EndColumn": 30,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "7683d353f31bbf71a089388a0677289dbbf314ed",
+  "Link": "https://github.com/casonk/traction-control/blob/7683d353f31bbf71a089388a0677289dbbf314ed/.gitleaks-baseline.json#L10",
+  "Entropy": 3.0778196,
+  "Author": "Cason Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-05-01T11:29:14Z",
+  "Message": "ci: finalize gitleaks config, workflow, and deploy script\n\nAdd 555-area-code and synthetic test number entries to the global\nallowlist so crew-chief/shock-relay fixtures stop triggering false\npositives. Add documentation path exclusions to the workspace-path rule\nso AGENTS.md/README/CHANGELOG commits don't flag. Update secret-scan.yml\nto pass --baseline-path on scheduled full-history runs. Extend the deploy\nscript to generate and commit .gitleaks-baseline.json per repo. Add\ntraction-control baseline (1 known finding in deleted systemd file).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "7683d353f31bbf71a089388a0677289dbbf314ed:.gitleaks-baseline.json:portfolio-git-workspace-path:10"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
   "StartLine": 14,
   "EndLine": 14,
   "StartColumn": 12,
@@ -16,7 +64,7 @@
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
   "Date": "2026-04-03T04:25:57Z",
-  "Message": "feat: add archility weekly systemd service and timer\n\n- scripts/archility-weekly.sh: discovers all portfolio repos (maxdepth 4,\n  skips archive-repos/), runs archility audit across all, then archility\n  render per-repo; logs timestamped to ~/.local/share/archility-weekly/\n  with a 'latest.log' symlink\n- systemd/archility-weekly.service: oneshot user service referencing the script\n- systemd/archility-weekly.timer: fires every Sunday at 02:00, Persistent=true\n  so missed runs catch up within 1 h of next boot\n\nInstall with:\n  cp systemd/* ~/.config/systemd/user/\n  systemctl --user daemon-reload\n  systemctl --user enable --now archility-weekly.timer\n\nCo-authored-by: Copilot \u003c223556219+Copilot@users.noreply.github.com\u003e",
+  "Message": "feat: add archility weekly systemd service and timer\n\n- scripts/archility-weekly.sh: discovers all portfolio repos (maxdepth 4,\n  skips archive-repos/), runs archility audit across all, then archility\n  render per-repo; logs timestamped to ~/.local/share/archility-weekly/\n  with a 'latest.log' symlink\n- systemd/archility-weekly.service: oneshot user service referencing the script\n- systemd/archility-weekly.timer: fires every Sunday at 02:00, Persistent=true\n  so missed runs catch up within 1 h of next boot\n\nInstall with:\n  cp systemd/* ~/.config/systemd/user/\n  systemctl --user daemon-reload\n  systemctl --user enable --now archility-weekly.timer\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
   "Tags": [
    "local-path",
    "machine-specific"
