@@ -203,25 +203,24 @@ run_copilot() {
 }
 
 AGENT_STATUS=0
-OUTPUT=""
 set +e
 case "${PROVIDER}" in
   codex)
-    OUTPUT="$(run_codex 2>&1)"
+    run_codex > "${AGENT_OUTPUT_FILE}" 2>&1
     AGENT_STATUS=$?
     ;;
   claude)
-    OUTPUT="$(run_claude 2>&1)"
+    run_claude > "${AGENT_OUTPUT_FILE}" 2>&1
     AGENT_STATUS=$?
     ;;
   copilot)
-    OUTPUT="$(run_copilot 2>&1)"
+    run_copilot > "${AGENT_OUTPUT_FILE}" 2>&1
     AGENT_STATUS=$?
     ;;
 esac
 set -e
 
-printf '%s\n' "${OUTPUT}" | tee -a "${LOG_FILE}" > "${AGENT_OUTPUT_FILE}"
+cat "${AGENT_OUTPUT_FILE}" >> "${LOG_FILE}"
 if [[ ! -s "${LAST_MESSAGE_FILE}" ]]; then
   cp "${AGENT_OUTPUT_FILE}" "${LAST_MESSAGE_FILE}"
 fi
