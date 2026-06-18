@@ -12,6 +12,21 @@
 
 ## Lessons
 
+### 2026-06-18 — Do not run ad hoc `/tmp` scripts that mutate shared Caddy or dnsmasq state
+
+Temporary scripts that append directly to `/etc/caddy/Caddyfile`,
+`/etc/dnsmasq.d/*.conf`, or `/etc/hosts` bypass the portfolio service registry
+and can break unrelated services. A crew-chief bench setup script did this by
+adding a Caddy site and reloading Caddy without preserving
+`import Caddyfile.d/*.caddy`, which made WebTerm return an empty `200` because
+its repo-owned drop-in was ignored.
+
+New internal web surfaces should be added through `wiring-harness` registry
+entries or through the owning repo's checked-in install/rebuild scripts, with
+the generated config reviewed before reload. For emergency recovery, prefer a
+temporary Caddy admin API load that restores the missing import, then apply the
+persistent fix through the owning repo's sudo rebuild command.
+
 ### 2026-06-18 — KeePass profile names, entry paths, and local machine paths must never appear in tracked example files or docs
 
 The pattern `profile = infra` (or any real vault name: `personal`, `finance`, `master`, `work`) in tracked config/example files is a security incident. Similarly, hardcoded local machine paths (`/mnt/4tb-m2/git/`, device hostnames like `bully` in mount paths) and real KeePass entry paths must not appear in README, AGENTS.md, blueprint, LESSONSLEARNED, or example files.
