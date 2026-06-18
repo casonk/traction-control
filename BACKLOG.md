@@ -39,7 +39,7 @@ Mark items `[x]` when complete and move them to Done.
   windshield (add ruff+pylint to [dev], add ruff hook to pre-commit),
   personal-finance (blocked on windshield being installable without GH_PRIVATE_REPO_PAT).
 
-- [ ] [manual:2026-06-17] **Tier 6 — Major overhaul first** (handle when touching these repos):
+- [x] [manual:2026-06-17] **Tier 6 — Major overhaul first** (handle when touching these repos):
   `sonetsim` — drop Python 3.8/3.9 (EOL), add [dev] extras, fix non-standard test paths;
   `pushshift_python` — resolve MPLCONFIGDIR env var need (conftest.py or new workflow input).
 
