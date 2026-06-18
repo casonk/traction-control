@@ -12,6 +12,17 @@
 
 ## Lessons
 
+### 2026-06-17 — Never record literal secret values in durable lessons or command examples
+
+Durable lessons may describe where a secret is stored, which entry or attribute
+name to read, and which command pattern to use, but they must never include the
+secret value itself. Use placeholders such as `<passphrase-from-keepass>` in
+tracked docs, examples, commit messages, PR bodies, and handoff notes. If a
+literal credential, token, private path, or private identifier lands in tracked
+history, treat it as a secret incident: remove it from the current tree, rewrite
+published history, force-push the sanitized refs, and rotate the affected
+secret.
+
 ### 2026-06-17 — Reusable workflows in `casonk/.github`; git commit email must be the GitHub no-reply address
 
 All portfolio CI workflow action version pins belong exclusively in `casonk/.github` (locally `./util-repos/dot-github`). Calling repos reference them as `uses: casonk/.github/.github/workflows/<name>.yml@main` — no action pins in the caller. A single Dependabot PR on `casonk/.github` propagates to all repos automatically. Because callers use `@main` (not a semver pin), Dependabot on individual repos generates no `github-actions` PRs — no conflict.
