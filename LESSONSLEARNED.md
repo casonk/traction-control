@@ -12,6 +12,27 @@
 
 ## Lessons
 
+### 2026-06-18 — KeePass profile names, entry paths, and local machine paths must never appear in tracked example files or docs
+
+The pattern `profile = infra` (or any real vault name: `personal`, `finance`, `master`, `work`) in tracked config/example files is a security incident. Similarly, hardcoded local machine paths (`/mnt/4tb-m2/git/`, device hostnames like `bully` in mount paths) and real KeePass entry paths must not appear in README, AGENTS.md, blueprint, LESSONSLEARNED, or example files.
+
+**Correct conventions:**
+- Example config files: `profile = your-profile`, `keepass_entry = your-service/component/purpose`
+- Python source defaults: `DEFAULT_KEEPASS_PROFILE = ""` (empty string, require explicit config)
+- Machine paths in docs or lessons: `$VARIABLE`, `<placeholder>`, or `relative/path`
+- Snowbridge mount paths: `/mnt/snowbridge/receipts` not `/mnt/setup/<device>/...`
+- Personal-finance workspace: `$REPO_ROOT` or `$(git rev-parse --show-toplevel)` not `/mnt/4tb-m2/git/personal-finance`
+
+**Enforcement:** The `keepass-real-profile-name` gitleaks rule (added 2026-06-18 across all portfolio repos) catches `profile = (infra|personal|finance|master)` in non-doc files. The `portfolio-git-workspace-path` rule catches absolute local paths. Both rules have baselines for historical commits that can't be rewritten. Run `gitleaks git --config .gitleaks.toml --baseline-path .gitleaks-baseline.json` before publishing any repo as public.
+
+### 2026-06-18 — LESSONSLEARNED.md command examples must use env vars or placeholders for machine-specific paths
+
+When a lesson includes a command invocation, never paste the literal local path. Use `$VARIABLE` or `<path-to-repo>` instead. Example: `python3 "$SHOCK_RELAY_ROOT/services/gmail-imap/send_email.py" <to> <subject> <body>` with a note that `SHOCK_RELAY_ROOT` is the local sibling path. This makes lessons portable and safe to leave in tracked public files.
+
+### 2026-06-18 — Baseline generation: always use `gitleaks git -r /tmp/file.json && cp /tmp/file.json .gitleaks-baseline.json`
+
+Writing `.gitleaks-baseline.json` manually produces fingerprint mismatches. Always generate it by running `gitleaks git --config .gitleaks.toml --no-banner -r /tmp/repo-baseline.json` (which exits 1 on leaks but still writes the file), then copy the output directly to `.gitleaks-baseline.json`. Verify clean with `gitleaks git --baseline-path .gitleaks-baseline.json`. Never hand-craft the JSON.
+
 ### 2026-06-17 — Never record literal secret values in durable lessons or command examples
 
 Durable lessons may describe where a secret is stored, which entry or attribute
