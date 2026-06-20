@@ -48,6 +48,27 @@ script that runs as a systemd oneshot service. The readiness probe using
 pattern will always show `agent exit status: 0` with an empty agent-output.txt
 (1 byte, just a newline from `printf '%s\n' ""`).
 
+### 2026-06-20 — Discovery-only maintenance modes must not depend on repair-provider readiness
+
+- When a maintenance script supports a read-only discovery-only mode, skip any
+  provider readiness probes that exist only to launch a later repair or
+  authoring agent.
+- Otherwise discovery can fail for unrelated model-auth, quota, or
+  provider-session reasons even though the read-only GitHub/API inventory path
+  is healthy.
+- For split agentic designs, treat discovery auth and repair auth as separate
+  contracts and keep the discovery half runnable on its own.
+
+### 2026-06-20 — Provider-selection logs must not share stdout with command-substitution results
+
+- If a helper like `agentic_resolve_provider` returns a provider name through
+  stdout and is called inside `$(...)`, redirect any readiness or status logs
+  to stderr first.
+- Otherwise human-readable readiness logs contaminate the captured provider
+  string and downstream logic sees a malformed provider value.
+- This applies to shared provider-selection helpers used by unattended systemd
+  jobs, where stdout is often both machine-consumed and journal-captured.
+
 ### 2026-06-18 — Do not run ad hoc `/tmp` scripts that mutate shared Caddy or dnsmasq state
 
 Temporary scripts that append directly to `/etc/caddy/Caddyfile`,
