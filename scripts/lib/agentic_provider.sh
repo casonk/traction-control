@@ -151,7 +151,7 @@ agentic_resolve_provider() {
   case "${requested}" in
     auto)
       for candidate in codex claude copilot; do
-        if agentic_provider_ready "${candidate}" "${model}"; then
+        if agentic_provider_ready "${candidate}" "${model}" >&2; then
           printf '%s\n' "${candidate}"
           return 0
         fi
@@ -159,7 +159,7 @@ agentic_resolve_provider() {
       return 1
       ;;
     codex|claude|copilot)
-      agentic_provider_ready "${requested}" "${model}" || return 1
+      agentic_provider_ready "${requested}" "${model}" >&2 || return 1
       printf '%s\n' "${requested}"
       ;;
     *)
