@@ -170,6 +170,32 @@ To install the user-level systemd timer through `clockwork`, use:
 bash scripts/install_ci_repair_agentic_systemd.sh --provider auto --model gpt-5.4
 ```
 
+For the read-only discovery half of that workflow, use:
+
+```bash
+bash scripts/ci_repair_agentic.sh --discovery-only
+```
+
+This writes the current inventory and candidate TSV files under
+`~/.local/share/ci-repair-agentic/` and exits before launching any repair
+agent. It is the preferred first step when separating GitHub Actions discovery
+from broad multi-repo write authority.
+
+To render and install the discovery-only timer through `clockwork`, use:
+
+```bash
+bash scripts/install_ci_repair_agentic_discovery_systemd.sh --provider auto --model gpt-5.4
+```
+
+When discovery finds candidates and you want to run the repair half explicitly,
+use:
+
+```bash
+bash scripts/ci_repair_agentic_repair.sh \
+  --candidate-file ~/.local/share/ci-repair-agentic/latest-candidates.tsv \
+  --inventory-file ~/.local/share/ci-repair-agentic/latest-inventory.tsv
+```
+
 For tachometer-triggered disk-pressure remediation, use:
 
 ```bash

@@ -1,0 +1,27 @@
+[[jobs]]
+name = "ci-repair-agentic-discovery"
+description = "Every-other-day read-only discovery of failing GitHub Actions CI across clean portfolio repos"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/ci_repair_agentic.sh --discovery-only"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/ci-repair-agentic.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Run the traction-control CI discovery pass every other day"
+
+[jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/ci-repair-agentic"
+CI_REPAIR_AGENTIC_PROVIDER = "__PROVIDER__"
+CI_REPAIR_AGENTIC_MODEL = "__MODEL__"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "1h"
+on_unit_active_sec = "2d"
+persistent = true
+randomized_delay_sec = "1200"
