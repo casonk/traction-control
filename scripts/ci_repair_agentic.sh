@@ -19,6 +19,7 @@ MODEL_REQUESTED="${CI_REPAIR_AGENTIC_MODEL:-}"
 MAX_DEPTH=4
 RUN_LIMIT=30
 FORCE=0
+DISCOVERY_ONLY=0
 
 source "${REPO_ROOT}/scripts/lib/agentic_provider.sh"
 
@@ -38,6 +39,7 @@ Options:
   --prompt-file PATH     Override the maintenance prompt file.
   --run-limit N          How many recent branch workflow runs to inspect per repo (default: 30).
   --force                Ignore dirty worktrees and scan them anyway.
+  --discovery-only       Stop after writing inventory/candidate files; skip agent repair.
   --help                 Show this help text.
 EOF
 }
@@ -85,6 +87,10 @@ while [[ $# -gt 0 ]]; do
       FORCE=1
       shift
       ;;
+    --discovery-only)
+      DISCOVERY_ONLY=1
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -124,6 +130,7 @@ LAST_MESSAGE_FILE="${RUN_DIR}/last-message.txt"
 LATEST_LOG_LINK="${LOG_DIR}/latest.log"
 LATEST_OUTPUT_LINK="${LOG_DIR}/latest-output.txt"
 LATEST_INVENTORY_LINK="${LOG_DIR}/latest-inventory.tsv"
+LATEST_CANDIDATE_LINK="${LOG_DIR}/latest-candidates.tsv"
 
 mkdir -p "${RUN_DIR}"
 
@@ -208,15 +215,22 @@ log "repo root       : ${REPO_ROOT}"
 log "portfolio root  : ${PORTFOLIO_ROOT}"
 log "provider req    : ${PROVIDER_REQUESTED}"
 log "model override  : ${MODEL_REQUESTED:-<default>}"
-log "provider probe  : auth/status + model readiness"
+if (( DISCOVERY_ONLY == 1 )); then
+  log "provider probe  : skipped in discovery-only mode"
+else
+  log "provider probe  : auth/status + model readiness"
+fi
 log "prompt file     : ${PROMPT_FILE}"
 log "run limit       : ${RUN_LIMIT}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
-PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-  || fail "no ready agent provider found (codex, claude, copilot)"
-log "provider used   : ${PROVIDER}"
+PROVIDER=""
+if (( DISCOVERY_ONLY == 0 )); then
+  PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
+    || fail "no ready agent provider found (codex, claude, copilot)"
+  log "provider used   : ${PROVIDER}"
+fi
 
 mapfile -t REPO_DIRS < <(
   find "${PORTFOLIO_ROOT}" \
@@ -345,11 +359,17 @@ ln -sf "${LOG_FILE}" "${LATEST_LOG_LINK}"
 ln -sf "${INVENTORY_FILE}" "${LATEST_INVENTORY_LINK}"
 
 awk -F '\t' 'NR == 1 || $1 == "candidate"' "${INVENTORY_FILE}" > "${CANDIDATE_FILE}"
+ln -sf "${CANDIDATE_FILE}" "${LATEST_CANDIDATE_LINK}"
 
 log "inventory summary: candidate=${candidate_count} clean=${clean_count} dirty=${dirty_count} pending=${pending_count} no_ci=${no_ci_count} skipped=${skipped_count} error=${error_count}"
 
 if (( candidate_count == 0 )); then
   log "no failing default-branch CI detected in clean GitHub repos"
+  exit 0
+fi
+
+if (( DISCOVERY_ONLY == 1 )); then
+  log "discovery only   : wrote ${CANDIDATE_FILE} and ${INVENTORY_FILE}"
   exit 0
 fi
 
