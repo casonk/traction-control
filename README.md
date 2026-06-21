@@ -196,6 +196,17 @@ bash scripts/ci_repair_agentic_repair.sh \
   --inventory-file ~/.local/share/ci-repair-agentic/latest-inventory.tsv
 ```
 
+To install that explicit repair worker as an on-demand user service, use:
+
+```bash
+bash scripts/install_ci_repair_agentic_repair_systemd.sh --provider auto --model gpt-5.4
+```
+
+This installs `ci-repair-agentic-repair.service` only. It does not enable a
+timer, so the repair half stays manual until its write-auth boundary is finalized.
+Pass `--render-only --unit-dir /tmp/<dir>` when you want to inspect the unit
+without touching the live user systemd tree.
+
 For tachometer-triggered disk-pressure remediation, use:
 
 ```bash
