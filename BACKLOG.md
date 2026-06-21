@@ -51,6 +51,12 @@ Mark items `[x]` when complete and move them to Done.
   workflows to `casonk/.github/.github/workflows/secret-scan.yml@main` across the portfolio
   after confirming each repo has `.gitleaks.toml` and `.gitleaks-baseline.json` in place.
 
+- [ ] [manual:2026-06-21] **Repair SSH/Git host config permissions** — Investigate and fix
+  the host-level SSH configuration issue causing Git pushes to fail with
+  `Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`.
+  Standardize the fix so normal `git push` and `ssh -T git@github.com` work
+  without one-off `GIT_SSH_COMMAND` overrides.
+
 - [ ] [manual:2026-06-17] **locility private repo** — Create private GitHub repo for locility
   (`gh repo create casonk/locility --private`), set SSH remote, push pending commits.
   Blocked until then: Tier 1 CI migration commit is local-only for this repo.
