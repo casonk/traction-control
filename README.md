@@ -246,7 +246,8 @@ configured grace window so Gmail/device notifications can fire, then moves them
 to the configured notify folder without marking them read.
 
 When `GITHUB_CI_EMAIL_TRIGGER_REPAIR=1`, each newly detected failure email also
-schedules a delayed user-systemd trigger for `ci-repair-agentic.service`. The
+schedules a delayed user-systemd trigger for
+`ci-repair-agentic-discovery.service`. The
 default delay is 30 minutes so an agent or human that just pushed a change has
 time to finish before the autonomous repair sweep starts. Duplicate failure
 emails coalesce behind one transient trigger unit.
