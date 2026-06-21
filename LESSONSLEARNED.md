@@ -12,6 +12,16 @@
 
 ## Lessons
 
+### 2026-06-21 — New systemd-managed repo scripts need an explicit executability check before install
+
+- If a user service `ExecStart=` points straight at a repo script, confirm the
+  script has the executable bit before treating the unit as ready.
+- Otherwise systemd fails with `status=203/EXEC` and `Permission denied` even
+  though the file path and shebang are correct.
+- For traction-control installer work, add `bash -n` plus an `ls -l` or mode
+  check for any newly introduced script, then run one live no-op start when the
+  service is intended to be operator-triggered.
+
 ### 2026-06-18 — WebTerm launchers must agree on the base tmux session
 
 Session launchers such as `session-control` and WebTerm must target the same
