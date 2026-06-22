@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-06-21 — Pre-commit all-files does not validate untracked generated artifacts
+
+- `pre-commit run --all-files` only runs against tracked files. If a change adds
+  new generated artifacts, validate them with `pre-commit run --files <paths>`
+  before commit, or stage them first and rerun the full gate.
+- Otherwise CI can fail on fresh checkout for basic hooks such as
+  `end-of-file-fixer` even though local all-files validation appeared clean
+  before the new files were tracked.
+
 ### 2026-06-21 — New systemd-managed repo scripts need an explicit executability check before install
 
 - If a user service `ExecStart=` points straight at a repo script, confirm the
