@@ -223,6 +223,16 @@ Existing repos still use inline CI workflows. Migrate them to the reusable patte
 
 ## Baseline For New Repositories
 
+Create every new portfolio repository as **private**. Changing visibility to
+public is a separate, explicit release step after reviewing the full Git
+history, tracked references and examples, license, security policy, and local
+or personal data boundaries.
+
+Use `scripts/create_private_github_repo.sh OWNER/REPO` for creation. The
+wrapper owns `--private`, verifies the hosted visibility, and performs no
+source selection, remote setup, or push; those remain separate steps after
+verification.
+
 ### Tier 1 — Mandatory
 
 Every new repository should start with:
