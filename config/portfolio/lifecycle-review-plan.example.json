@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "actions": [
+    {
+      "action": "make-private",
+      "target_repository_id": "R_EXAMPLE_PUBLIC_001",
+      "reason": "Synthetic example: reduce exposure before a deeper history review."
+    },
+    {
+      "action": "archive",
+      "target_repository_id": "R_EXAMPLE_PRIVATE_001",
+      "reason": "Synthetic example: the maintained replacement has completed its migration."
+    },
+    {
+      "action": "retire",
+      "target_repository_id": "R_EXAMPLE_PRIVATE_001",
+      "reason": "Synthetic example: the repository has no remaining supported consumers."
+    },
+    {
+      "action": "remove-dependency",
+      "target_repository_id": "R_EXAMPLE_PUBLIC_001",
+      "dependency_repository_id": "R_EXAMPLE_PRIVATE_001",
+      "reason": "Synthetic example: replace the dependency before changing its lifecycle."
+    }
+  ]
+}

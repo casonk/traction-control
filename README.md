@@ -17,13 +17,21 @@ Its effective scan target is the portfolio root two levels up:
 - Store the portfolio-wide `CHATHISTORY.md` used for local session continuity.
 - Define the baseline conventions for repositories under the portfolio root.
 - Document the shared utility repos used across the portfolio for architecture toolchain bootstrap/render orchestration, Graphviz-backed diagram support, deterministic architecture-layout generation, agentic architecture authoring, password management, shared scheduling, repo and resource profiling, VPN switching, external messaging, and SMB-based file sharing.
-- Act as the home repo for future cross-repo automation or inventory tooling.
+- Provide the tiered bootstrap and scheduler entry point for cross-repo agents.
 
-The important implementation detail today is that `traction-control` is still a
-policy-driven control plane, not a local orchestration binary. The effective
-"runtime" is an agent or contributor following the documented governance loop:
-read the control-plane docs, scan the portfolio root, inspect the target repo,
-use the shared utility repos where appropriate, verify changes, and update the
+`traction-control` remains a policy-driven control plane rather than a
+long-running application, but it now also provides a local orchestration entry
+point. Its ignored master catalog can plan and materialize every repository in
+the private/public registry without nesting their histories or exposing the
+private inventory in tracked files. Its lifecycle reviewer maps tracked
+repository dependencies and evaluates proposed privacy, archive, retirement,
+and dependency-removal actions without applying remote changes.
+
+The tiered bootstrap downloads its allowlisted support repos and renders
+Linux or macOS scheduler definitions around the existing workload scripts. The
+effective runtime is still the documented governance loop: read the
+control-plane docs, scan the portfolio root, inspect the target repo, use the
+shared utility repos where appropriate, verify changes, and update the
 continuity files.
 
 ## Working Rule
@@ -41,6 +49,17 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 
 - GitHub CLI authentication may already be active for the workspace user; verify before starting a new login flow.
 - An SSH key is available in the environment, so SSH remotes are a valid publishing path when creating or pushing the repo.
+- Create portfolio repositories through
+  `scripts/create_private_github_repo.sh OWNER/REPO`. It always requests
+  private visibility, verifies GitHub's response, and deliberately does not
+  add a remote or push. Public visibility is a later, separately reviewed
+  release action.
+
+Its offline contract test is:
+
+```bash
+bash tests/test_create_private_github_repo.sh
+```
 
 ## Key Files
 
@@ -52,6 +71,17 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `docs/lesson-capture-framework.md`: end-of-session gate for deciding whether a durable lesson must be recorded
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo
 - `CHANGELOG.md`: notable changes to the portfolio-governance layer
+- `scripts/install_podman_runtime.sh`: Podman CLI and rootless macOS machine bootstrap for container verification
+- `scripts/create_private_github_repo.sh`: fail-closed private repository creation and post-create visibility verification
+- `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
+- `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
+- `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
+- `docs/repository-visibility.md`: private-first classification and observed-transition policy
+- `docs/portfolio-lifecycle.md`: master checkout, dependency, retirement, and consistency architecture
+- `scripts/install_traction_control_agents.sh`: cross-platform tiered support-repo and agent scheduler bootstrap
+- `config/traction-control-agents/repos.conf`: cumulative support-repository bundles for the three profiles
+- `config/traction-control-agents/jobs.conf`: cumulative job membership, runtime environment, and schedule data
+- `scripts/run_traction_control_job.sh`: launchd runtime adapter for local env files, startup delay, and jitter
 - `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
@@ -84,11 +114,13 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - `./util-repos/clockwork`: portfolio-standard shared cron and `systemd` scheduling helper
 - `./util-repos/tachometer`: portfolio-standard shared repo and resource profiling helper
 - `./util-repos/nordility`: portfolio-standard NordVPN switching/orchestration helper
-- `./util-repos/private-repository`: portfolio-standard PGP encryption/decryption helper with `auto-pass` key storage and `shock-relay` message handoff
 - `./util-repos/shock-relay`: portfolio-standard external messaging integration repo
 - `./util-repos/snowbridge`: portfolio-standard SMB-based private file-sharing and phone-access helper
-- `./util-repos/private-repository`: portfolio-standard phone GPS trace collection helper with local SQLite storage and CSV/GeoJSON exports
 - `./util-repos/session-control`: portfolio-standard local AI-session inventory, resume-command, and cleanup helper
+
+Private shared utilities are resolved through the ignored local registry and
+catalog. They are intentionally not named or located in this tracked public
+document.
 
 ## Architecture Layout Standard
 
@@ -104,6 +136,160 @@ Its deterministic programmatic path creates the baseline starter strictly from c
 ## Contributing
 
 See `CONTRIBUTING.md`.
+
+## Tiered Agent Bootstrap
+
+Use the bootstrap to download missing allowlisted support repositories and
+render a cumulative agent profile:
+
+```bash
+bash scripts/install_traction_control_agents.sh --list-tiers
+bash scripts/install_traction_control_agents.sh --tier light --dry-run
+bash scripts/install_traction_control_agents.sh \
+  --tier moderate \
+  --provider auto \
+  --model MODEL_NAME
+```
+
+`--tier` is required. By default, the command clones missing support repos and
+writes scheduler artifacts under
+`~/.local/share/traction-control/bootstrap/rendered/`, but leaves them
+inactive. This render-only default can therefore change the filesystem and use
+the network. Use `--dry-run` to preview repository, render, and reconciliation
+actions without writes, clones, or service-manager calls. Use `--activate` only
+after reviewing that preview when the selected jobs should become live.
+
+Profiles control installed capability, not a read/write permission level.
+Activated light jobs can make a narrowly warranted fix, moderate jobs can edit
+policy/reference/architecture files and commit where their prompts allow, and
+heavy disk remediation can commit and push validated changes. Activation can
+also queue interval or overdue persistent jobs after their configured delay and
+jitter. `--enable-autonomous-ci-repair` expands CI scheduling further; it is not
+the only workload with write authority.
+
+The profiles are cumulative:
+
+| Profile | Support repos | Jobs added at this profile |
+|---|---|---|
+| `light` | `traction-control`, `clockwork` | Daily portfolio audit, review-first bug sweep, read-only CI discovery |
+| `moderate` | Adds `archility`, `tachometer` | Daily and twice-weekly architecture checks, template consolidation, weekly REFS audit |
+| `heavy` | Adds `auto-pass`, `shock-relay` | Tachometer disk-pressure remediation and an on-demand CI repair service |
+
+Support-repo selection is not a target-repository allowlist. Discovery
+workloads apply their own depth, exclusion, clean-worktree, and eligibility
+rules beneath `PORTFOLIO_ROOT`. For example, a light bug sweep can review an
+eligible existing repo outside the two light support repos. The profile
+controls which supporting tools are present and which jobs are installed, not
+which local repos those jobs may inspect.
+
+Heavy remains discovery-first by default. It installs
+`ci-repair-agentic-repair.service` as an on-demand worker while retaining the
+read-only discovery schedule. Start that worker only after discovery has
+produced a candidate inventory:
+
+```bash
+# After discovery has produced a candidate inventory:
+systemctl --user start ci-repair-agentic-repair.service
+launchctl kickstart "gui/$(id -u)/io.github.casonk.traction-control.ci-repair-agentic-repair"
+```
+
+Use the command for the active platform; the LaunchAgent must already have been
+loaded with `--activate`.
+
+To deliberately grant scheduled broad repair authority, add:
+
+```bash
+bash scripts/install_traction_control_agents.sh \
+  --tier heavy \
+  --enable-autonomous-ci-repair \
+  --activate
+```
+
+That option is valid only for `heavy`; it replaces the discovery-only CI timer
+in the selected job set with the full autonomous CI-repair timer. The repair
+agent may edit, commit, and push clean candidate repos according to its prompt,
+so this is a separate authority decision from selecting the heavy support
+bundle.
+
+Platform output is selected automatically, or explicitly with `--platform`:
+
+- Linux renders `clockwork` user units. Inactive output goes below the
+  bootstrap state directory; `--activate` writes to
+  `${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user` and enables the selected timers.
+- macOS renders native `io.github.casonk.traction-control.*` LaunchAgent plists.
+  Inactive output goes below the bootstrap state directory; `--activate` writes
+  to `~/Library/LaunchAgents` and loads the selected agents with `launchctl`.
+  `scripts/run_traction_control_job.sh` loads optional local job env files and
+  applies the configured startup delay and jitter before execution.
+
+Reapplying an activated profile disables/unloads and archives known managed
+jobs that are not selected, so a heavy-to-light transition does not leave
+heavy authority active. It refuses to reconcile a workload that is already
+running or starting. Render-only transitions reconcile only their inactive
+artifacts.
+Backups and the moderate/heavy Archility shim live below the bootstrap state
+directory; do not delete it or point an activated profile at ephemeral storage.
+Render-only output is rejected in the live scheduler directories.
+
+Before activation, install Python 3.10+ for Clockwork and Python 3.11+ for
+Archility, plus `gh`, `jq`, and one supported agent provider. The bootstrap
+checks command presence, while provider authentication/model availability and
+GitHub authentication are validated when the workloads run. On macOS, local
+job env files are parsed as data (not sourced), must be owned by the current
+user, and must not be writable by group or others.
+
+Existing git checkouts are not pulled, reset, or rewritten. Their `origin`
+slug is verified against the tracked allowlist on every run, and a
+non-git path at an expected checkout location is treated as an error. Use
+`--no-clone` to require all support repos to exist already, `--no-scheduler` for
+repo setup only, and `--clone-protocol ssh` when SSH remotes are preferred by
+the agent-profile installer. The separate portfolio materializer defaults to
+SSH because private HTTPS credential helpers are intentionally excluded with
+global Git config.
+The tracked profile data lives in
+`config/traction-control-agents/{repos,jobs}.conf`; the bootstrap also accepts
+explicit config and absolute output-directory overrides for controlled testing
+or local extensions.
+
+### Container verification
+
+Podman is the preferred container engine. Preview the host setup, install and
+prepare Podman, then run every Linux profile in its own disposable container:
+
+```bash
+bash scripts/install_podman_runtime.sh --dry-run
+bash scripts/install_podman_runtime.sh
+bash tests/test_install_traction_control_agents_containers.sh
+```
+
+On macOS, the automated bootstrap uses Homebrew, creates a named rootless
+Podman machine only when it is missing, and leaves the default Podman
+connection unchanged. If you prefer Podman's upstream signed installer,
+install it first and rerun the bootstrap with `--no-install`. The automated
+Homebrew path is gated to its current support floor: Apple Silicon and macOS
+13 or newer. Existing machines are not resized, reset, removed, or changed to
+rootful/rootless mode. Podman machine's default macOS configuration exposes the
+login user's home directory to the VM. Pass `--smoke-test` only when an image
+pull and test-container run are wanted. When using a custom `--machine-name`,
+give that same name to the test runner as
+`TRACTION_CONTROL_PODMAN_CONNECTION`.
+
+The harness stages only the required traction-control files plus the real
+local Clockwork and Archility source trees, then builds one Linux test image.
+Each light, moderate, and heavy container has networking disabled and a
+read-only root filesystem. It downloads the selected support bundle from local
+fixture remotes through real Git clones, renders the exact expected systemd
+unit set with Clockwork, and validates every unit in user scope with
+`systemd-analyze`. Verification gets a private ephemeral runtime directory but
+no D-Bus or live user manager. The harness then checks an idempotent rerun and
+confirms that `--activate` fails before writes when the container has no
+systemd user manager.
+
+This test does not execute agent workloads or fake a successful live
+activation. A true activation integration test requires a disposable
+systemd-booted environment with a dedicated user manager and all workload
+services runtime-masked. See `tests/containers/README.md` for engine and path
+overrides.
 
 ## Operational Scripts
 

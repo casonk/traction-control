@@ -54,7 +54,7 @@ log() {
 }
 
 sanitize_field() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
 }
 
 record_inventory() {
@@ -139,7 +139,11 @@ PY
 repo_size_mib() {
   local repo="$1"
   local size_kib
-  size_kib="$(du -sk --exclude=.git --exclude=.storage-archives "$repo" 2>/dev/null | awk '{print $1}')"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    size_kib="$(du -sk -I .git -I .storage-archives "$repo" 2>/dev/null | awk '{print $1}')"
+  else
+    size_kib="$(du -sk --exclude=.git --exclude=.storage-archives "$repo" 2>/dev/null | awk '{print $1}')"
+  fi
   if [[ -z "${size_kib}" ]]; then
     printf '0\n'
     return
@@ -252,7 +256,10 @@ log "dry run         : ${DRY_RUN}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+  REPO_DIRS+=("${repo_dir}")
+done < <(
   find "${PORTFOLIO_ROOT}" \
     -maxdepth "${MAX_DEPTH}" \
     -type d \
@@ -270,7 +277,10 @@ pressure_count=0
 host_pressure_count=0
 clean_count=0
 
-for repo in "${REPO_DIRS[@]}"; do
+repo_index=0
+while (( repo_index < ${#REPO_DIRS[@]} )); do
+  repo="${REPO_DIRS[$repo_index]}"
+  repo_index=$(( repo_index + 1 ))
   repo_rel="${repo#${PORTFOLIO_ROOT}/}"
   log "scan repo       : ${repo_rel}"
 

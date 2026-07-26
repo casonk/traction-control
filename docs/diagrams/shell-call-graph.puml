@@ -88,7 +88,7 @@ cloud "credit" as tool_credit #FEF3C7
 cloud "crew-chief" as tool_crew_chief #FEF3C7
 cloud "dirty_count" as tool_dirty_count #FEF3C7
 cloud "documentation" as tool_documentation #FEF3C7
-cloud "private-repository" as tool_doseido #FEF3C7
+cloud "private-health-app" as tool_private_health_app #FEF3C7
 cloud "drawio-templates" as tool_drawio_templates #FEF3C7
 cloud "dyno-lab" as tool_dyno_lab #FEF3C7
 cloud "error_count" as tool_error_count #FEF3C7
@@ -104,7 +104,7 @@ cloud "git" as tool_git #FEF3C7
 cloud "has_refs: REFS-PUBLIC.md present — audit for gaps or stale entries" as tool_has_refs_refs_public_md_present_audit_for_gaps_or_stale_entries #FEF3C7
 cloud "has_refs_count" as tool_has_refs_count #FEF3C7
 cloud "host_pressure_count" as tool_host_pressure_count #FEF3C7
-cloud "private-repository" as tool_ignition #FEF3C7
+cloud "private-system-tool" as tool_private_system_tool #FEF3C7
 cloud "insufficient" as tool_insufficient #FEF3C7
 cloud "intake" as tool_intake #FEF3C7
 cloud "invalid_count" as tool_invalid_count #FEF3C7
@@ -126,7 +126,7 @@ cloud "null" as tool_null #FEF3C7
 cloud "over[-" as tool_over #FEF3C7
 cloud "package.json" as tool_package_json #FEF3C7
 cloud "pending_count" as tool_pending_count #FEF3C7
-cloud "private-repository" as tool_personal_finance #FEF3C7
+cloud "private-data-app" as tool_personal_finance #FEF3C7
 cloud "pit-box" as tool_pit_box #FEF3C7
 cloud "pressure_count" as tool_pressure_count #FEF3C7
 cloud "pushshift_python" as tool_pushshift_python #FEF3C7
@@ -266,14 +266,14 @@ shell_scripts_deploy_secret_scan_sh --> tool_clockwork
 shell_scripts_deploy_secret_scan_sh --> tool_cp
 shell_scripts_deploy_secret_scan_sh --> tool_crew_chief
 shell_scripts_deploy_secret_scan_sh --> tool_documentation
-shell_scripts_deploy_secret_scan_sh --> tool_doseido
+shell_scripts_deploy_secret_scan_sh --> tool_private_health_app
 shell_scripts_deploy_secret_scan_sh --> tool_drawio_templates
 shell_scripts_deploy_secret_scan_sh --> tool_dyno_lab
 shell_scripts_deploy_secret_scan_sh --> tool_event_aware
 shell_scripts_deploy_secret_scan_sh --> tool_fedora_debugg
 shell_scripts_deploy_secret_scan_sh --> tool_fred_public_data
 shell_scripts_deploy_secret_scan_sh --> tool_git
-shell_scripts_deploy_secret_scan_sh --> tool_ignition
+shell_scripts_deploy_secret_scan_sh --> tool_private_system_tool
 shell_scripts_deploy_secret_scan_sh --> tool_intake
 shell_scripts_deploy_secret_scan_sh --> tool_mkdir
 shell_scripts_deploy_secret_scan_sh --> tool_my_consent

@@ -124,7 +124,10 @@ PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}
   || fail "no ready agent provider found (codex, claude, copilot)"
 log "provider used   : ${PROVIDER}"
 
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+  REPO_DIRS+=("${repo_dir}")
+done < <(
   find "${PORTFOLIO_ROOT}" \
     -maxdepth "${MAX_DEPTH}" \
     -type d \
@@ -138,7 +141,10 @@ log "found ${#REPO_DIRS[@]} repositories"
 
 DIRTY_REPOS=()
 if (( FORCE == 0 )); then
-  for repo in "${REPO_DIRS[@]}"; do
+  repo_index=0
+  while (( repo_index < ${#REPO_DIRS[@]} )); do
+    repo="${REPO_DIRS[$repo_index]}"
+    repo_index=$(( repo_index + 1 ))
     status="$(
       git -C "${repo}" status --porcelain -- \
         SECURITY.md \

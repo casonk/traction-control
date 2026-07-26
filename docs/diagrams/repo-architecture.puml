@@ -5,59 +5,131 @@ skinparam shadowing false
 skinparam defaultFontName Monospace
 skinparam packageStyle rectangle
 
-actor "Cross-repo Agent" as agent
+actor "Operator /\nCross-repo Agent" as operator
 
-package "Control Plane Docs" #F8FAFC {
-  rectangle "AGENTS.md\nportfolio rules + repo inventory" as agents_doc #E2E8F0
-  rectangle "LESSONSLEARNED.md\ndurable portfolio lessons" as lessons_doc #E2E8F0
-  rectangle "CHATHISTORY.md\nlocal cross-repo continuity" as history_doc #E2E8F0
-  rectangle "README.md\nCONTRIBUTING.md\nCHANGELOG.md" as repo_docs #DBEAFE
+package "Tiered Bootstrap" #F8FAFC {
+  component "scripts/install_traction_control_agents.sh\nprofile resolution + provider/model + platform dispatch" as bootstrap #DBEAFE
+  rectangle "Safe defaults\nrender inactive unless --activate\n--dry-run: no writes, network, or services" as defaults #FEF3C7
+  component "scripts/run_traction_control_job.sh\noptional env + fixed delay + jitter + exec" as launchd_runner #EDE9FE
 }
 
-package "Portfolio Boundary" #F8FAFC {
-  rectangle "Portfolio root\n../.." as portfolio_root #FCE7F3
-  rectangle "Target repo AGENTS.md\nLESSONSLEARNED.md\nCHATHISTORY.md" as target_docs #FCE7F3
+package "Tier / Job Manifests" #F8FAFC {
+  file "config/traction-control-agents/repos.conf\ntier -> allowlisted GitHub repos + local paths" as repo_manifest #E2E8F0
+  file "config/traction-control-agents/jobs.conf\ntier -> workload + installer + schedule + activation" as job_manifest #E2E8F0
+  rectangle "light\nbase audit + bug review + CI discovery\n\nmoderate adds\narchility + template / REFS maintenance\n\nheavy adds\ndisk remediation + on-demand CI repair\nfull autonomous CI repair is explicit opt-in" as tiers #FEF3C7
 }
 
-package "Shared Utility Repos" #F8FAFC {
-  rectangle "../archility\narchitecture generation / render" as archility #E0F2FE
-  rectangle "../auto-pass\n../nordility\n../shock-relay" as utility_refs #E0F2FE
+package "Repository Acquisition" #F8FAFC {
+  rectangle "Resolve selected tier bundle\nvalidate relative checkout paths" as repo_gate #E0F2FE
+  rectangle "Existing checkout\nverify Git worktree + expected origin slug" as repo_verify #E0F2FE
+  rectangle "Missing checkout\nclone allowlisted HTTPS or SSH remote" as repo_clone #E0F2FE
+  rectangle "Verified support repos\ntraction-control + clockwork\nmoderate: archility + tachometer\nheavy: auto-pass + shock-relay" as support_repos #E0F2FE
 }
 
-package "Governance Loop" #F8FAFC {
-  rectangle "Portfolio scan\nrepo inventory refresh" as scan #DCFCE7
-  rectangle "Standards pass /\nrepo-specific remediation" as remediation #DCFCE7
-  rectangle "Verification\nlocal checks + hosted workflows" as verify #DCFCE7
-  rectangle "Continuity update\nCHATHISTORY + LESSONSLEARNED" as continuity #DCFCE7
+package "Containerized Installer Validation (test-only)" #F8FAFC {
+  component "Podman-first host setup + runner\nscripts/install_podman_runtime.sh\ntests/test_install_traction_control_agents_containers.sh\nnarrow sources + real Clockwork / Archility" as container_runner #CCFBF1
+  artifact "One Linux test image\nbuilt by Podman or Docker" as container_image #CCFBF1
+  node "Fresh containers\nlight | moderate | heavy\nnetworkless + read-only root\n/tmp tmpfs; no host mounts" as tier_containers #CCFBF1
+  rectangle "Offline assertions\nexact support downloads + unit sets\nuser-scope verify: private runtime, no bus\nidempotent rerun + --activate refusal\nno workloads or timers run" as container_checks #F0FDFA
 }
 
-package "Repo Self Validation" #F8FAFC {
-  rectangle ".github/workflows/ci.yml\npre-commit" as ci #DCFCE7
-  rectangle ".pre-commit-config.yaml" as precommit #DCFCE7
+package "Platform Scheduler Outputs" #F8FAFC {
+  rectangle "--platform auto\nLinux or macOS" as platform #FCE7F3
+
+  rectangle "Linux renderer\nper-job installer + Clockwork TOML template" as linux_render #DCFCE7
+  artifact "systemd user artifacts\n*.service + *.timer\nor on-demand *.service" as systemd_artifacts #DCFCE7
+  rectangle "optional --activate\nsystemctl --user daemon-reload\nenable / restart timers" as systemd_activate #DCFCE7
+
+  rectangle "macOS renderer\nabsolute argv, env, schedule, and log paths" as mac_render #EDE9FE
+  artifact "LaunchAgent artifacts\nio.github.casonk.traction-control.*.plist" as launchd_artifacts #EDE9FE
+  rectangle "optional --activate\nplutil validation + launchctl\nbootout / enable / bootstrap" as launchd_activate #EDE9FE
 }
 
-agent --> agents_doc
-agent --> lessons_doc
-agent --> history_doc
-agents_doc --> repo_docs
+package "Portfolio Workloads" #F8FAFC {
+  rectangle "Selected scripts/* workloads\nprovider preflight + clean-worktree guards" as workloads #DCFCE7
+  rectangle "Portfolio root\neligible repositories discovered per workload\n(profile is not a target-repo allowlist)" as portfolio_root #FCE7F3
+  rectangle "Run logs + inventories\nrepo-local validation / controlled changes" as outcomes #DCFCE7
+}
 
-agents_doc --> scan
-scan --> portfolio_root
-portfolio_root --> target_docs
-target_docs --> remediation
+package "Private Portfolio Authority / Master Control Plane" #F8FAFC {
+  database "Ignored paired visibility registry\nprivate.local.json + public.local.json\nimmutable hosted IDs + generation" as visibility_registry #FCE7F3
+  database "Ignored portfolio catalog\nexpected checkout paths + lifecycle / sync policy\nbound to registry generation" as portfolio_catalog #FCE7F3
+  component "scripts/portfolio_materializer.py\nvalidate + reconcile + plan + materialize + sync + audit\nclone missing; fetch clean checkouts only" as materializer #DBEAFE
+  component "scripts/portfolio_lifecycle_review.py\nreverse dependencies + lifecycle / visibility evidence\nfail-closed ignored plan and report" as lifecycle_review #FEF3C7
+  rectangle "Manual GitHub effects boundary\nexplicit approval + remote re-observation\nrestrict visibility / archive / retirement\nfuture durable saga / outbox + idempotency" as github_effects #FEE2E2
+  cloud "GitHub\nhosted identity + visibility + archive state" as github #E2E8F0
+}
 
-archility --> remediation
-utility_refs --> remediation
+operator --> bootstrap
+defaults --> bootstrap
+tiers --> repo_manifest
+tiers --> job_manifest
+repo_manifest --> bootstrap : repository bundle
+job_manifest --> bootstrap : selected job rows
 
-remediation --> verify
-verify --> continuity
+bootstrap --> repo_gate
+repo_gate --> repo_verify : present
+repo_gate --> repo_clone : missing + cloning allowed
+repo_verify --> support_repos
+repo_clone --> support_repos
+support_repos --> bootstrap : dependencies ready
 
-ci --> precommit
-ci --> repo_docs
+bootstrap ..> container_runner : validation-only source
+container_runner --> container_image : narrow staged context
+container_image --> tier_containers : one fresh container / tier
+tier_containers --> container_checks
 
-note right of repo_docs
-  This repo is documentation-driven today.
-  There is no local control-plane daemon or CLI yet;
-  the governance loop is executed by agents following policy.
+bootstrap --> platform
+platform --> linux_render : Linux
+platform --> mac_render : macOS
+job_manifest --> linux_render : installer + schedule
+job_manifest --> mac_render : argv + schedule
+support_repos --> linux_render : Clockwork + workload repos
+
+linux_render --> systemd_artifacts
+systemd_artifacts --> systemd_activate
+systemd_activate --> workloads : scheduled / manual start
+
+mac_render --> launchd_artifacts
+launchd_artifacts --> launchd_activate
+launchd_runner --> launchd_artifacts : ProgramArguments adapter
+launchd_activate --> launchd_runner : scheduled / manual start
+launchd_runner --> workloads
+
+workloads --> portfolio_root
+portfolio_root --> outcomes
+
+operator --> visibility_registry : owner-only policy
+visibility_registry --> portfolio_catalog : identity + generation
+visibility_registry --> materializer
+portfolio_catalog --> materializer
+materializer --> portfolio_root : clone missing / fetch clean
+visibility_registry --> lifecycle_review
+portfolio_catalog --> lifecycle_review
+portfolio_root --> lifecycle_review : tracked evidence
+lifecycle_review --> github_effects : reviewed action plan
+operator --> github_effects : explicit approval
+github_effects --> github : external mutation
+github --> visibility_registry : observe / reconcile
+
+note bottom of systemd_artifacts
+  Without --activate, artifacts stay beneath
+  the bootstrap state directory for review.
+end note
+
+note bottom of launchd_artifacts
+  Launchd interval/calendar differences are encoded
+  explicitly; the runtime adapter supplies delay/jitter.
+end note
+
+note bottom of platform
+  Profile transitions refuse running jobs, then
+  deactivate and archive known unselected artifacts.
+end note
+
+note bottom of materializer
+  Identity-bound orchestrator, not a Git superproject.
+  Unattended sync never pulls, resets, cleans, pushes,
+  changes visibility, archives, retires, or deletes.
 end note
 @enduml
