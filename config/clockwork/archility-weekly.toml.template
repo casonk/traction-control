@@ -18,6 +18,6 @@ LOG_DIR = "%h/.local/share/archility-weekly"
 
 [jobs.timer]
 kind = "calendar"
-on_calendar = "Wed,Sun *-*-* 02:00:00"
+on_calendar = "Wed,Sun *-*-* 03:00:00"
 persistent = true
 randomized_delay_sec = "600"

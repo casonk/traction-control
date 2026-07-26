@@ -1,0 +1,26 @@
+[[jobs]]
+name = "refs-audit-agentic"
+description = "Weekly agentic audit of REFS-PUBLIC.md files across portfolio repos"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/refs_audit_agentic.sh"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/refs-audit-agentic.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Run the traction-control weekly REFS audit agent"
+
+[jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+LOG_DIR = "%h/.local/share/refs-audit-agentic"
+REFS_AUDIT_AGENTIC_PROVIDER = "__PROVIDER__"
+REFS_AUDIT_AGENTIC_MODEL = "__MODEL__"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "Thu *-*-* 03:00:00"
+persistent = true
+randomized_delay_sec = "1800"

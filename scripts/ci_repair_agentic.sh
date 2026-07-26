@@ -54,7 +54,7 @@ log() {
 }
 
 sanitize_field() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -232,7 +232,10 @@ if (( DISCOVERY_ONLY == 0 )); then
   log "provider used   : ${PROVIDER}"
 fi
 
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+  REPO_DIRS+=("${repo_dir}")
+done < <(
   find "${PORTFOLIO_ROOT}" \
     -maxdepth "${MAX_DEPTH}" \
     -type d \
@@ -252,7 +255,10 @@ no_ci_count=0
 skipped_count=0
 error_count=0
 
-for repo in "${REPO_DIRS[@]}"; do
+repo_index=0
+while (( repo_index < ${#REPO_DIRS[@]} )); do
+  repo="${REPO_DIRS[$repo_index]}"
+  repo_index=$(( repo_index + 1 ))
   repo_rel="${repo#${PORTFOLIO_ROOT}/}"
   log "scan repo       : ${repo_rel}"
 

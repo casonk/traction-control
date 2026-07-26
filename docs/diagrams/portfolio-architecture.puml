@@ -1,5 +1,5 @@
 @startuml portfolio-architecture
-!pragma layout elk
+!pragma layout smetana
 title Casonk Portfolio — Cross-Repo Architecture
 
 skinparam shadowing false
@@ -34,8 +34,8 @@ note bottom of TOOL
   archility: render diagrams for all repos (weekly scheduled)
   dyno-lab: pytest fixtures consumed by all Python repos
   tachometer: profile snapshots across entire portfolio
-  clockwork: scheduler manifests for intake, snowbridge,
-    crew-chief, private-repository, private-repository, zillow, archility
+  clockwork: scheduler manifests for reviewed public services
+    and private targets resolved through ignored local config
 end note
 
 ' ─────────────────────────────────────────────
@@ -63,8 +63,7 @@ package "Communication & File I/O" as COMM #DCFCE7 {
 ' ─────────────────────────────────────────────
 package "Applications" as APPS #F0FDF4 {
   component "[intake]\nReceipt PDF ingestion\ncategorize + SQLite + reports" as INTAKE
-  component "[private-repository]\nFinancial data download\nnormalize + analysis" as PF
-  component "[private-repository]\nSupplement sourcing\n+ schema enrichment" as DOSE
+  component "[private applications]\nNames and paths remain in\nignored local catalog" as PRIVATE_APPS
 }
 
 ' ─────────────────────────────────────────────
@@ -137,6 +136,6 @@ WH   -[#B45309,dashed]-> CONSENT : consent ref
 ' ─────────────────────────────────────────────
 ' DATA PIPELINE (solid dark green)
 ' ─────────────────────────────────────────────
-INTAKE -[#15803D]-> PF : aggregated\nspend data
+INTAKE -[#15803D]-> PRIVATE_APPS : reviewed local\nintegration
 
 @enduml

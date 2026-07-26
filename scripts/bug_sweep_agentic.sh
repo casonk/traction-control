@@ -76,7 +76,7 @@ log() {
 }
 
 sanitize_field() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
 }
 
 join_by() {
@@ -232,7 +232,10 @@ log "prompt file     : ${PROMPT_FILE}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+  REPO_DIRS+=("${repo_dir}")
+done < <(
   find "${PORTFOLIO_ROOT}" \
     -maxdepth "${MAX_DEPTH}" \
     -type d \
@@ -248,20 +251,27 @@ candidate_count=0
 dirty_count=0
 skip_count=0
 
-for repo in "${REPO_DIRS[@]}"; do
+repo_index=0
+while (( repo_index < ${#REPO_DIRS[@]} )); do
+  repo="${REPO_DIRS[$repo_index]}"
   local_rel="${repo#${PORTFOLIO_ROOT}/}"
   log "scan repo       : ${local_rel}"
 
   if (( FORCE == 0 )) && [[ -n "$(git -C "${repo}" status --porcelain 2>/dev/null || true)" ]]; then
     record_inventory "dirty" "${local_rel}" "-" "0" "-" "worktree not clean"
     dirty_count=$(( dirty_count + 1 ))
+    repo_index=$(( repo_index + 1 ))
     continue
   fi
 
-  mapfile -t code_files < <(git -C "${repo}" ls-files -- "${CODE_PATTERNS[@]}" 2>/dev/null || true)
+  code_files=()
+  while IFS= read -r code_file; do
+    code_files+=("${code_file}")
+  done < <(git -C "${repo}" ls-files -- "${CODE_PATTERNS[@]}" 2>/dev/null || true)
   if (( ${#code_files[@]} == 0 )); then
     record_inventory "skip" "${local_rel}" "none" "0" "-" "no tracked source files matched the bug-sweep patterns"
     skip_count=$(( skip_count + 1 ))
+    repo_index=$(( repo_index + 1 ))
     continue
   fi
 
@@ -276,6 +286,7 @@ for repo in "${REPO_DIRS[@]}"; do
     "${sample_files}" \
     "clean code-focused repo"
   candidate_count=$(( candidate_count + 1 ))
+  repo_index=$(( repo_index + 1 ))
 done
 
 ln -sf "${LOG_FILE}" "${LATEST_LOG_LINK}"

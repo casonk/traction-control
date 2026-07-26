@@ -11,3 +11,29 @@ repos:
     rev: v8.30.1
     hooks:
       - id: gitleaks
+  - repo: local
+    hooks:
+      - id: portfolio-private-metadata-check
+        name: portfolio private-metadata index check
+        entry: /bin/bash scripts/check_portfolio_privacy.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: repository-visibility-regression-tests
+        name: repository visibility and portfolio regression tests
+        entry: /bin/bash tests/test_repository_visibility_ci.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: traction-control-agent-installer-tests
+        name: traction-control agent installer integration tests
+        entry: /bin/bash tests/test_install_traction_control_agents.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: podman-runtime-installer-tests
+        name: Podman runtime installer tests
+        entry: /bin/bash tests/test_install_podman_runtime.sh
+        language: system
+        pass_filenames: false
+        always_run: true

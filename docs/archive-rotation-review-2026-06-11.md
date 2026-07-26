@@ -24,7 +24,7 @@ content rather than cleanup candidates.
 | Priority | Repo | Candidate | Finding | Recommended Automation |
 |---|---|---:|---|---|
 | P0 | `research-repos/zillow-public-data` | `data/` 3907.9 MiB, `.zillow-generated-archives/data.tar.gz` 1595.3 MiB | Repo already has reversible generated-output compression, but the restored source tree and archive both exist. | Run or schedule the repo's existing `compress_generated_artifacts.py auto` behavior after refreshes so restored generated data is pruned again when no longer needed. |
-| P0 | `private-repository` | `artifacts/` 1048.0 MiB | Repo already has configurable archive rotation for downloader runtime caches and debug outputs. Current status shows large browser/cache sources still present because disk use is below the configured auto high-watermark. | Add scheduler hooks around weekly/manual refreshes to run `manage_storage_archives.py auto`, or lower target-specific thresholds if the intent is stale-age cleanup independent of disk pressure. |
+| P0 | Private data application (identity in ignored local catalog) | Generated artifacts 1048.0 MiB | The private repo already has configurable archive rotation for downloader runtime caches and debug outputs. Current status shows large browser/cache sources still present because disk use is below the configured auto high-watermark. | Add scheduler hooks around weekly/manual refreshes to run `manage_storage_archives.py auto`, or lower target-specific thresholds if the intent is stale-age cleanup independent of disk pressure. |
 | P1 | `util-repos/fedora-debugg` | `artifacts/` 336.9 MiB | Ignored snapshot artifacts include many 2026-04/2026-05 snapshots. Worktree is dirty, so implementation should wait until current tachometer edits settle. | Add repo-local snapshot archive rotation: compress ignored `artifacts/snapshot-*` after 14-30 days, keep the newest N uncompressed, and retain a manifest for restore/audit. |
 | P2 | `util-repos/intake` | `reports/` 3.5 MiB, `data/` 3.5 MiB | Small today, but reports are generated and will grow with receipt ingestion. `data/intake.db` should not be auto-pruned without a clear backup/restore story. | Consider report-only rotation when reports exceed a threshold; leave SQLite data out of generic stale cleanup. |
 | P2 | `util-repos/snowbridge` | `reports/private-access-debug-*.log` | Old ignored debug logs exist but are tiny. | Optional log retention: prune or archive reports older than 60-90 days during existing diagnostics workflows. |
@@ -34,7 +34,7 @@ content rather than cleanup candidates.
 
 ## Existing Coverage Confirmed
 
-- `private-repository/scripts/manage_storage_archives.py status` reports archive
+- The private data application's `manage_storage_archives.py status` reports archive
   root `.storage-archives`, auto enabled, high watermark `75.0%`, low watermark
   `70.0%`, and configured targets for bank/credit/invest downloader caches,
   debug HTML, OAuth profiles, connector debug outputs, and score snapshots.
@@ -49,7 +49,7 @@ content rather than cleanup candidates.
 
 1. Add a stale-age archive-rotation backlog item to `fedora-debugg` after its
    current dirty worktree is resolved.
-2. Add post-refresh `auto` hooks in `private-repository` scheduled workflows so
+2. Add post-refresh `auto` hooks in the private data application's scheduled workflows so
    existing archive targets are compressed after successful runs, not only when
    disk pressure crosses the high watermark.
 3. Decide whether `zillow-public-data` should prune restored `data/` immediately

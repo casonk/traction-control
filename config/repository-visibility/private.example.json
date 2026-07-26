@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "registry_id": "example-portfolio",
+  "generation": 3,
+  "visibility": "private",
+  "repositories": [
+    {
+      "id": "R_EXAMPLE_PRIVATE_001",
+      "slug": "example-owner/example-private-repository"
+    }
+  ]
+}

@@ -12,6 +12,82 @@
 
 ## Lessons
 
+### 2026-07-25 — A portfolio master should be an identity-bound orchestrator, not a Git superproject
+
+- Keep private repository names and checkout layout in ignored owner-only
+  control-plane files keyed by immutable hosted repository IDs. Do not expose
+  the portfolio through tracked submodules, gitlinks, or duplicate per-repo
+  visibility lists.
+- Gate the Git index against the active private registry before publication.
+  Removing a private name from the current tree does not remove it from Git
+  history; any history rewrite is a separate destructive review with backup
+  and collaborator coordination.
+- Compare the complete hosted inventory with expected checkout paths. Scanning
+  only repositories already present locally hides missing clones, while
+  scanning only the hosted registry hides local-only repositories.
+- Materialization should clone missing repositories atomically and
+  synchronization should fetch only clean, identity-matched checkouts. Never
+  make `pull`, reset, clean, stash, push, visibility, archive, or deletion part
+  of an unattended portfolio sync.
+- Repository retirement is an evidence-backed saga: map reverse dependencies,
+  restrict visibility if reviewed, archive, cool down, verify backup, and only
+  then consider a separately approved manual deletion. GitHub and Git effects
+  remain outside any local ACID transaction even after the authority moves to
+  a quorum-backed database.
+
+### 2026-07-20 — Offline user-unit verification still needs a runtime directory
+
+- `systemd-analyze --user verify` builds an in-process user-manager model even
+  when no live manager is contacted. On systemd 252 it fails before parsing
+  units if `XDG_RUNTIME_DIR` is absent.
+- In non-booted test containers, create a private mode-0700 runtime directory
+  only for the verification command, unset `DBUS_SESSION_BUS_ADDRESS`, retain
+  `--user`, and assert that no user bus appears. Do not export the runtime path
+  into later activation-refusal checks.
+- Disable generators and man-page lookup for deterministic isolated parsing,
+  and use `--recursive-errors=yes` so dependency errors affect the exit status.
+  `--offline=` is for `systemd-analyze security` in systemd 252, not `verify`.
+
+### 2026-07-19 — Treat Podman machine state and connection selection explicitly
+
+- Inspect an existing macOS Podman machine before starting it. Starting an
+  already running machine is an error, and rootful or transitional machines
+  should be refused instead of silently repurposed.
+- Pass `--update-connection=false` during machine initialization and startup,
+  then verify through `podman --connection <name>` so automation does not
+  replace an operator's default connection or accidentally test another
+  runtime.
+- Podman upstream recommends its signed macOS installer; a Homebrew path is
+  still useful for unattended repository bootstrap when it is disclosed.
+  Gate that path to the formula's current Apple Silicon/macOS 13+ support
+  floor. Also disclose that Podman machine's default macOS configuration
+  exposes the login user's home directory to the VM.
+
+### 2026-07-19 — Ordinary containers validate rendering, not user-manager activation
+
+- A networkless Linux container is a strong boundary for support-repo cloning,
+  exact profile selection, real Clockwork rendering, unit syntax validation,
+  and idempotent reruns.
+- Do not treat a successful fake `systemctl` call as live activation coverage.
+  The installer intentionally refuses `--activate` when no systemd user
+  manager is reachable, and that refusal should happen before state or live
+  unit files are written.
+- Real activation tests need a disposable systemd-booted environment with a
+  dedicated non-root user manager. Runtime-mask every managed service before
+  enabling timers so validation cannot launch provider-backed workloads.
+
+### 2026-07-19 — macOS shell compatibility needs runtime tests, not syntax checks alone
+
+- Stock macOS `/bin/bash` is still Bash 3.2. A script can pass `bash -n` while
+  failing at runtime on unsupported commands such as `mapfile`, or while
+  expanding an explicitly empty array under `set -u`.
+- Execute scheduler-facing shell workloads with `/bin/bash` against both an
+  empty portfolio and a representative repository fixture. Keep indexed-array
+  loops safe when discovery returns no repositories.
+- Do not assume GNU utility behavior on macOS. Use portable syntax where
+  possible and explicit platform branches for differences such as GNU
+  `du --exclude` versus BSD `du -I`.
+
 ### 2026-06-21 — Pre-commit all-files does not validate untracked generated artifacts
 
 - `pre-commit run --all-files` only runs against tracked files. If a change adds
@@ -112,7 +188,8 @@ The pattern `profile = infra` (or any real vault name: `personal`, `finance`, `m
 - Python source defaults: `DEFAULT_KEEPASS_PROFILE = ""` (empty string, require explicit config)
 - Machine paths in docs or lessons: `$VARIABLE`, `<placeholder>`, or `relative/path`
 - Snowbridge mount paths: `/mnt/snowbridge/receipts` not `/mnt/setup/<device>/...`
-- private-repository workspace: `$REPO_ROOT` or `$(git rev-parse --show-toplevel)` not `/mnt/4tb-m2/git/private-repository`
+- Private application workspace: `$REPO_ROOT` or
+  `$(git rev-parse --show-toplevel)`, never a tracked machine-specific path
 
 **Enforcement:** The `keepass-real-profile-name` gitleaks rule (added 2026-06-18 across all portfolio repos) catches `profile = (infra|personal|finance|master)` in non-doc files. The `portfolio-git-workspace-path` rule catches absolute local paths. Both rules have baselines for historical commits that can't be rewritten. Run `gitleaks git --config .gitleaks.toml --baseline-path .gitleaks-baseline.json` before publishing any repo as public.
 
@@ -747,5 +824,12 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 ### 2026-06-09 — Prefer `intake translate` for receipt-domain translation reuse
 
 - When another repo needs English translation of receipt OCR text or receipt images, prefer shelling out to `intake translate text|receipt --json` instead of cloning receipt-specific OCR/translation prompts in each repo.
-- Use `intake translate backfill` for historical receipt locale/translation cleanup so DB updates, sidecars, and downstream private-repository sync stay on the audited repo path rather than in one-off notebooks or ad hoc scripts.
+- Use the owning application's audited backfill command for historical
+  receipt locale/translation cleanup so database updates, sidecars, and
+  downstream private analytics sync stay on reviewed repository paths rather
+  than in one-off notebooks or ad hoc scripts.
 - Keep `crew-chief` as the generic local LLM substrate; use `intake` as the receipt-domain service layer that wraps receipt OCR, locale hints, sidecar syncing, and safer backfill policy.
+- Treat example/local configuration separation as a validated invariant, not a
+  naming convention. Network examples should use IANA documentation ranges or
+  explicit placeholders, and repository checks should reject private or known
+  deployment values in tracked example files.
