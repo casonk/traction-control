@@ -1,0 +1,42 @@
+@startuml
+title Private portfolio sidecar
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+folder "Repository checkout" {
+  artifact "L1\ntracked public-safe code" as L1
+  artifact "Explicit L2 selectors\nignored private data" as L2
+  artifact "Explicit L3 selectors\nhighest-sensitivity data" as L3
+}
+
+component "Standalone coordinator\nmanual failover (v1)" as Coordinator
+database "Reviewed Git remote\n(private first)" as GitRemote
+database "Private hosted SFTP\nrestic repository" as Hosted
+
+cloud "WireGuard mesh" {
+  database "Explicit SFTP node A\nrestic repository" as NodeA
+  database "Explicit SFTP node B\nrestic repository" as NodeB
+  database "Explicit SFTP node C\nrestic repository" as NodeC
+}
+
+component "Planned quorum authority\nrqlite / Raft" as Authority
+
+L1 --> GitRemote : Git
+L2 --> Coordinator : explicit selector
+L3 --> Coordinator : explicit selector
+Coordinator --> Hosted : L2 client-encrypted restic
+Coordinator --> NodeA : L3 client-encrypted restic
+Coordinator --> NodeB : L3 client-encrypted restic
+Coordinator --> NodeC : L3 client-encrypted restic
+Coordinator ..> Authority : future lease and fence epochs
+
+note bottom of Coordinator
+  v1: one statically selected writer
+  L3: strict-majority acknowledgement threshold
+  acknowledgement is not an integrity/restore proof
+  mesh peer/route attestation pending
+  no hosted fallback; no prune
+end note
+
+@enduml
