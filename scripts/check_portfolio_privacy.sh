@@ -18,6 +18,12 @@ tracked_operational="$(
     'config/portfolio/*.local.json' \
     'config/portfolio/.portfolio-materializer.lock' \
     'config/portfolio/.*.tmp.local.json' \
+    'config/portfolio-sidecar/*.local.*' \
+    'config/portfolio-sidecar/.portfolio-sidecar.lock' \
+    'config/portfolio-sidecar/.*.tmp.local.*' \
+    'config/portfolio-sidecar/credentials/**' \
+    'config/portfolio-sidecar/spool/**' \
+    'config/portfolio-sidecar/state/**' \
     'config/secret-scan/*.local.txt'
 )"
 if [[ -n "${tracked_operational}" ]]; then

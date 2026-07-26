@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Added a three-level private-sidecar control plane: tracked public-safe code,
+  explicitly selected hosted-encrypted ignored data, and strict-majority
+  mesh-only ignored data with no hosted fallback. The standalone v1
+  coordinator uses private generated config/state, client-encrypted Restic
+  SFTP snapshots, dedicated locking, immutable capture staging, and isolated
+  adversarial/Podman regressions while reserving automatic failover for a
+  future quorum-issued lease and fencing integration.
 - Added a fail-closed GitHub repository-creation wrapper that always creates
   an empty private repository, verifies `isPrivate`, and keeps source, remote,
   push, and any later public release as separate reviewed actions.

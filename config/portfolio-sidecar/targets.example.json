@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "registry_id": "example-portfolio",
+  "registry_generation": 3,
+  "target_generation": 1,
+  "target_sets": [
+    {
+      "target_set_id": "TARGET_SET_EXAMPLE_HOSTED_001",
+      "tier": "hosted-encrypted",
+      "required_acks": 1,
+      "targets": [
+        {
+          "target_id": "TARGET_EXAMPLE_HOSTED_001",
+          "repository_file": "/example/portfolio-sidecar/credentials/hosted-repository",
+          "password_file": "/example/portfolio-sidecar/credentials/hosted-password",
+          "identity_file": "/example/portfolio-sidecar/credentials/hosted-identity",
+          "mesh_address": null,
+          "failure_domain": "FAILURE_DOMAIN_EXAMPLE_HOSTED_001"
+        }
+      ]
+    },
+    {
+      "target_set_id": "TARGET_SET_EXAMPLE_MESH_001",
+      "tier": "mesh-only",
+      "required_acks": 2,
+      "targets": [
+        {
+          "target_id": "TARGET_EXAMPLE_MESH_001",
+          "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-001",
+          "password_file": "/example/portfolio-sidecar/credentials/mesh-password-001",
+          "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-001",
+          "mesh_address": "10.77.0.11",
+          "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_001"
+        },
+        {
+          "target_id": "TARGET_EXAMPLE_MESH_002",
+          "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-002",
+          "password_file": "/example/portfolio-sidecar/credentials/mesh-password-002",
+          "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-002",
+          "mesh_address": "10.77.0.12",
+          "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_002"
+        },
+        {
+          "target_id": "TARGET_EXAMPLE_MESH_003",
+          "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-003",
+          "password_file": "/example/portfolio-sidecar/credentials/mesh-password-003",
+          "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-003",
+          "mesh_address": "10.77.0.13",
+          "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_003"
+        }
+      ]
+    }
+  ]
+}

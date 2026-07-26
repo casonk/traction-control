@@ -4,9 +4,9 @@ This document maps the real control-plane workflow implemented by
 `traction-control`. Unlike the feature repos, this repository is primarily
 policy and continuity documentation. It now also provides an ignored private
 portfolio authority, a checkout materializer, a read-only lifecycle reviewer,
-and a local bootstrap that composes the existing workload scripts into
-inactive or activated Linux and macOS schedules; it is still not a
-long-running application binary.
+an ignored-data sidecar, and a local bootstrap that composes the existing
+workload scripts into inactive or activated Linux and macOS schedules; it is
+still not a long-running application binary.
 
 ## High-Level Layers
 
@@ -34,6 +34,17 @@ long-running application binary.
    - Git/GitHub effects remain a fail-closed saga. Future quorum authority owns
      ACID intent, approvals, leases, and outbox state; WireGuard proximity does
      not choose a writer.
+   - `scripts/portfolio_sidecar.py` implements the standalone fail-closed
+     coordinator, while `docs/private-sidecar.md` defines explicit L1/L2/L3
+     data selection. L2 writes client-encrypted restic snapshots to private
+     hosted SFTP; L3 requires a strict-majority acknowledgement threshold
+     across at least three private-address SFTP targets intended for the
+     WireGuard mesh and has no hosted fallback. Schema v1 does not prove peer
+     membership, repository integrity, or restore success.
+   - The first executable sidecar remains a statically selected standalone
+     coordinator with no prune path. It stores only latest committed state and
+     does not implement repair, history, restore drills, or automatic failover;
+     those wait for a quorum-backed rqlite/Raft authority and later automation.
 3. Bootstrap profile layer (`scripts/install_traction_control_agents.sh`)
    - `config/traction-control-agents/repos.conf` defines the cumulative support
      repos for the light, moderate, and heavy profiles.
@@ -111,14 +122,21 @@ long-running application binary.
 - `README.md`
 - `docs/repository-visibility.md`
 - `docs/portfolio-lifecycle.md`
+- `docs/private-sidecar.md`
 - `scripts/repository_visibility.py`
 - `scripts/portfolio_materializer.py`
 - `scripts/portfolio_lifecycle_review.py`
+- `scripts/portfolio_sidecar.py`
 - `config/repository-visibility/*.example.json`
 - `config/portfolio/*.example.json`
+- `config/portfolio-sidecar/*.example.json`
 - `scripts/check_portfolio_privacy.sh`
 - `tests/test_repository_visibility.py`
 - `tests/test_portfolio_materializer.py`
+- `tests/test_portfolio_sidecar.py`
+- `tests/test_portfolio_sidecar_hardening.py`
+- `tests/test_portfolio_sidecar_containers.sh`
+- `tests/containers/Sidecar.Containerfile`
 - `scripts/install_traction_control_agents.sh`
 - `config/traction-control-agents/repos.conf`
 - `config/traction-control-agents/jobs.conf`
@@ -131,6 +149,7 @@ long-running application binary.
 - `.github/workflows/ci.yml`
 - `docs/diagrams/repo-architecture.puml`
 - `docs/diagrams/repo-architecture.drawio`
+- `docs/diagrams/private-sidecar.puml`
 
 ## Regeneration
 
@@ -151,6 +170,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m archility render ../traction
   inventory.
 - Treat the materializer as a checkout orchestrator, not a full GitHub backup,
   and treat reviewed visibility/archive/deletion as external saga effects.
+- Keep sidecar selectors explicit, secrets out of Git, and L3 failover fenced;
+  Gitignore rules alone grant no backup or read authority.
 - Keep profile support repos distinct from portfolio targets, and keep
   autonomous CI repair behind its separate explicit opt-in.
 - Update the blueprint and diagram sources together when the control-plane flow,

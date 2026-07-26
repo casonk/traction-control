@@ -1,0 +1,9 @@
+*.local
+*.local.*
+credentials/
+spool/
+state/
+*.lock
+*.lock.*
+*.tmp
+*.tmp.*

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "registry_id": "example-portfolio",
+  "registry_generation": 3,
+  "policy_generation": 1,
+  "datasets": [
+    {
+      "dataset_id": "DATASET_EXAMPLE_HOSTED_001",
+      "repository_id": "R_EXAMPLE_PUBLIC_001",
+      "selectors": [
+        "ignored/example-level2"
+      ],
+      "tier": "hosted-encrypted",
+      "adapter": "filesystem-static",
+      "max_files": 1000,
+      "max_total_bytes": 1073741824,
+      "target_set_id": "TARGET_SET_EXAMPLE_HOSTED_001"
+    },
+    {
+      "dataset_id": "DATASET_EXAMPLE_MESH_001",
+      "repository_id": "R_EXAMPLE_PUBLIC_001",
+      "selectors": [
+        "ignored/example-level3"
+      ],
+      "tier": "mesh-only",
+      "adapter": "filesystem-static",
+      "max_files": 100,
+      "max_total_bytes": 104857600,
+      "target_set_id": "TARGET_SET_EXAMPLE_MESH_001"
+    }
+  ]
+}
