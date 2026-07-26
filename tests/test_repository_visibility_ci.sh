@@ -46,6 +46,22 @@ git check-ignore --quiet --no-index \
 git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/portfolio/.review.local.json.crash.tmp.local.json"
 git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/policy.local.json"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/targets.local.json"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/state.local.json"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/.portfolio-sidecar.lock"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/.state.local.json.crash.tmp.local.json"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/credentials/restic-password"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/spool/pending.bin"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/state/authority.json"
+git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/secret-scan/repositories.local.txt"
 
 TRACKED_OPERATIONAL_FILES="$(
@@ -56,6 +72,12 @@ TRACKED_OPERATIONAL_FILES="$(
     'config/portfolio/*.local.json' \
     'config/portfolio/.portfolio-materializer.lock' \
     'config/portfolio/.*.tmp.local.json' \
+    'config/portfolio-sidecar/*.local.*' \
+    'config/portfolio-sidecar/.portfolio-sidecar.lock' \
+    'config/portfolio-sidecar/.*.tmp.local.*' \
+    'config/portfolio-sidecar/credentials/**' \
+    'config/portfolio-sidecar/spool/**' \
+    'config/portfolio-sidecar/state/**' \
     'config/secret-scan/*.local.txt'
 )"
 if [[ -n "${TRACKED_OPERATIONAL_FILES}" ]]; then

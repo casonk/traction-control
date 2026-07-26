@@ -56,3 +56,16 @@ The containers use a read-only root filesystem and a disposable `/tmp` tmpfs.
 They never mount the host portfolio, credentials, service manager, container
 socket, or scheduler directories. The test intentionally does not run any
 agent workload or activate timers.
+
+The ignored-state sidecar has a separate, narrow Linux regression image:
+
+```bash
+bash tests/test_portfolio_sidecar_containers.sh
+```
+
+That runner stages only the three sidecar/registry modules and their synthetic
+tests. It disables networking, uses a read-only root filesystem, drops all
+Linux capabilities, enables `no-new-privileges`, runs as an unprivileged user,
+and mounts no host checkout, ignored data, credentials, SSH agent, or container
+socket. Fake SFTP/Restic endpoints exercise hosted-encrypted and mesh-majority
+behavior without transmitting any live content.
