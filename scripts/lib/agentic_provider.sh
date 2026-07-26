@@ -17,7 +17,7 @@ agentic_log() {
 }
 
 agentic_trim_output() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
 }
 
 agentic_output_indicates_capacity_issue() {

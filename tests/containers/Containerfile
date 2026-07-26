@@ -1,0 +1,23 @@
+FROM docker.io/library/python:3.11-slim-bookworm
+
+LABEL org.opencontainers.image.title="traction-control installer integration test"
+LABEL org.opencontainers.image.description="Offline Linux test environment for the light, moderate, and heavy agent bootstrap profiles"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        git \
+        systemd \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY repo-sources/ /opt/repo-sources/
+COPY test-tier-install.sh /usr/local/bin/test-tier-install
+
+RUN chmod 0755 /usr/local/bin/test-tier-install \
+    && chmod 0755 /opt/repo-sources/traction-control/scripts/*.sh
+
+ENTRYPOINT ["/usr/local/bin/test-tier-install"]

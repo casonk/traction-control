@@ -1,74 +1,445 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" modified="2026-03-27T09:34:45-04:00" agent="Codex GPT-5" version="24.7.17" type="device" compressed="false">
+<mxfile host="app.diagrams.net" modified="2026-07-25T00:00:00+09:00" agent="Codex GPT-5" version="24.7.17" type="device" compressed="false">
   <diagram id="repo-architecture" name="Repo Architecture">
-    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0" keepEdgesInForeground="1" keepEdgesInBackground="0">
+    <mxGraphModel dx="1800" dy="2050" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="2050" math="0" shadow="0" keepEdgesInForeground="1" keepEdgesInBackground="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="2" value="traction-control Repository Architecture" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1F2937;strokeColor=#111827;fontColor=#FFFFFF;fontSize=26;fontStyle=1;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="1720" height="80" as="geometry" />
+          <mxGeometry x="40" y="20" width="1720" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="10" value="Cross-repo agent&#10;follows control-plane policy" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="60" y="120" width="250" height="90" as="geometry" />
+        <mxCell id="10" value="Operator / cross-repo agent&#10;selects tier, provider/model, platform&#10;and optional activation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="250" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="20" value="Control-plane docs&#10;AGENTS.md&#10;LESSONSLEARNED.md&#10;CHATHISTORY.md&#10;README / CONTRIBUTING / CHANGELOG" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E2E8F0;strokeColor=#64748B;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="350" y="100" width="360" height="150" as="geometry" />
+        <mxCell id="20" value="Tiered bootstrap&#10;scripts/install_traction_control_agents.sh&#10;profile resolution, provider preflight,&#10;repository acquisition, platform dispatch" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DBEAFE;strokeColor=#2563EB;fontColor=#111827;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="115" width="390" height="150" as="geometry" />
         </mxCell>
-        <mxCell id="30" value="Portfolio boundary&#10;scan root ../..&#10;target repo guidance files" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="760" y="110" width="300" height="130" as="geometry" />
+        <mxCell id="30" value="Tier / job manifests&#10;repos.conf: tier to allowlisted GitHub repos and paths&#10;jobs.conf: tier to workload, installer, schedule, activation" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E2E8F0;strokeColor=#64748B;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="780" y="115" width="430" height="150" as="geometry" />
         </mxCell>
-        <mxCell id="40" value="Shared utility repos&#10;archility&#10;auto-pass&#10;nordility&#10;shock-relay" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="110" width="300" height="130" as="geometry" />
+        <mxCell id="40" value="Profiles&#10;light: audit + bug review + CI discovery&#10;moderate adds archility + template / REFS maintenance&#10;heavy adds disk remediation + on-demand CI repair&#10;autonomous CI repair requires explicit opt-in" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="105" width="480" height="170" as="geometry" />
         </mxCell>
-        <mxCell id="50" value="Governance loop&#10;portfolio scan&#10;repo remediation&#10;verification&#10;continuity updates" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="520" y="360" width="360" height="150" as="geometry" />
+        <mxCell id="50" value="Resolve selected repository bundle&#10;validate safe relative checkout paths" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="360" width="390" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="60" value="Repo self-validation&#10;.github/workflows/ci.yml&#10;pre-commit&#10;.pre-commit-config.yaml" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=18;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="980" y="370" width="320" height="130" as="geometry" />
+        <mxCell id="60" value="Existing checkout&#10;verify Git worktree and expected origin slug" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="810" y="325" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="70" value="Policy-driven control plane, not a local daemon.&#10;The runtime is the documented governance workflow executed by agents." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="360" y="580" width="1060" height="90" as="geometry" />
+        <mxCell id="70" value="Missing checkout&#10;clone only allowlisted HTTPS or SSH remote" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="810" y="455" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="80" value="Verified support repos&#10;base: traction-control + clockwork&#10;moderate: archility + tachometer&#10;heavy: auto-pass + shock-relay" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="360" width="400" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="90" value="Platform dispatch&#10;--platform auto, linux, or macos" style="rhombus;whiteSpace=wrap;html=0;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="650" width="390" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="100" value="Linux renderer&#10;per-job installer + Clockwork TOML template" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="620" width="360" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="110" value="systemd user artifacts&#10;*.service + *.timer&#10;or on-demand *.service" style="shape=document;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="600" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="120" value="optional --activate&#10;systemctl --user daemon-reload&#10;enable / restart timers" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="610" width="190" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="130" value="macOS renderer&#10;absolute argv, env, schedule, and log paths" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="815" width="360" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="140" value="LaunchAgent artifacts&#10;io.github.casonk.traction-control.*.plist&#10;plutil validated" style="shape=document;whiteSpace=wrap;html=0;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="795" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="150" value="optional --activate&#10;launchctl bootout / enable / bootstrap" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="805" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="160" value="launchd runtime adapter&#10;scripts/run_traction_control_job.sh&#10;optional env + fixed delay + jitter + exec" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="980" width="360" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="170" value="Selected scripts/* workloads&#10;provider preflight + clean-worktree guards" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=17;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="1020" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="180" value="Portfolio root&#10;eligible repositories discovered per workload&#10;profile is not a target-repo allowlist" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="1200" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="190" value="Run logs + inventories&#10;repo-local validation / controlled changes" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="1200" width="190" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="200" value="Safe default: render inactive beneath bootstrap state.&#10;--dry-run performs no writes, network, or service calls.&#10;Transitions refuse running jobs and archive known unselected artifacts." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="620" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="210" value="Podman-first host setup + runner&#10;scripts/install_podman_runtime.sh&#10;tests/test_install_traction_control_agents_containers.sh&#10;narrow sources + real Clockwork / Archility" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#CCFBF1;strokeColor=#0F766E;fontColor=#111827;fontSize=14;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="340" width="250" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="220" value="Podman or Docker&#10;build one Linux test image&#10;from the narrow staged context" style="shape=document;whiteSpace=wrap;html=0;fillColor=#CCFBF1;strokeColor=#0F766E;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="550" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="230" value="Fresh per-tier containers&#10;light | moderate | heavy&#10;network none + read-only root&#10;/tmp tmpfs; no host mounts" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#CCFBF1;strokeColor=#0F766E;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="250" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="240" value="Offline installer validation only&#10;exact support downloads + repository / unit sets&#10;user-scope verify: private runtime, no bus&#10;idempotent rerun + --activate refusal&#10;no workloads or timers run" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F0FDFA;strokeColor=#0F766E;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="835" width="390" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="250" value="PRIVATE PORTFOLIO AUTHORITY / MASTER CONTROL PLANE&#10;owner-only identity and lifecycle orchestration; tracked documentation exposes no private repository inventory" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#0F172A;strokeColor=#020617;fontColor=#FFFFFF;fontSize=19;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1410" width="1720" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="251" value="Ignored paired visibility registry&#10;private.local.json + public.local.json&#10;immutable hosted IDs + generation&#10;private-first, fail-closed authority" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;backgroundOutline=1;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1520" width="350" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="252" value="Ignored portfolio catalog&#10;expected checkout paths + lifecycle / sync policy&#10;bound to registry generation" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;backgroundOutline=1;fillColor=#FCE7F3;strokeColor=#DB2777;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1710" width="350" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="253" value="Portfolio materializer&#10;scripts/portfolio_materializer.py&#10;validate + reconcile + plan + materialize + sync + audit&#10;clone missing; fetch clean identity-matched checkouts only" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DBEAFE;strokeColor=#2563EB;fontColor=#111827;fontSize=15;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1520" width="430" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="254" value="Lifecycle / dependency / visibility review&#10;scripts/portfolio_lifecycle_review.py&#10;reverse dependencies + tracked evidence&#10;fail-closed ignored plan and report" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#111827;fontSize=15;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1520" width="390" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="255" value="Manual GitHub effects boundary&#10;explicit approval + remote re-observation&#10;restrict visibility / archive / retirement&#10;external mutation is outside local ACID scope&#10;future durable saga / outbox + idempotency" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FEE2E2;strokeColor=#DC2626;fontColor=#111827;fontSize=15;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="1520" width="380" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="256" value="GitHub hosted state&#10;repository identity + visibility + archive state" style="shape=cloud;whiteSpace=wrap;html=0;fillColor=#E2E8F0;strokeColor=#64748B;fontColor=#111827;fontSize=16;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="1780" width="380" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="257" value="Guardrail&#10;Identity-bound orchestrator, not a Git superproject.&#10;Unattended sync never pulls, resets, cleans, pushes, changes visibility, archives, retires, or deletes." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F8FAFC;strokeColor=#64748B;fontColor=#111827;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1750" width="430" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="258" value="Ignored reviewed action plan / report&#10;dependency evidence + blockers + explicit next action&#10;no unattended hosted mutation" style="shape=document;whiteSpace=wrap;html=0;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#111827;fontSize=14;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1760" width="390" height="130" as="geometry" />
         </mxCell>
         <mxCell id="500" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="10" target="20">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="314" y="190" />
+              <mxPoint x="316" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="501" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="30" target="20">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="756" y="190" />
+              <mxPoint x="756" y="241" />
+              <mxPoint x="754" y="241" />
+              <mxPoint x="754" y="155" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="502" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="40" target="30">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1236" y="190" />
+              <mxPoint x="1236" y="217" />
+              <mxPoint x="1234" y="217" />
+              <mxPoint x="1234" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="503" value="selected bundle" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="20" target="50">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="380" y="289" />
+              <mxPoint x="535" y="289" />
+              <mxPoint x="535" y="336" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="504" value="present" style="rounded=0;html=0;strokeColor=#0284C7;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="50" target="60">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="754" y="400" />
+              <mxPoint x="754" y="410" />
+              <mxPoint x="786" y="410" />
+              <mxPoint x="786" y="370" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="505" value="missing" style="rounded=0;html=0;strokeColor=#0284C7;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="50" target="70">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="754" y="420" />
+              <mxPoint x="754" y="500" />
+              <mxPoint x="786" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="506" style="rounded=0;html=0;strokeColor=#0284C7;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="60" target="80">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1174" y="370" />
+              <mxPoint x="1174" y="445" />
+              <mxPoint x="1236" y="445" />
+              <mxPoint x="1236" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="507" style="rounded=0;html=0;strokeColor=#0284C7;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="70" target="80">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1174" y="500" />
+              <mxPoint x="1174" y="463" />
+              <mxPoint x="1236" y="463" />
+              <mxPoint x="1236" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="508" value="dependencies ready" style="rounded=0;html=0;strokeColor=#0284C7;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="80" target="20">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1236" y="430" />
+              <mxPoint x="1236" y="259" />
+              <mxPoint x="754" y="259" />
+              <mxPoint x="754" y="225" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="509" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="20" target="90">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="690" y="289" />
+              <mxPoint x="762" y="289" />
+              <mxPoint x="762" y="626" />
+              <mxPoint x="535" y="626" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="510" value="Linux" style="rounded=0;html=0;strokeColor=#16A34A;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="90" target="100">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="754" y="690" />
+              <mxPoint x="754" y="715" />
+              <mxPoint x="776" y="715" />
+              <mxPoint x="776" y="670" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="511" style="rounded=0;html=0;strokeColor=#16A34A;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="100" target="110">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1184" y="670" />
+              <mxPoint x="1184" y="609" />
+              <mxPoint x="1206" y="609" />
+              <mxPoint x="1206" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="512" style="rounded=0;html=0;strokeColor=#16A34A;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="110" target="120">
           <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="501" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="20" target="30">
+        <mxCell id="513" value="macOS" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="90" target="130">
           <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
             <Array as="points">
-              <mxPoint x="734" y="175" />
-              <mxPoint x="734" y="140" />
-              <mxPoint x="736" y="140" />
-              <mxPoint x="736" y="175" />
+              <mxPoint x="754" y="740" />
+              <mxPoint x="754" y="865" />
+              <mxPoint x="776" y="865" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="502" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="30" target="50">
+        <mxCell id="514" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="130" target="140">
           <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
             <Array as="points">
-              <mxPoint x="910" y="264" />
-              <mxPoint x="910" y="336" />
-              <mxPoint x="700" y="336" />
+              <mxPoint x="1184" y="865" />
+              <mxPoint x="1184" y="902.25" />
+              <mxPoint x="1206" y="902.25" />
+              <mxPoint x="1206" y="835" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="503" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="40" target="50">
+        <mxCell id="515" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="140" target="150">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="516" value="ProgramArguments" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="140" target="160">
           <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
             <Array as="points">
-              <mxPoint x="1096" y="175" />
-              <mxPoint x="1096" y="305" />
-              <mxPoint x="904" y="305" />
-              <mxPoint x="904" y="435" />
+              <mxPoint x="1206" y="855" />
+              <mxPoint x="1206" y="946.25" />
+              <mxPoint x="1184" y="946.25" />
+              <mxPoint x="1184" y="1020" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="504" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="50" target="60">
+        <mxCell id="517" style="rounded=0;html=0;strokeColor=#16A34A;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="120" target="170">
           <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
             <Array as="points">
-              <mxPoint x="904" y="435" />
-              <mxPoint x="956" y="435" />
+              <mxPoint x="1665" y="739" />
+              <mxPoint x="1792" y="739" />
+              <mxPoint x="1792" y="996" />
+              <mxPoint x="1380" y="996" />
             </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="518" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="150" target="160">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1546" y="855" />
+              <mxPoint x="1546" y="964.25" />
+              <mxPoint x="1184" y="964.25" />
+              <mxPoint x="1184" y="1055" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="519" style="rounded=0;html=0;strokeColor=#7C3AED;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="160" target="170">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1184" y="1037.5" />
+              <mxPoint x="1184" y="1070" />
+              <mxPoint x="1206" y="1070" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="520" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="170" target="180">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1380" y="1144" />
+              <mxPoint x="1380" y="1176" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="521" style="rounded=0;html=0;strokeColor=#1F2937;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="180" target="190">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="522" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=open;endFill=0;endSize=10;strokeWidth=2;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="200" target="110">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="684" y="1060" />
+              <mxPoint x="684" y="627" />
+              <mxPoint x="1206" y="627" />
+              <mxPoint x="1206" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="523" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=open;endFill=0;endSize=10;strokeWidth=2;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="200" target="140">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="684" y="1080" />
+              <mxPoint x="684" y="920.25" />
+              <mxPoint x="1206" y="920.25" />
+              <mxPoint x="1206" y="875" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="524" value="validation only" style="rounded=0;html=0;strokeColor=#0F766E;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="20" target="210">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="316" y="190" />
+              <mxPoint x="316" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="525" style="rounded=0;html=0;strokeColor=#0F766E;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="210" target="220">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="526" value="one image" style="rounded=0;html=0;strokeColor=#0F766E;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="220" target="230">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="527" style="rounded=0;html=0;strokeColor=#0F766E;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="230" target="240">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="315" y="765" />
+              <mxPoint x="315" y="915" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="528" value="owner-only policy" style="rounded=0;html=0;strokeColor=#DB2777;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="10" target="251">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="20" y="190" />
+              <mxPoint x="20" y="1590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="529" value="identity + generation" style="rounded=0;html=0;strokeColor=#DB2777;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="251" target="252">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="530" style="rounded=0;html=0;strokeColor=#2563EB;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="251" target="253">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="531" style="rounded=0;html=0;strokeColor=#2563EB;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="252" target="253">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="420" y="1775" />
+              <mxPoint x="420" y="1645" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="532" value="clone missing / fetch clean" style="rounded=0;html=0;strokeColor=#2563EB;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="253" target="180">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="665" y="1380" />
+              <mxPoint x="1380" y="1380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="533" value="authority + policy" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="252" target="254">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="415" y="1775" />
+              <mxPoint x="415" y="1930" />
+              <mxPoint x="1135" y="1930" />
+              <mxPoint x="1135" y="1714" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="534" value="tracked evidence" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="180" target="254">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1135" y="1255" />
+              <mxPoint x="1135" y="1496" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="535" style="rounded=0;html=0;strokeColor=#D97706;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="254" target="258">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="536" value="reviewed actions" style="rounded=0;html=0;strokeColor=#DC2626;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="258" target="255">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1355" y="1825" />
+              <mxPoint x="1355" y="1615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="537" value="explicit approval" style="rounded=0;html=0;strokeColor=#DC2626;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="10" target="255">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1780" y="190" />
+              <mxPoint x="1780" y="1615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="538" value="external mutation" style="rounded=0;html=0;strokeColor=#DC2626;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="255" target="256">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="539" value="observe / reconcile" style="rounded=0;html=0;strokeColor=#64748B;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=classic;endFill=1;endSize=10;strokeWidth=2;fontSize=13;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="256" target="251">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points">
+              <mxPoint x="1570" y="1980" />
+              <mxPoint x="20" y="1980" />
+              <mxPoint x="20" y="1590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="540" style="rounded=0;html=0;strokeColor=#64748B;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=12;endArrow=open;endFill=0;endSize=10;strokeWidth=2;dashed=1;jumpStyle=arc;jumpSize=10;" edge="1" parent="1" source="257" target="253">
+          <mxGeometry relative="1" as="geometry" archilityManagedRoute="1">
+            <Array as="points" />
           </mxGeometry>
         </mxCell>
       </root>

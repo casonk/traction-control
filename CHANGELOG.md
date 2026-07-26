@@ -4,6 +4,33 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Added a fail-closed GitHub repository-creation wrapper that always creates
+  an empty private repository, verifies `isPrivate`, and keeps source, remote,
+  push, and any later public release as separate reviewed actions.
+- Fixed containerized user-unit verification by giving systemd 252 a private
+  ephemeral runtime directory while keeping D-Bus absent, user scope explicit,
+  generators disabled, and recursive verification errors fatal. Added a fast
+  source-contract regression check for that boundary.
+- Added a host-safe Podman bootstrap for macOS and Linux, including rootless
+  macOS machine setup, explicit connection verification, dry-run and opt-in
+  smoke-test modes, plus a Podman-first engine-neutral `Containerfile` harness.
+- Added isolated Linux container tests for all three bootstrap profiles using
+  real local Clockwork/Archility sources, offline Git remotes, exact unit-set
+  assertions, `systemd-analyze`, idempotent reruns, and safe activation refusal
+  when no systemd user manager is available.
+- Added `install_traction_control_agents.sh` with cumulative light, moderate,
+  and heavy support-repo/job profiles, an inactive render default, a fully
+  non-mutating dry run, explicit activation, provider/model configuration, and
+  guarded opt-in autonomous CI repair.
+- Added tracked repository and job profile data plus native macOS LaunchAgent
+  rendering, launch delay/jitter adaptation, Linux `clockwork` integration, and
+  a missing weekly REFS audit installer/template.
+- Made the selected portfolio workloads compatible with stock macOS Bash 3.2
+  and BSD command-line utilities, and staggered the overlapping architecture
+  schedules.
+- Added fail-closed profile reconciliation with recoverable scheduler-artifact
+  archives, live-directory guards, exact Git checkout validation, and a
+  data-only private environment-file parser for the macOS runtime adapter.
 - Initialized `traction-control` as the portfolio control-plane repository.
 - Migrated the portfolio-wide `AGENTS.md` and `CHATHISTORY.md` from the former workspace root into this repo.
 - Rolled out the portfolio baseline files across the other repositories, including governance docs, architecture blueprints, and repo-appropriate CI where needed.
