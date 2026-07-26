@@ -22,38 +22,58 @@ SECRET_SCAN_WORKFLOW="$REPO_ROOT/docs/templates/secret-scan.yml"
 GITLEAKS_VERSION="v8.30.1"
 GITLEAKS_BIN="${GITLEAKS_BIN:-gitleaks}"
 DRY_RUN=false
+TARGETS_FILE="${TRACTION_CONTROL_SECRET_SCAN_TARGETS:-$REPO_ROOT/config/secret-scan/repositories.local.txt}"
 
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
-REPOS=(
-    "$PORTFOLIO_ROOT/util-repos/archility"
-    "$PORTFOLIO_ROOT/util-repos/auto-pass"
-    "$PORTFOLIO_ROOT/util-repos/clockwork"
-    "$PORTFOLIO_ROOT/util-repos/crew-chief"
-    "$PORTFOLIO_ROOT/util-repos/dyno-lab"
-    "$PORTFOLIO_ROOT/util-repos/fedora-debugg"
-    "$PORTFOLIO_ROOT/util-repos/ignition"
-    "$PORTFOLIO_ROOT/util-repos/intake"
-    "$PORTFOLIO_ROOT/util-repos/nordility"
-    "$PORTFOLIO_ROOT/util-repos/pit-box"
-    "$PORTFOLIO_ROOT/util-repos/shock-relay"
-    "$PORTFOLIO_ROOT/util-repos/short-circuit"
-    "$PORTFOLIO_ROOT/util-repos/snowbridge"
-    "$PORTFOLIO_ROOT/util-repos/tachometer"
-    "$PORTFOLIO_ROOT/util-repos/terminility"
-    "$PORTFOLIO_ROOT/personal-finance"
-    "$PORTFOLIO_ROOT/research-repos/citegres"
-    "$PORTFOLIO_ROOT/research-repos/fred-public-data"
-    "$PORTFOLIO_ROOT/research-repos/pushshift_python"
-    "$PORTFOLIO_ROOT/research-repos/sonetsim"
-    "$PORTFOLIO_ROOT/research-repos/zillow-public-data"
-    "$PORTFOLIO_ROOT/doc-repos/Certifications"
-    "$PORTFOLIO_ROOT/doc-repos/casonk.github.io"
-    "$PORTFOLIO_ROOT/doc-repos/my-consent"
-    "$PORTFOLIO_ROOT/doc-repos/university-coursework"
-    "$PORTFOLIO_ROOT/health-repos/doseido"
-    "$PORTFOLIO_ROOT/drawio-templates"
-)
+if [[ ! -f "$TARGETS_FILE" || -L "$TARGETS_FILE" ]]; then
+    echo "ERROR: secret-scan target list must be a regular non-symlink file: $TARGETS_FILE" >&2
+    exit 2
+fi
+
+case "$TARGETS_FILE" in
+    "$REPO_ROOT"/*) targets_relative="${TARGETS_FILE#"$REPO_ROOT"/}" ;;
+    *)
+        echo "ERROR: secret-scan target list must remain inside $REPO_ROOT" >&2
+        exit 2
+        ;;
+esac
+
+if git -C "$REPO_ROOT" ls-files --error-unmatch -- "$targets_relative" >/dev/null 2>&1; then
+    echo "ERROR: secret-scan target list must not be tracked: $TARGETS_FILE" >&2
+    exit 2
+fi
+if ! git -C "$REPO_ROOT" check-ignore --quiet --no-index -- "$targets_relative"; then
+    echo "ERROR: secret-scan target list must be ignored: $TARGETS_FILE" >&2
+    exit 2
+fi
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    targets_mode="$(stat -f '%Lp' "$TARGETS_FILE")"
+else
+    targets_mode="$(stat -c '%a' "$TARGETS_FILE")"
+fi
+if (( (8#$targets_mode & 8#077) != 0 )); then
+    echo "ERROR: secret-scan target list must be owner-only: $TARGETS_FILE" >&2
+    exit 2
+fi
+
+REPOS=()
+while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
+    [[ -z "$relative_path" || "$relative_path" == \#* ]] && continue
+    case "$relative_path" in
+        /*|.|..|./*|../*|*/../*|*/..)
+            echo "ERROR: unsafe portfolio-relative target: $relative_path" >&2
+            exit 2
+            ;;
+    esac
+    REPOS+=("$PORTFOLIO_ROOT/$relative_path")
+done < "$TARGETS_FILE"
+
+if [[ "${#REPOS[@]}" -eq 0 ]]; then
+    echo "ERROR: secret-scan target list is empty: $TARGETS_FILE" >&2
+    exit 2
+fi
 
 COMMIT_MSG="ci: update gitleaks config, workflow, and baseline
 

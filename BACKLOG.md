@@ -10,13 +10,23 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
+- [ ] [manual:2026-07-19] **Add a disposable live-systemd activation test** —
+  Extend the container/VM harness with a dedicated non-root user manager,
+  writable test-only user unit directory, and runtime-masked managed services.
+  Verify exact enabled/active timer sets and heavy-to-light plus normal-to-
+  autonomous reconciliation without allowing any workload to execute.
+
+- [ ] [manual:2026-07-19] **Add a first-class launchd backend to Clockwork** —
+  Extend Clockwork's manifest schema and renderer to produce validated macOS
+  LaunchAgents, including calendar/interval schedules, environment values,
+  log paths, and activation lifecycle. Then replace traction-control's direct
+  plist renderer while retaining its tier manifests and delay/jitter adapter.
+
 ### Reusable Workflow Migration
 
-- [x] [manual:2026-06-17] **Tier 1** — Migrate 9 repos to reusable workflow callers (no blockers):
-  tradility, locility, session-control, crew-chief, magneto, bit-byte-block → `python-ci.yml`;
-  casonk.github.io → `docs-ci.yml`; fedora-debugg, terminility → `shell-ci.yml`.
-  Also add `ruff` lint hook to tradility pre-commit (only Tier 1 repo missing it).
-  locility push still pending — no GitHub remote yet (see locility backlog item).
+- [x] [manual:2026-06-17] **Tier 1** — Migrate the reviewed public repositories
+  to reusable workflow callers. Private-repository migration and push details
+  now live only in the ignored lifecycle report and plan.
 
 - [x] [manual:2026-06-17] **Tier 2** — Add `skip-install` input to `python-ci.yml` reusable workflow,
   then migrate 5 pre-commit-only repos: traction-control, pit-box, short-circuit, snowbridge,
@@ -34,10 +44,9 @@ Mark items `[x]` when complete and move them to Done.
   clockwork (drop redundant direct lint steps, then migrate),
   shock-relay (hybrid Python compile + ShellCheck — needs custom inline or new input),
   intake (pytest --tb=short → add pytest-args input, consolidate 2 jobs),
-  doseido (add tachometer to [dev] extras, consolidate 2 jobs),
   fred-public-data (switch from requirements.txt to pyproject-based install),
-  windshield (add ruff+pylint to [dev], add ruff hook to pre-commit),
-  personal-finance (blocked on windshield being installable without GH_PRIVATE_REPO_PAT).
+  windshield (add ruff+pylint to [dev], add ruff hook to pre-commit). Private
+  per-repository decisions are recorded in the ignored lifecycle plan.
 
 - [x] [manual:2026-06-17] **Tier 6 — Major overhaul first** (handle when touching these repos):
   `sonetsim` — drop Python 3.8/3.9 (EOL), add [dev] extras, fix non-standard test paths;
@@ -57,9 +66,10 @@ Mark items `[x]` when complete and move them to Done.
   Standardize the fix so normal `git push` and `ssh -T git@github.com` work
   without one-off `GIT_SSH_COMMAND` overrides.
 
-- [ ] [manual:2026-06-17] **locility private repo** — Create private GitHub repo for locility
-  (`gh repo create casonk/locility --private`), set SSH remote, push pending commits.
-  Blocked until then: Tier 1 CI migration commit is local-only for this repo.
+- [ ] [manual:2026-06-17] **Private local-only repositories** — Review each
+  ignored-catalog local checkout, create a private remote only through the
+  private-first workflow when appropriate, and keep names, paths, and push
+  status in the ignored lifecycle plan.
 
 - [ ] [manual:2026-06-15] Add TMDB-backed watch suggestions to the clockwork
   to-watch page. Register for a free TMDB API key, then for each title in the
@@ -75,10 +85,11 @@ Mark items `[x]` when complete and move them to Done.
   `--signing-cert` / `--signing-key`; just needs a Developer ID cert exported
   from Xcode/Keychain and the paths wired into the install invocation.
 
-- [ ] [manual:2026-06-11] Add post-refresh archive hooks for
-  `personal-finance` so existing `scripts/manage_storage_archives.py auto`
-  coverage runs after successful scheduled/manual data refreshes, not only when
-  disk pressure crosses the configured high watermark.
+- [ ] [manual:2026-06-11] Add post-refresh archive hooks to the private data
+  application identified in the ignored lifecycle plan so its existing
+  `manage_storage_archives.py auto` coverage runs after successful
+  scheduled/manual data refreshes, not only when disk pressure crosses the
+  configured high watermark.
 - [ ] [manual:2026-06-11] Decide and implement the post-refresh pruning policy
   for `research-repos/zillow-public-data`: the existing archive tool currently
   shows both restored `data/` and `.zillow-generated-archives/data.tar.gz`;

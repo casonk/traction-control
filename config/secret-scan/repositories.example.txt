@@ -1,0 +1,5 @@
+# Copy to repositories.local.txt, chmod 0600, and list reviewed paths relative
+# to the portfolio root. Keep private repository names and paths only in the
+# ignored local copy.
+util-repos/example-public-tool
+doc-repos/example-public-docs

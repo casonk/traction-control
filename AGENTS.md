@@ -28,6 +28,25 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 - Before starting a new `gh auth login` flow, check whether GitHub CLI auth is already active for the current user.
 - An SSH key is present in the environment, so repo remotes may use SSH when that is the cleaner publishing path.
 
+## Repository Visibility Authority
+
+- `traction-control` centrally owns the paired private/public repository
+  registry; other repositories consume its decisions and must not maintain
+  duplicate authoritative lists.
+- `traction-control` is also the master portfolio orchestrator. Its ignored
+  portfolio catalog binds immutable registry IDs to expected checkout paths;
+  do not create a nested Git superproject or commit private repositories as
+  submodules.
+- Unknown, conflicting, stale, or unverifiable state fails closed to private.
+  A public-registry entry describes an already reviewed remote state and never
+  authorizes publication.
+- Follow [the repository visibility policy](docs/repository-visibility.md) for
+  local-file permissions, CLI operations, remote audits, and publication
+  boundaries.
+- Follow [the portfolio lifecycle policy](docs/portfolio-lifecycle.md) for
+  clone/fetch-only materialization, dependency evidence, and retirement
+  reviews.
+
 ## Session Continuity And Reporting
 
 - Read `CHATHISTORY.md` for recent local session continuity before resuming portfolio-wide work.
@@ -44,49 +63,16 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 
 ## Repository Landscape
 
-| Repository | Path From Portfolio Root | Type | Notes |
-|---|---|---|---|
-| `casonk.github.io` | `./doc-repos/casonk.github.io` | Jekyll / Ruby | Personal portfolio website |
-| `my-consent` | `./doc-repos/my-consent` | Docs / Markdown | Personal consent and data-processing consent statements |
-| `Certifications` | `./doc-repos/Certifications` | Docs / Markdown | Certification and recognition archive |
-| `university-coursework` | `./doc-repos/university-coursework` | Mixed archive | Coursework repository spanning multiple disciplines |
-| `drawio-templates` | `./drawio-templates` | Templates | Reusable draw.io diagrams |
-| `doseido` | `./health-repos/doseido` | Python | Private supplement sourcing and schema-enrichment tooling |
-| `personal-finance` | `./personal-finance` | Python | Personal finance ingestion, normalization, and reporting |
-| `citegres` | `./research-repos/citegres` | Python / tkinter | PostgreSQL GUI academic project |
-| `pushshift_python` | `./research-repos/pushshift_python` | Python | Reddit analytics and research tooling |
-| `sonetsim` | `./research-repos/sonetsim` | Python package | Social network simulation library |
-| `fred-public-data` | `./research-repos/fred-public-data` | Python | FRED (Federal Reserve Economic Data) time-series mirror and visualization tooling |
-| `zillow-public-data` | `./research-repos/zillow-public-data` | Python | Zillow dataset mirror and visualization tooling |
-| `archility` | `./util-repos/archility` | Python package | Architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter generation, agentic architecture authoring, and drift-check tooling |
-| `auto-pass` | `./util-repos/auto-pass` | Python package | KeePassXC-backed password automation helpers |
-| `bit-byte-block` | `./util-repos/bit-byte-block` | Python | Local Bitcoin Stratum proxy and Solo CKPool upstream status tooling |
-| `clockwork` | `./util-repos/clockwork` | Python package | Shared cron and systemd scheduler manifest rendering and install guidance |
-| `tachometer` | `./util-repos/tachometer` | Python package | Shared repo and resource profiling helpers plus manifest-driven local profile conventions |
-| `fedora-debugg` | `./util-repos/fedora-debugg` | Bash / Shell | Fedora workstation crash triage toolkit |
-| `ignition` | `./util-repos/ignition` | Bash / Shell | TPM2/clevis LUKS auto-unlock for home desktop data volumes (private) |
-| `nordility` | `./util-repos/nordility` | Python package | NordVPN CLI/API automation |
-| `pgpility` | `./util-repos/pgpility` | Python package | PGP encryption/decryption helpers with auto-pass key storage and shock-relay message sending |
-| `shock-relay` | `./util-repos/shock-relay` | Python / Shell | Cross-platform messaging relay tooling |
-| `pit-box` | `./util-repos/pit-box` | Bash / Shell | WireGuard + SSH hardened remote-access scaffold with settings-driven config rendering |
-| `short-circuit` | `./util-repos/short-circuit` | Bash / Shell | WireGuard VPN setup and configuration utility |
-| `snowbridge` | `./util-repos/snowbridge` | SMB / Ops | SMB-based private file-sharing and phone-access utility repo |
-| `intake` | `./util-repos/intake` | Python | Receipt PDF ingestion, categorization, SQLite storage, Markdown/HTML reporting from snowbridge share, and CLI translation/backfill service for receipt OCR |
-| `locility` | `./util-repos/locility` | Python / Flask | Phone-friendly GPS trace collection with local SQLite storage and CSV/GeoJSON exports |
-| `session-control` | `./util-repos/session-control` | Python / Flask | Private AI session review, resume-command, and delete-to-trash web UI |
-| `terminility` | `./util-repos/terminility` | Bash / Shell | tmux installation and session management |
-| `dyno-lab` | `./util-repos/dyno-lab` | Python package | Portfolio-wide test bench utilities (fixtures, mocks, assertions, smoke scaffolding) |
-| `crew-chief` | `./util-repos/crew-chief` | Python package / Container | Local Ollama LLM service (Podman) and zero-dependency Python client for portfolio-wide trivial inference tasks |
-| `windshield` | `./util-repos/windshield` | Python package | Reusable Playwright browser automation utilities — Chrome management, page interaction, debugging, challenge detection, and stealth helpers |
-| `magneto` | `./util-repos/magneto` | Python / Flask | Transmission RPC web control UI for Snowbridge torrent share (private) |
-| `wiring-harness` | `./util-repos/wiring-harness` | Python / Ops | Shared Caddy, mTLS, and DNS infrastructure for home services |
-| `tradility` | `./util-repos/tradility` | Python package | Technical analytics (RSI, VWAP) on investment holdings and watchlists via yfinance; JSON output |
-| `traction-control` | `./util-repos/traction-control` | Governance / Docs | Portfolio-wide agent control-plane repo |
-| `.github` | `./util-repos/dot-github` | GitHub Config | GitHub account-level community health files and reusable CI/CD workflows (locally cloned as `dot-github`) |
+Do not maintain a tracked, name-by-name portfolio inventory here. A tracked
+inventory becomes stale and can disclose private repository names, paths, and
+relationships when this control-plane repository is public. Derive the live
+landscape from the ignored, owner-only visibility registry and portfolio
+catalog, and refer to private repositories by immutable ID only inside ignored
+reports and plans.
 
-Non-repo folder:
-
-- `archive-repos/` contains archive artifacts only.
+Tracked documentation may describe public capability categories and generic
+private-repository policy, but it must not enumerate private repository names
+or local paths. `archive-repos/` remains outside repository discovery.
 
 ## Shared Utility Repos
 
@@ -98,11 +84,9 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
 - `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, local JSON summary generation, and disk-pressure signals that route to traction-control remediation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
-- `./util-repos/pgpility`: PGP encryption/decryption helpers, KeePassXC-backed key bundles through `auto-pass`, and encrypted email handoff through `shock-relay`
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
 - `./util-repos/short-circuit`: WireGuard VPN setup and configuration utility for establishing private tunnels with SMB, HTTPS, and SSH access
 - `./util-repos/snowbridge`: SMB-based private file sharing and phone-accessible fileshare workflows
-- `./util-repos/locility`: phone-friendly GPS trace collection, local SQLite storage, and CSV/GeoJSON exports
 - `./util-repos/session-control`: private web and CLI control plane for reviewing, resuming, and deleting local AI assistant sessions
 - `./util-repos/dyno-lab`: unified test bench utilities — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: local Ollama LLM service (Podman container) and zero-dependency Python client for trivial inference tasks across portfolio repos
@@ -256,7 +240,9 @@ Every new repository should start with:
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should include the standard "Sudo Boundary" section explaining that agents cannot run `sudo` commands and must hand exact elevated commands to the user.
-Repo-level `AGENTS.md` files should also mention the shared utility repos `./util-repos/archility`, `./util-repos/auto-pass`, `./util-repos/clockwork`, `./util-repos/tachometer`, `./util-repos/nordility`, `./util-repos/pgpility`, `./util-repos/shock-relay`, `./util-repos/short-circuit`, `./util-repos/snowbridge`, `./util-repos/dyno-lab`, and `./util-repos/crew-chief` so agents can find the standard architecture bootstrap/render path, Graphviz-backed diagram tooling, deterministic architecture scaffolding, agentic architecture authoring, password-management, shared cron and systemd scheduling, repo and resource profiling, VPN-switching, PGP encryption/decryption, external-messaging, WireGuard VPN setup, SMB-based file-sharing, unified test bench implementations, and local LLM inference.
+Repo-level `AGENTS.md` files should mention only public shared utilities by
+name. Private shared utilities and their paths belong in ignored local
+guidance derived from the visibility registry and portfolio catalog.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
 New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
@@ -306,18 +292,15 @@ Add:
 - `./util-repos/clockwork`: standard shared scheduler utility for cron and systemd manifests across other repos
 - `./util-repos/tachometer`: standard shared profiling utility for repo snapshots, resource measurements, and profiled command runs across other repos
 - `./util-repos/nordility`: standard VPN-switching utility for other repos and the strongest repo-level `AGENTS.md`
-- `./util-repos/pgpility`: standard PGP encryption/decryption and encrypted-message handoff utility for other repos
 - `./util-repos/shock-relay`: standard external-messaging utility for other repos
 - `./util-repos/short-circuit`: standard WireGuard VPN setup and configuration utility for other repos
 - `./util-repos/snowbridge`: standard SMB-based file-sharing and phone-access utility for other repos
-- `./util-repos/locility`: standard phone GPS trace collection utility with local SQLite storage and CSV/GeoJSON exports
 - `./util-repos/session-control`: standard local AI-session inventory and cleanup utility for Codex, Claude Code, Continue, and GitHub Copilot CLI
 - `./util-repos/dyno-lab`: standard unified test bench utility — fixtures, subprocess/HTTP/env mocks, schema validation, smoke scaffolding, and pytest markers/fixtures
 - `./util-repos/crew-chief`: standard local LLM inference utility — Podman-hosted Ollama service and zero-dependency Python client for trivial tasks across portfolio repos
 - `./util-repos/windshield`: standard Playwright browser automation utility — Chrome management, page interaction, stealth helpers, and challenge detection for provider downloaders
 - `./util-repos/wiring-harness`: standard shared HTTPS ingress, mTLS, and DNS service inventory for home services
 - `./util-repos/intake`: standard receipt-domain OCR parsing, historical locale/translation backfill, and CLI translation service (`intake translate`) for other repos that need English translations of receipt OCR or receipt images
-- `./personal-finance`: strongest CI, test depth, and contributor workflow baseline
 - `./research-repos/sonetsim`: strongest packaging and release alignment
 - `./doc-repos/Certifications` and `./doc-repos/university-coursework`: strong examples of documentation-first repository organization
 
@@ -352,8 +335,11 @@ Run before every push:
 
 ```bash
 pre-commit run --all-files
+bash tests/test_repository_visibility_ci.sh
 ```
 
-This repo has no Python source; `pre-commit` is the full verification gate.
+The visibility registry, portfolio materializer, and lifecycle reviewer are
+standard-library Python and have an explicit reusable-workflow CI job. Run
+their aggregate test even when a file-scoped pre-commit invocation passes.
 
-Last reviewed: `2026-04-09`
+Last reviewed: `2026-07-25`
