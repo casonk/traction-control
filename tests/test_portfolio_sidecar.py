@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -315,6 +317,23 @@ class PortfolioSidecarTests(unittest.TestCase):
         result, _stdout, stderr = self._main(self._arguments("init-state"))
         self.assertEqual(result, 0, stderr)
 
+    def _init_config_arguments(
+        self,
+        policy_path: Path | None = None,
+        targets_path: Path | None = None,
+    ) -> list[str]:
+        return [
+            "init-config",
+            "--private",
+            str(self.private_path),
+            "--public",
+            str(self.public_path),
+            "--policy",
+            str(policy_path or self.policy_path),
+            "--targets",
+            str(targets_path or self.targets_path),
+        ]
+
     def _read_state(self) -> dict[str, object]:
         return json.loads(self.state_path.read_text(encoding="utf-8"))
 
@@ -324,6 +343,328 @@ class PortfolioSidecarTests(unittest.TestCase):
             json.loads(line)
             for line in log_path.read_text(encoding="utf-8").splitlines()
         ]
+
+    def test_init_config_creates_a_secure_inert_registry_bound_pair(self) -> None:
+        control = self.checkout / "sidecar-data" / "bootstrap-control"
+        control.mkdir(mode=0o755)
+        policy_path = control / "policy.local.json"
+        targets_path = control / "targets.local.json"
+        state_path = control / "state.local.json"
+
+        result, stdout, stderr = self._main(
+            self._init_config_arguments(policy_path, targets_path)
+        )
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn("0 dataset(s), 0 target set(s)", stdout)
+        self.assertIn("no data is protected", stdout)
+        self.assertNotIn("sidecar-synthetic-registry", stdout + stderr)
+        self.assertNotIn(str(control), stdout + stderr)
+        self.assertEqual(stat.S_IMODE(control.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(policy_path.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(targets_path.stat().st_mode), 0o600)
+        self.assertFalse(state_path.exists())
+        self.assertFalse((control / "credentials").exists())
+
+        lock_path = control / ".portfolio-sidecar.lock"
+        lock_metadata = lock_path.lstat()
+        self.assertTrue(stat.S_ISREG(lock_metadata.st_mode))
+        self.assertEqual(stat.S_IMODE(lock_metadata.st_mode), 0o600)
+        self.assertEqual(lock_metadata.st_nlink, 1)
+        for path in (policy_path, targets_path, lock_path):
+            relative_path = path.relative_to(self.checkout).as_posix()
+            self.assertEqual(
+                self._git("check-ignore", "--no-index", "--", relative_path).returncode,
+                0,
+            )
+
+        policy_payload = json.loads(policy_path.read_text(encoding="utf-8"))
+        targets_payload = json.loads(targets_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            policy_payload,
+            {
+                "schema_version": 1,
+                "registry_id": "sidecar-synthetic-registry",
+                "registry_generation": 1,
+                "policy_generation": 0,
+                "datasets": [],
+            },
+        )
+        self.assertEqual(
+            targets_payload,
+            {
+                "schema_version": 1,
+                "registry_id": "sidecar-synthetic-registry",
+                "registry_generation": 1,
+                "target_generation": 0,
+                "target_sets": [],
+            },
+        )
+        pair = sidecar.visibility.load_pair(self.private_path, self.public_path)
+        policy = sidecar.load_policy(policy_path, pair)
+        targets = sidecar.load_targets(targets_path, pair)
+        sidecar.validate_policy_targets(policy, targets)
+
+    def test_init_config_refuses_to_overwrite_either_half(self) -> None:
+        for existing_name in ("policy", "targets"):
+            with self.subTest(existing_name=existing_name):
+                self.policy_path.unlink(missing_ok=True)
+                self.targets_path.unlink(missing_ok=True)
+                existing = (
+                    self.policy_path
+                    if existing_name == "policy"
+                    else self.targets_path
+                )
+                other = (
+                    self.targets_path
+                    if existing_name == "policy"
+                    else self.policy_path
+                )
+                self._write_secret(existing, "do-not-overwrite\n")
+                before = existing.read_bytes()
+
+                result, _stdout, stderr = self._main(
+                    self._init_config_arguments()
+                )
+
+                self.assertEqual(result, 2)
+                self.assertIn("refuses to overwrite", stderr)
+                self.assertEqual(existing.read_bytes(), before)
+                self.assertFalse(other.exists())
+
+    def test_init_config_rolls_back_if_pair_publication_is_interrupted(self) -> None:
+        self.policy_path.unlink()
+        self.targets_path.unlink()
+        original_write = sidecar._write_new_private_json
+
+        def fail_second_write(
+            path: Path,
+            payload: dict[str, object],
+            *,
+            label: str,
+            directory_descriptor: int,
+        ) -> sidecar._CreatedPrivateFile:
+            if label == "sidecar targets":
+                raise sidecar.SidecarError("synthetic publication failure")
+            return original_write(
+                path,
+                payload,
+                label=label,
+                directory_descriptor=directory_descriptor,
+            )
+
+        with mock.patch.object(
+            sidecar,
+            "_write_new_private_json",
+            side_effect=fail_second_write,
+        ):
+            result, _stdout, stderr = self._main(self._init_config_arguments())
+
+        self.assertEqual(result, 2)
+        self.assertIn("synthetic publication failure", stderr)
+        self.assertFalse(self.policy_path.exists())
+        self.assertFalse(self.targets_path.exists())
+
+    def test_init_config_rejects_unignored_destinations_without_artifacts(self) -> None:
+        destination = self.checkout / "bootstrap-control"
+        destination.mkdir(mode=0o755)
+        policy_path = destination / "policy.local.json"
+        targets_path = destination / "targets.local.json"
+
+        result, _stdout, stderr = self._main(
+            self._init_config_arguments(policy_path, targets_path)
+        )
+
+        self.assertEqual(result, 2)
+        self.assertIn("tracked, unchanged .gitignore", stderr)
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
+        self.assertFalse(policy_path.exists())
+        self.assertFalse(targets_path.exists())
+        self.assertFalse((destination / ".portfolio-sidecar.lock").exists())
+
+    def test_init_config_rejects_local_only_ignore_rules(self) -> None:
+        destination = self.checkout / "bootstrap-control"
+        destination.mkdir(mode=0o755)
+        (self.checkout / ".git" / "info" / "exclude").write_text(
+            "bootstrap-control/\n",
+            encoding="utf-8",
+        )
+
+        result, _stdout, stderr = self._main(
+            self._init_config_arguments(
+                destination / "policy.local.json",
+                destination / "targets.local.json",
+            )
+        )
+
+        self.assertEqual(result, 2)
+        self.assertIn("tracked, unchanged .gitignore", stderr)
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
+        self.assertEqual(tuple(destination.iterdir()), ())
+
+    def test_init_config_rejects_uncommitted_ignore_rules(self) -> None:
+        destination = self.checkout / "bootstrap-control"
+        destination.mkdir(mode=0o755)
+        with (self.checkout / ".gitignore").open("a", encoding="utf-8") as handle:
+            handle.write("bootstrap-control/\n")
+
+        result, _stdout, stderr = self._main(
+            self._init_config_arguments(
+                destination / "policy.local.json",
+                destination / "targets.local.json",
+            )
+        )
+
+        self.assertEqual(result, 2)
+        self.assertIn("tracked, unchanged .gitignore", stderr)
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
+        self.assertEqual(tuple(destination.iterdir()), ())
+
+    def test_init_config_fails_closed_for_a_broken_git_worktree(self) -> None:
+        worktree = self.root / "broken-worktree"
+        destination = worktree / "bootstrap-control"
+        worktree.mkdir(mode=0o755)
+        destination.mkdir(mode=0o755)
+        (worktree / ".git").write_text(
+            "gitdir: missing-control-directory\n",
+            encoding="utf-8",
+        )
+
+        result, _stdout, stderr = self._main(
+            self._init_config_arguments(
+                destination / "policy.local.json",
+                destination / "targets.local.json",
+            )
+        )
+
+        self.assertEqual(result, 2)
+        self.assertIn("cannot validate", stderr)
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
+        self.assertEqual(tuple(destination.iterdir()), ())
+
+    def test_init_config_rejects_malformed_paths_without_a_traceback(self) -> None:
+        arguments = self._init_config_arguments()
+        arguments[arguments.index("--policy") + 1] += "\0invalid"
+
+        result, stdout, stderr = self._main(arguments)
+
+        self.assertEqual(result, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn("control path is invalid", stderr)
+        self.assertNotIn("Traceback", stderr)
+
+    def test_init_config_interrupt_rolls_back_without_a_traceback(self) -> None:
+        self.policy_path.unlink()
+        self.targets_path.unlink()
+        original_write = sidecar._write_new_private_json
+
+        def interrupt_second_write(
+            path: Path,
+            payload: dict[str, object],
+            *,
+            label: str,
+            directory_descriptor: int,
+        ) -> sidecar._CreatedPrivateFile:
+            if label == "sidecar targets":
+                raise KeyboardInterrupt
+            return original_write(
+                path,
+                payload,
+                label=label,
+                directory_descriptor=directory_descriptor,
+            )
+
+        with mock.patch.object(
+            sidecar,
+            "_write_new_private_json",
+            side_effect=interrupt_second_write,
+        ):
+            result, stdout, stderr = self._main(self._init_config_arguments())
+
+        self.assertEqual(result, 130)
+        self.assertEqual(stdout, "")
+        self.assertIn("operation interrupted", stderr)
+        self.assertNotIn("Traceback", stderr)
+        self.assertFalse(self.policy_path.exists())
+        self.assertFalse(self.targets_path.exists())
+
+    def test_init_config_rollback_preserves_a_replacement_file(self) -> None:
+        self.policy_path.unlink()
+        self.targets_path.unlink()
+        original_write = sidecar._write_new_private_json
+        replacement = self.control / "replacement.local.json"
+
+        def replace_before_failure(
+            path: Path,
+            payload: dict[str, object],
+            *,
+            label: str,
+            directory_descriptor: int,
+        ) -> sidecar._CreatedPrivateFile:
+            if label == "sidecar targets":
+                self._write_secret(replacement, "replacement-must-survive\n")
+                os.replace(replacement, self.policy_path)
+                raise sidecar.SidecarError("synthetic publication failure")
+            return original_write(
+                path,
+                payload,
+                label=label,
+                directory_descriptor=directory_descriptor,
+            )
+
+        with mock.patch.object(
+            sidecar,
+            "_write_new_private_json",
+            side_effect=replace_before_failure,
+        ):
+            result, _stdout, stderr = self._main(self._init_config_arguments())
+
+        self.assertEqual(result, 2)
+        self.assertIn("could not roll back", stderr)
+        self.assertEqual(
+            self.policy_path.read_text(encoding="utf-8"),
+            "replacement-must-survive\n",
+        )
+        self.assertFalse(self.targets_path.exists())
+
+    def test_init_config_link_stat_race_preserves_a_replacement_file(self) -> None:
+        self.policy_path.unlink()
+        self.targets_path.unlink()
+        replacement = self.control / "replacement.local.json"
+        original_link = sidecar.os.link
+
+        def replace_after_link(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+            follow_symlinks: bool = True,
+        ) -> None:
+            original_link(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+                follow_symlinks=follow_symlinks,
+            )
+            self._write_secret(replacement, "link-race-must-survive\n")
+            os.replace(replacement, self.policy_path)
+
+        with mock.patch.object(
+            sidecar.os,
+            "link",
+            side_effect=replace_after_link,
+        ):
+            result, _stdout, stderr = self._main(self._init_config_arguments())
+
+        self.assertEqual(result, 2)
+        self.assertIn("changed file", stderr)
+        self.assertEqual(
+            self.policy_path.read_text(encoding="utf-8"),
+            "link-race-must-survive\n",
+        )
+        self.assertFalse(self.targets_path.exists())
 
     def test_validate_and_plan_are_redacted_unless_paths_are_requested(self) -> None:
         self._init_state()

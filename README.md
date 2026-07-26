@@ -33,6 +33,11 @@ private hosted SFTP target; L3 uses a strict-majority acknowledgement threshold
 across at least three private-address SFTP targets intended for the WireGuard
 mesh, with no hosted fallback. The current coordinator does not verify
 WireGuard membership or treat a restic acknowledgement as restore proof.
+`portfolio_sidecar.py init-config` bootstraps owner-only, ignored local policy
+and target files bound to the current registry. They start at generation zero
+with no datasets or target sets; the command creates neither credentials nor
+state, so enrollment and destination provisioning remain explicit operator
+steps before `init-state`.
 
 The tiered bootstrap downloads its allowlisted support repos and renders
 Linux or macOS scheduler definitions around the existing workload scripts. The
@@ -83,7 +88,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
-- `scripts/portfolio_sidecar.py`: standalone, fail-closed backup coordinator for explicitly selected ignored data
+- `scripts/portfolio_sidecar.py`: standalone, fail-closed local-config bootstrap and backup coordinator for explicitly selected ignored data
 - `docs/repository-visibility.md`: private-first classification and observed-transition policy
 - `docs/portfolio-lifecycle.md`: master checkout, dependency, retirement, and consistency architecture
 - `docs/private-sidecar.md`: three-level ignored-data selection, encryption, acknowledgement, manual-failover, and future restore-drill contract
