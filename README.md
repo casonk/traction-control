@@ -27,6 +27,13 @@ private inventory in tracked files. Its lifecycle reviewer maps tracked
 repository dependencies and evaluates proposed privacy, archive, retirement,
 and dependency-removal actions without applying remote changes.
 
+Its private-sidecar contract separates tracked public-safe code from explicitly
+selected ignored private data. L2 uses client-encrypted restic snapshots on a
+private hosted SFTP target; L3 uses a strict-majority acknowledgement threshold
+across at least three private-address SFTP targets intended for the WireGuard
+mesh, with no hosted fallback. The current coordinator does not verify
+WireGuard membership or treat a restic acknowledgement as restore proof.
+
 The tiered bootstrap downloads its allowlisted support repos and renders
 Linux or macOS scheduler definitions around the existing workload scripts. The
 effective runtime is still the documented governance loop: read the
@@ -76,8 +83,11 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
+- `scripts/portfolio_sidecar.py`: standalone, fail-closed backup coordinator for explicitly selected ignored data
 - `docs/repository-visibility.md`: private-first classification and observed-transition policy
 - `docs/portfolio-lifecycle.md`: master checkout, dependency, retirement, and consistency architecture
+- `docs/private-sidecar.md`: three-level ignored-data selection, encryption, acknowledgement, manual-failover, and future restore-drill contract
+- `config/portfolio-sidecar/*.example.json`: synthetic sidecar policy and target schemas; operational `*.local.json` files stay ignored
 - `scripts/install_traction_control_agents.sh`: cross-platform tiered support-repo and agent scheduler bootstrap
 - `config/traction-control-agents/repos.conf`: cumulative support-repository bundles for the three profiles
 - `config/traction-control-agents/jobs.conf`: cumulative job membership, runtime environment, and schedule data

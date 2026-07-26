@@ -47,6 +47,24 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
   clone/fetch-only materialization, dependency evidence, and retirement
   reviews.
 
+## Ignored-State Sidecars
+
+- Git-tracked public code, hosted encrypted sidecars, and mesh-only sidecars
+  are separate security levels. A path being ignored by Git never authorizes
+  it for backup or replication.
+- Back up only paths explicitly selected in the ignored owner-only sidecar
+  policy. Reject tracked paths, symlinks, special files, selector overlap, and
+  any policy or checkout state that changes during capture.
+- Hosted sidecars must be client-encrypted before egress. Mesh-only datasets
+  must have no hosted fallback and may leave their source only for explicitly
+  registered private-address replicas intended for the mesh.
+- Network proximity chooses a route, never a writer. Until the quorum authority
+  issues leases and fencing tokens for sidecar snapshots, run the executable
+  sidecar from one locked coordinator and do not claim automatic failover.
+- Keep live sidecar policy, targets, credentials, state, and spool content
+  ignored, owner-only, and out of logs. Tracked examples must remain entirely
+  synthetic.
+
 ## Session Continuity And Reporting
 
 - Read `CHATHISTORY.md` for recent local session continuity before resuming portfolio-wide work.
