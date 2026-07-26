@@ -235,6 +235,13 @@ class StateDocument:
 
 
 @dataclass(frozen=True)
+class _CreatedPrivateFile:
+    path: Path
+    device: int
+    inode: int
+
+
+@dataclass(frozen=True)
 class FileSnapshot:
     relative_path: str
     size: int
@@ -1285,6 +1292,139 @@ def _write_state_json(path: Path, payload: dict[str, Any], *, replace: bool) -> 
         temporary.unlink(missing_ok=True)
 
 
+def _write_new_private_json(
+    path: Path,
+    payload: dict[str, Any],
+    *,
+    label: str,
+    directory_descriptor: int,
+) -> _CreatedPrivateFile:
+    """Publish one new ignored JSON document without overwriting any path."""
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp.local.json",
+        dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    temporary_metadata = os.fstat(descriptor)
+    temporary_file: _CreatedPrivateFile | None = _CreatedPrivateFile(
+        path=temporary,
+        device=temporary_metadata.st_dev,
+        inode=temporary_metadata.st_ino,
+    )
+    published_file: _CreatedPrivateFile | None = None
+    complete = False
+    try:
+        _require_stable_private_bootstrap_path(
+            temporary,
+            f"{label} temporary file",
+            exists=True,
+        )
+        os.fchmod(descriptor, 0o600)
+        serialized = (
+            json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
+        )
+        offset = 0
+        while offset < len(serialized):
+            written = os.write(descriptor, serialized[offset:])
+            if written <= 0:
+                raise OSError("short sidecar config write")
+            offset += written
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+
+        try:
+            os.link(
+                temporary.name,
+                path.name,
+                src_dir_fd=directory_descriptor,
+                dst_dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+        except FileExistsError as exc:
+            raise SidecarError(
+                "init-config refuses to overwrite an existing policy or targets file"
+            ) from exc
+        published_file = _CreatedPrivateFile(
+            path=path,
+            device=temporary_metadata.st_dev,
+            inode=temporary_metadata.st_ino,
+        )
+        published_metadata = os.stat(
+            path.name,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        if (published_metadata.st_dev, published_metadata.st_ino) != (
+            published_file.device,
+            published_file.inode,
+        ):
+            raise SidecarError(
+                "init-config destination changed during atomic publication"
+            )
+        _unlink_created_private_file(temporary_file, directory_descriptor)
+        temporary_file = None
+        os.fsync(directory_descriptor)
+        _require_stable_private_bootstrap_path(path, label, exists=True)
+        complete = True
+        return published_file
+    except SidecarError:
+        raise
+    except OSError as exc:
+        raise SidecarError(f"cannot atomically create {label}") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        cleanup_error: BaseException | None = None
+        for created_file in (
+            temporary_file,
+            published_file if not complete else None,
+        ):
+            if created_file is None:
+                continue
+            try:
+                _unlink_created_private_file(created_file, directory_descriptor)
+            except BaseException as exc:
+                cleanup_error = exc
+        if cleanup_error is not None:
+            raise SidecarError(
+                "init-config cleanup refused to remove a changed file"
+            ) from cleanup_error
+
+
+def _unlink_created_private_file(
+    created_file: _CreatedPrivateFile,
+    directory_descriptor: int,
+) -> None:
+    try:
+        current = os.stat(
+            created_file.path.name,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        return
+    if (current.st_dev, current.st_ino) != (
+        created_file.device,
+        created_file.inode,
+    ):
+        raise SidecarError(
+            "init-config rollback found a changed file and left it untouched"
+        )
+    os.unlink(created_file.path.name, dir_fd=directory_descriptor)
+    os.fsync(directory_descriptor)
+
+
+def _remove_initialized_config(
+    files: Sequence[_CreatedPrivateFile],
+    directory_descriptor: int,
+) -> None:
+    for created_file in reversed(files):
+        _unlink_created_private_file(created_file, directory_descriptor)
+
+
 def _git_environment() -> dict[str, str]:
     environment = os.environ.copy()
     for key in tuple(environment):
@@ -1560,6 +1700,26 @@ def _prove_untracked_and_ignored(checkout: Path, paths: Sequence[str]) -> None:
             ".gitignore rules"
         )
     for source in sorted(rule_sources):
+        flag_result = _run_git(
+            checkout,
+            ["ls-files", "-v", "-z", "--", source],
+            text=False,
+        )
+        flag_records = [
+            record for record in flag_result.stdout.split(b"\0") if record
+        ]
+        if (
+            flag_result.returncode != 0
+            or len(flag_records) != 1
+            or len(flag_records[0]) < 3
+            or flag_records[0][1:2] != b" "
+        ):
+            raise SidecarError("cannot inspect tracked .gitignore index flags")
+        flag = chr(flag_records[0][0])
+        if flag == "S" or flag.islower():
+            raise SidecarError(
+                "tracked .gitignore uses skip-worktree or assume-unchanged"
+            )
         stable_rule = _run_git(
             checkout,
             [
@@ -1574,6 +1734,68 @@ def _prove_untracked_and_ignored(checkout: Path, paths: Sequence[str]) -> None:
         )
         if stable_rule.returncode != 0:
             raise SidecarError("tracked .gitignore rule changed relative to HEAD")
+
+
+def _require_stable_ignored_or_outside_git(path: Path) -> None:
+    """Require a tracked, unchanged ignore rule when a path is inside Git."""
+
+    try:
+        absolute_path = Path(os.path.realpath(os.path.abspath(path)))
+    except (OSError, TypeError, ValueError) as exc:
+        raise SidecarError("sidecar bootstrap path is invalid") from exc
+    probe = absolute_path.parent
+    try:
+        while not probe.exists() and probe != probe.parent:
+            probe = probe.parent
+    except (OSError, ValueError) as exc:
+        raise SidecarError("sidecar bootstrap path cannot be inspected") from exc
+    if not probe.is_dir():
+        raise SidecarError("sidecar bootstrap parent is not a directory")
+    worktree_result = _run_git(probe, ["rev-parse", "--show-toplevel"])
+    if worktree_result.returncode != 0:
+        ancestor = probe
+        while True:
+            marker = ancestor / ".git"
+            try:
+                marker.lstat()
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                raise SidecarError(
+                    "cannot inspect sidecar bootstrap Git containment"
+                ) from exc
+            else:
+                raise SidecarError(
+                    "cannot validate the sidecar bootstrap Git worktree"
+                )
+            if ancestor == ancestor.parent:
+                break
+            ancestor = ancestor.parent
+        return
+    try:
+        worktree = Path(os.path.realpath(worktree_result.stdout.strip()))
+        relative_path = absolute_path.relative_to(worktree).as_posix()
+    except (OSError, TypeError, ValueError) as exc:
+        raise SidecarError(
+            "cannot establish sidecar bootstrap containment in Git"
+        ) from exc
+    try:
+        _prove_untracked_and_ignored(worktree, (relative_path,))
+    except SidecarError as exc:
+        raise SidecarError(
+            "sidecar bootstrap paths inside Git require a tracked, unchanged "
+            ".gitignore rule"
+        ) from exc
+
+
+def _require_stable_private_bootstrap_path(
+    path: Path,
+    label: str,
+    *,
+    exists: bool,
+) -> None:
+    _require_ignored_private_path(path, label, exists=exists)
+    _require_stable_ignored_or_outside_git(path)
 
 
 def _metadata_tuple(metadata: os.stat_result) -> tuple[int, ...]:
@@ -2901,7 +3123,12 @@ class _Inputs:
 
 
 def _control_path(value: str) -> Path:
-    return Path(os.path.abspath(value))
+    if type(value) is not str or not value or "\0" in value:
+        raise SidecarError("sidecar control path is invalid")
+    try:
+        return Path(os.path.abspath(value))
+    except (OSError, TypeError, ValueError) as exc:
+        raise SidecarError("sidecar control path is invalid") from exc
 
 
 def _load_inputs(arguments: argparse.Namespace, *, load_existing_state: bool) -> _Inputs:
@@ -2956,6 +3183,121 @@ def _locked_current_inputs(inputs: _Inputs) -> tuple[
         return current_pair, current_catalog
     except (visibility.RegistryError, materializer.MaterializerError) as exc:
         raise SidecarError("sidecar governance snapshot could not be revalidated") from exc
+
+
+def initialize_config(
+    private_path_value: str,
+    public_path_value: str,
+    policy_path_value: str,
+    targets_path_value: str,
+) -> tuple[PolicyDocument, TargetsDocument]:
+    """Create an inert, registry-bound local policy/targets pair."""
+
+    policy_path = _control_path(policy_path_value)
+    targets_path = _control_path(targets_path_value)
+    if policy_path == targets_path:
+        raise SidecarError("sidecar policy and targets paths must differ")
+    if policy_path.parent != targets_path.parent:
+        raise SidecarError(
+            "sidecar policy and targets must share one owner-only control directory"
+        )
+    try:
+        pair = visibility.load_pair(private_path_value, public_path_value)
+    except (OSError, TypeError, ValueError, visibility.RegistryError) as exc:
+        raise SidecarError("sidecar visibility-registry validation failed") from exc
+
+    policy_payload = {
+        "schema_version": SCHEMA_VERSION,
+        "registry_id": pair.registry_id,
+        "registry_generation": pair.generation,
+        "policy_generation": 0,
+        "datasets": [],
+    }
+    targets_payload = {
+        "schema_version": SCHEMA_VERSION,
+        "registry_id": pair.registry_id,
+        "registry_generation": pair.generation,
+        "target_generation": 0,
+        "target_sets": [],
+    }
+
+    for path in (
+        policy_path,
+        targets_path,
+        policy_path.parent / ".portfolio-sidecar.lock",
+    ):
+        _require_stable_ignored_or_outside_git(path)
+    _ensure_private_directory(policy_path.parent)
+    try:
+        control_directory = policy_path.parent.resolve(strict=True)
+    except (OSError, ValueError) as exc:
+        raise SidecarError("sidecar bootstrap control directory is unavailable") from exc
+    policy_path = control_directory / policy_path.name
+    targets_path = control_directory / targets_path.name
+    for path in (
+        policy_path,
+        targets_path,
+        policy_path.parent / ".portfolio-sidecar.lock",
+    ):
+        _require_stable_private_bootstrap_path(
+            path,
+            "sidecar bootstrap destination",
+            exists=False,
+        )
+
+    created: list[_CreatedPrivateFile] = []
+    with _SidecarLock(policy_path) as control_lock:
+        if control_lock.directory_descriptor is None:
+            raise SidecarError("sidecar bootstrap control lock is unavailable")
+        directory_descriptor = control_lock.directory_descriptor
+        for path in (policy_path, targets_path):
+            if path.exists() or path.is_symlink():
+                raise SidecarError(
+                    "init-config refuses to overwrite an existing policy or "
+                    "targets file"
+                )
+            _require_stable_private_bootstrap_path(
+                path,
+                "sidecar bootstrap destination",
+                exists=False,
+            )
+        try:
+            with materializer._locked_registry_snapshot(pair) as current_pair:
+                created.append(
+                    _write_new_private_json(
+                        policy_path,
+                        policy_payload,
+                        label="sidecar policy",
+                        directory_descriptor=directory_descriptor,
+                    )
+                )
+                created.append(
+                    _write_new_private_json(
+                        targets_path,
+                        targets_payload,
+                        label="sidecar targets",
+                        directory_descriptor=directory_descriptor,
+                    )
+                )
+                policy = load_policy(policy_path, current_pair)
+                targets = load_targets(targets_path, current_pair)
+                validate_policy_targets(policy, targets)
+        except BaseException as exc:
+            try:
+                _remove_initialized_config(created, directory_descriptor)
+            except (OSError, SidecarError) as cleanup_error:
+                raise SidecarError(
+                    "init-config failed and could not roll back its new files"
+                ) from cleanup_error
+            if isinstance(exc, materializer.MaterializerError):
+                raise SidecarError(
+                    "sidecar visibility registry changed during init-config"
+                ) from exc
+            if isinstance(exc, (OSError, TypeError, ValueError)):
+                raise SidecarError("cannot initialize sidecar config") from exc
+            raise
+
+    return policy, targets
 
 
 def initialize_state(inputs: _Inputs) -> StateDocument:
@@ -3254,6 +3596,14 @@ def _parser() -> argparse.ArgumentParser:
         )
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    init_config_parser = subparsers.add_parser(
+        "init-config",
+        help="Create an inert ignored policy/targets pair bound to the registry.",
+    )
+    init_config_parser.add_argument("--private", required=True)
+    init_config_parser.add_argument("--public", required=True)
+    init_config_parser.add_argument("--policy", required=True)
+    init_config_parser.add_argument("--targets", required=True)
     for command in ("validate", "init-state", "plan", "backup"):
         command_parser = subparsers.add_parser(command)
         _add_common_arguments(command_parser)
@@ -3272,6 +3622,23 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     try:
+        if arguments.command == "init-config":
+            policy, targets = initialize_config(
+                arguments.private,
+                arguments.public,
+                arguments.policy,
+                arguments.targets,
+            )
+            print(
+                f"initialized inert sidecar config: {len(policy.datasets)} "
+                f"dataset(s), {len(targets.target_sets)} target set(s); "
+                "no data is protected"
+            )
+            print(
+                "next: explicitly populate policy and targets, provision "
+                "credentials, then run init-state"
+            )
+            return 0
         inputs = _load_inputs(
             arguments,
             load_existing_state=arguments.command != "init-state",
@@ -3323,6 +3690,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 3
         print("sidecar backup complete")
         return 0
+    except KeyboardInterrupt:
+        print(
+            "error: sidecar operation interrupted; no success was reported",
+            file=sys.stderr,
+        )
+        return 130
     except SidecarError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

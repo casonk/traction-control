@@ -24,6 +24,38 @@ contain private repository IDs, selectors, node identities, and paths to
 credential files. Tracked examples use only synthetic identifiers, paths, and
 private addresses.
 
+The examples are documentation, not operational defaults. Bootstrap an empty
+local pair from the current private/public registry before enrolling any data:
+
+```bash
+python3 scripts/portfolio_sidecar.py init-config \
+  --private config/repository-visibility/private.local.json \
+  --public config/repository-visibility/public.local.json \
+  --policy config/portfolio-sidecar/policy.local.json \
+  --targets config/portfolio-sidecar/targets.local.json
+```
+
+`init-config` creates owner-only, ignored `policy.local.json` and
+`targets.local.json` files bound to the registry ID and generation. Both local
+documents start at generation `0`, with zero datasets and zero target sets, so
+the result is deliberately inert. It does not create credential files,
+provision a destination, or create `state.local.json`. The operator must
+explicitly populate the selectors and target topology, provision the matching
+credentials and remote repositories, advance both document generations to `1`,
+and then run `init-state`.
+
+When the control directory is inside a Git worktree, bootstrap accepts only a
+tracked `.gitignore` rule unchanged from `HEAD`; global excludes,
+`.git/info/exclude`, and an uncommitted rule do not qualify. The command also
+keeps its ignored process lock as a single-linked owner-only file.
+
+Creation is no-overwrite and rolls back ordinary failures, but two files cannot
+be published with one filesystem transaction. If interruption or power loss
+leaves exactly one local document, `init-config` fails closed instead of
+overwriting it. Confirm that the lone file is the inert owner-only bootstrap
+document, remove only that file, and rerun `init-config`; never delete a
+populated policy or targets document as generic recovery.
+
 The directory also ignores local credentials, spool, state, lock, and
 temporary artifacts as an accidental-commit guard. `.gitignore` is not an
 authorization, confidentiality, or encryption boundary: it does not stop
@@ -105,14 +137,15 @@ restic SFTP repository, account, dedicated SSH identity, and pinned
 servers. Keep control and credential directories at mode `0700` and their files
 at mode `0600`; the identity file specifically requires exact mode `0600`.
 
-All commands share `--private`, `--public`, `--catalog`, `--portfolio-root`,
-`--policy`, `--targets`, and `--state`. A typical local flow is:
+After `init-config` and explicit provisioning, the operational commands share
+`--private`, `--public`, `--catalog`, `--portfolio-root`, `--policy`,
+`--targets`, and `--state`. A typical local flow is:
 
 ```bash
 sidecar_common=(
   --private /absolute/control/private.local.json
   --public /absolute/control/public.local.json
-  --catalog /absolute/control/catalog.local.json
+  --catalog /absolute/control/portfolio.local.json
   --portfolio-root /absolute/portfolio
   --policy /absolute/control/policy.local.json
   --targets /absolute/control/targets.local.json
