@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "registry_id": "example-portfolio",
+  "registry_generation": 3,
+  "catalog_generation": 1,
+  "repositories": [
+    {
+      "repository_id": "R_EXAMPLE_PRIVATE_001",
+      "relative_path": "private-repos/example-private-repository",
+      "lifecycle": "active",
+      "sync_policy": "fetch-only",
+      "desired_presence": "checkout"
+    },
+    {
+      "repository_id": "R_EXAMPLE_PUBLIC_001",
+      "relative_path": "public-repos/example-public-repository",
+      "lifecycle": "archived",
+      "sync_policy": "manual",
+      "desired_presence": "absent"
+    }
+  ]
+}

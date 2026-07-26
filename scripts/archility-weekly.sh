@@ -18,6 +18,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-$(cd "${SCRIPT_DIR}/../../.." && pwd)}"
 ARCHILITY_CMD="${ARCHILITY_CMD:-archility}"
+ARCHILITY_REPO_FALLBACK="${SCRIPT_DIR}/../../archility"
 LOG_DIR="${LOG_DIR:-${HOME}/.local/share/archility-weekly}"
 MAX_DEPTH=4   # how deep to search for .git dirs below PORTFOLIO_ROOT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -30,14 +31,27 @@ mkdir -p "${LOG_DIR}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
 
+if command -v "${ARCHILITY_CMD}" >/dev/null 2>&1; then
+    ARCHILITY_COMMAND=("${ARCHILITY_CMD}")
+elif [[ "${ARCHILITY_CMD}" == "archility" && -d "${ARCHILITY_REPO_FALLBACK}/src/archility" ]]; then
+    export PYTHONPATH="${ARCHILITY_REPO_FALLBACK}/src${PYTHONPATH:+:${PYTHONPATH}}"
+    ARCHILITY_COMMAND=(python3 -m archility)
+else
+    printf 'error: archility command not found: %s\n' "${ARCHILITY_CMD}" >&2
+    exit 1
+fi
+
 log "=== archility twice-weekly run ==="
 log "portfolio root : ${PORTFOLIO_ROOT}"
-log "archility      : $(command -v "${ARCHILITY_CMD}" || echo 'not found')"
+log "archility      : ${ARCHILITY_COMMAND[*]}"
 log "log file       : ${LOG_FILE}"
 log ""
 
 # ── discover repos ───────────────────────────────────────────────────────────
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+    REPO_DIRS+=("${repo_dir}")
+done < <(
     find "${PORTFOLIO_ROOT}" \
         -maxdepth "${MAX_DEPTH}" \
         -type d \
@@ -50,10 +64,15 @@ mapfile -t REPO_DIRS < <(
 log "found ${#REPO_DIRS[@]} repositories"
 log ""
 
+if (( ${#REPO_DIRS[@]} == 0 )); then
+    log "no repositories found; nothing to audit or render"
+    exit 0
+fi
+
 # ── audit all repos ───────────────────────────────────────────────────────────
 log "--- AUDIT ---"
 AUDIT_FAIL=0
-"${ARCHILITY_CMD}" audit "${REPO_DIRS[@]}" 2>&1 | tee -a "${LOG_FILE}" || AUDIT_FAIL=$?
+"${ARCHILITY_COMMAND[@]}" audit "${REPO_DIRS[@]}" 2>&1 | tee -a "${LOG_FILE}" || AUDIT_FAIL=$?
 if [[ $AUDIT_FAIL -ne 0 ]]; then
     log "WARNING: archility audit exited with code ${AUDIT_FAIL}"
 fi
@@ -64,7 +83,7 @@ log "--- RENDER ---"
 RENDER_FAIL=0
 for repo in "${REPO_DIRS[@]}"; do
     log "rendering: ${repo}"
-    "${ARCHILITY_CMD}" render "${repo}" 2>&1 | tee -a "${LOG_FILE}" || {
+    "${ARCHILITY_COMMAND[@]}" render "${repo}" 2>&1 | tee -a "${LOG_FILE}" || {
         log "WARNING: render failed for ${repo} (exit $?)"
         RENDER_FAIL=$(( RENDER_FAIL + 1 ))
     }

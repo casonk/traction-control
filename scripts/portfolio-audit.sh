@@ -56,7 +56,10 @@ log "log file       : ${LOG_FILE}"
 log ""
 
 # ── discover repos ────────────────────────────────────────────────────────────
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+    REPO_DIRS+=("${repo_dir}")
+done < <(
     find "${PORTFOLIO_ROOT}" \
         -maxdepth "${MAX_DEPTH}" \
         -type d \
@@ -74,7 +77,9 @@ log ""
 GAP_COUNT=0
 AGENTS_SUDO_MARKER='Agents will never be able to run `sudo` commands'
 
-for repo in "${REPO_DIRS[@]}"; do
+repo_index=0
+while (( repo_index < ${#REPO_DIRS[@]} )); do
+    repo="${REPO_DIRS[$repo_index]}"
     rel="${repo#${PORTFOLIO_ROOT}/}"
     missing=()
 
@@ -135,6 +140,7 @@ for repo in "${REPO_DIRS[@]}"; do
     else
         log "OK  ${rel}"
     fi
+    repo_index=$(( repo_index + 1 ))
 done
 
 log ""

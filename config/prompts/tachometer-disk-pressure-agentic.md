@@ -21,8 +21,10 @@ Working rules:
 - Do not target tracked source files, credentials, raw private data, account
   data, or irreplaceable user inputs unless the repo already has a clearly safe
   restore path for that exact data class.
-- Use the `personal-finance` storage archive implementation as the reference
-  shape when appropriate: `config/storage_archives.json`,
+- Use a reviewed private repository's storage archive implementation as the
+  local reference shape when appropriate; keep its identity and path only in
+  ignored local guidance. The expected shape includes
+  `config/storage_archives.json`,
   `scripts/manage_storage_archives.py`, `.storage-archives/` in `.gitignore`,
   auditable run records, explicit `status`, `compress`, `decompress`, and
   threshold-based `auto` commands, plus scheduler restore-before-run and

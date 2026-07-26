@@ -1,0 +1,3 @@
+*.local.json
+.repository-visibility.lock
+.*.local.json.*.tmp.local.json

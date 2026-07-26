@@ -64,7 +64,7 @@ log() {
 }
 
 sanitize_field() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
 }
 
 join_by() {
@@ -175,7 +175,10 @@ log "prompt file     : ${PROMPT_FILE}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
-mapfile -t REPO_DIRS < <(
+REPO_DIRS=()
+while IFS= read -r repo_dir; do
+  REPO_DIRS+=("${repo_dir}")
+done < <(
   find "${PORTFOLIO_ROOT}" \
     -maxdepth "${MAX_DEPTH}" \
     -type d \
@@ -192,13 +195,16 @@ missing_refs_count=0
 dirty_count=0
 skip_count=0
 
-for repo in "${REPO_DIRS[@]}"; do
+repo_index=0
+while (( repo_index < ${#REPO_DIRS[@]} )); do
+  repo="${REPO_DIRS[$repo_index]}"
   local_rel="${repo#${PORTFOLIO_ROOT}/}"
   log "scan repo       : ${local_rel}"
 
   if (( FORCE == 0 )) && [[ -n "$(git -C "${repo}" status --porcelain 2>/dev/null || true)" ]]; then
     record_inventory "dirty" "${local_rel}" "-" "0" "-" "worktree not clean"
     dirty_count=$(( dirty_count + 1 ))
+    repo_index=$(( repo_index + 1 ))
     continue
   fi
 
@@ -209,12 +215,18 @@ for repo in "${REPO_DIRS[@]}"; do
   fi
 
   # Count tracked files that match external-reference signals
-  mapfile -t signal_files < <(git -C "${repo}" ls-files -- "${EXTERNAL_REF_SIGNALS[@]}" 2>/dev/null || true)
+  signal_files=()
+  while IFS= read -r signal_file; do
+    signal_files+=("${signal_file}")
+  done < <(git -C "${repo}" ls-files -- "${EXTERNAL_REF_SIGNALS[@]}" 2>/dev/null || true)
   signal_count="${#signal_files[@]}"
 
   if (( refs_tracked == 1 )); then
-    sample=("${signal_files[@]:0:5}")
-    sample_str="$(join_by '; ' "${sample[@]}")"
+    sample_str="-"
+    if (( signal_count > 0 )); then
+      sample=("${signal_files[@]:0:5}")
+      sample_str="$(join_by '; ' "${sample[@]}")"
+    fi
     record_inventory \
       "candidate" \
       "${local_rel}" \
@@ -238,6 +250,7 @@ for repo in "${REPO_DIRS[@]}"; do
     record_inventory "skip" "${local_rel}" "no" "0" "-" "no REFS-PUBLIC.md and no external-reference signals"
     skip_count=$(( skip_count + 1 ))
   fi
+  repo_index=$(( repo_index + 1 ))
 done
 
 ln -sf "${LOG_FILE}" "${LATEST_LOG_LINK}"
