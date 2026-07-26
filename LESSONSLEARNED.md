@@ -833,3 +833,15 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   naming convention. Network examples should use IANA documentation ranges or
   explicit placeholders, and repository checks should reject private or known
   deployment values in tracked example files.
+
+### 2026-07-26 — Gitignore is not replication authority
+
+- A Git-ignored path is only absent from ordinary Git snapshots; that does not
+  authorize another process to read, back up, or replicate it. Enroll ignored
+  state through exact private selectors with explicit size and file limits.
+- Assign each selected path to exactly one protection level. Highest-sensitivity
+  mesh-only data must never fall back to a hosted destination, and a nearby
+  node is only a route—not proof of writer authority or safe failover.
+- Bind backup tools to immutable staged bytes and explicit credentials. Hashing
+  a live pathname before handing that pathname to another process leaves a
+  symlink/rename race that can copy data outside the reviewed selection.
