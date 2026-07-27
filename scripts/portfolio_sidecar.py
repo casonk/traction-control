@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Back up selected ignored data without mixing it into public Git history.
 
-This schema-v1 runtime is deliberately a standalone, single-writer
-coordinator. Mesh nodes are storage replicas only; automatic coordinator
-failover requires the future quorum authority and fencing-token integration.
+Policy and target configuration remain schema v1. Committed state is schema
+v2 because every snapshot now carries a portable encrypted manifest that can
+be proven by an offline restore drill. This runtime remains a standalone,
+single-writer coordinator; mesh nodes are storage replicas only.
 """
 
 from __future__ import annotations
@@ -36,7 +37,13 @@ import portfolio_materializer as materializer
 import repository_visibility as visibility
 
 
-SCHEMA_VERSION = 1
+CONFIG_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 2
+SCHEMA_VERSION = CONFIG_SCHEMA_VERSION
+MANIFEST_FORMAT = "portable-files-v1"
+INTERNAL_NAMESPACE = ".portfolio-sidecar"
+MANIFEST_RELATIVE_PATH = f"{INTERNAL_NAMESPACE}/manifest.json"
+PAYLOAD_PREFIX = f"{INTERNAL_NAMESPACE}/payload"
 COORDINATOR_MODE = "standalone-no-automatic-failover"
 TIERS = {"hosted-encrypted", "mesh-only"}
 ADAPTER = "filesystem-static"
@@ -45,6 +52,13 @@ MAX_RESTIC_OUTPUT_BYTES = 2 * 1024 * 1024
 MAX_SECRET_BYTES = 1024 * 1024
 MAX_DATASET_FILES = 100_000
 MAX_DATASET_BYTES = 100 * 1024 * 1024 * 1024
+MAX_DATASET_PATH_BYTES = 8 * 1024 * 1024
+MAX_MANIFEST_BYTES = 64 * 1024 * 1024
+MAX_INVENTORY_CANDIDATES = 10_000
+MAX_INVENTORY_NODES = 100_000
+MAX_INVENTORY_PATH_BYTES = 8 * 1024 * 1024
+MAX_INVENTORY_OUTPUT_BYTES = 16 * 1024 * 1024
+MAX_PATH_COMPONENTS = 128
 MAX_LIMIT = (1 << 63) - 1
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 RESTIC_SNAPSHOT_RE = re.compile(r"[0-9a-f]{64}")
@@ -88,6 +102,7 @@ TARGET_KEYS = {
 }
 STATE_ROOT_KEYS = {
     "schema_version",
+    "manifest_format",
     "registry_id",
     "registry_generation",
     "policy_generation",
@@ -109,6 +124,50 @@ STATE_DATASET_KEYS = {
     "replicas",
 }
 REPLICA_KEYS = {"target_id", "snapshot_id"}
+INVENTORY_EXCLUSION_REASONS = (
+    "cache-or-build",
+    "checkout-unready",
+    "lock-or-temporary",
+    "sidecar-control",
+    "unsafe-or-over-limit",
+    "untrusted-ignore-rule",
+)
+_INVENTORY_CACHE_OR_BUILD_COMPONENTS = {
+    ".cache",
+    ".claude",
+    ".codex",
+    ".eggs",
+    ".gradle",
+    ".mypy_cache",
+    ".next",
+    ".nox",
+    ".nuxt",
+    ".parcel-cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sass-cache",
+    ".terraform",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "artifacts",
+    "build",
+    "dist",
+    "htmlcov",
+    "node_modules",
+    "reports",
+    "scan-cache",
+    "target",
+    "venv",
+}
+_INVENTORY_GENERATED_SUFFIXES = (
+    ".class",
+    ".egg-info",
+    ".o",
+    ".obj",
+    ".pyc",
+    ".pyo",
+)
 
 
 class SidecarError(Exception):
@@ -231,6 +290,8 @@ class StateDocument:
     target_sha256: str
     state_generation: int
     coordinator_mode: str
+    manifest_format: str
+    content_sha256: str
     datasets: tuple[DatasetState, ...]
 
 
@@ -256,13 +317,46 @@ class FileSnapshot:
 
 
 @dataclass(frozen=True)
+class PortableManifestFile:
+    relative_path: str
+    size: int
+    mode: int
+    sha256: str
+
+
+@dataclass(frozen=True)
 class DatasetCapture:
     dataset_id: str
+    repository_id: str
     checkout: Path
     files: tuple[FileSnapshot, ...]
     manifest_sha256: str
     total_bytes: int
     backup_root: Path | None = field(default=None, compare=False)
+
+
+@dataclass(frozen=True)
+class InventoryCandidate:
+    selector: str
+    kind: str
+    file_count: int
+    total_bytes: int
+
+
+@dataclass(frozen=True)
+class InventoryRepository:
+    repository_id: str
+    status: str
+    candidates: tuple[InventoryCandidate, ...]
+    excluded_counts: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class InventoryResult:
+    registry_id: str
+    registry_generation: int
+    catalog_generation: int
+    repositories: tuple[InventoryRepository, ...]
 
 
 def _object_without_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -326,6 +420,10 @@ def _validate_selector(value: object) -> str:
     parts = value.split("/")
     if any(part in {"", ".", ".."} for part in parts):
         raise SidecarError("sidecar selector contains an unsafe path component")
+    if len(parts) > MAX_PATH_COMPONENTS:
+        raise SidecarError("sidecar selector exceeds its component-depth safety limit")
+    if parts[0].casefold() == INTERNAL_NAMESPACE.casefold():
+        raise SidecarError("sidecar selector collides with the reserved internal namespace")
     if any(part.casefold() == ".git" for part in parts):
         raise SidecarError("sidecar selector may not enter Git control data")
     pure = PurePosixPath(value)
@@ -379,6 +477,8 @@ def _read_private_json(path: Path, label: str) -> Any:
         raise SidecarError(
             f"invalid JSON in {label}: line {exc.lineno}, column {exc.colno}"
         ) from exc
+    except (ValueError, RecursionError) as exc:
+        raise SidecarError(f"invalid JSON in {label}") from exc
 
 
 def _validate_absolute_secret_path(value: object, label: str) -> Path:
@@ -862,9 +962,20 @@ def load_state(
     payload = _read_private_json(path, "sidecar state")
     if type(payload) is not dict:
         raise SidecarError("sidecar state root must be a JSON object")
+    if payload.get("schema_version") == 1:
+        raise SidecarError(
+            "sidecar state schema_version 1 has no portable restore manifest; "
+            "automatic migration is refused, so create a reviewed schema-v2 state epoch"
+        )
     _require_exact_keys(payload, STATE_ROOT_KEYS, "sidecar state")
-    if payload["schema_version"] != SCHEMA_VERSION:
-        raise SidecarError(f"sidecar state must use schema_version {SCHEMA_VERSION}")
+    if payload["schema_version"] != STATE_SCHEMA_VERSION:
+        raise SidecarError(
+            f"sidecar state must use schema_version {STATE_SCHEMA_VERSION}"
+        )
+    if payload["manifest_format"] != MANIFEST_FORMAT:
+        raise SidecarError(
+            f"sidecar state must use manifest_format {MANIFEST_FORMAT!r}"
+        )
     if payload["registry_id"] != pair.registry_id:
         raise SidecarError("sidecar state registry_id does not match the registry")
     registry_generation = _validate_generation(
@@ -929,6 +1040,10 @@ def load_state(
         total_bytes = _validate_generation(
             raw_dataset["total_bytes"], f"{label} total_bytes"
         )
+        if file_count > policy_dataset.max_files:
+            raise SidecarError("sidecar state file count exceeds its policy limit")
+        if total_bytes > policy_dataset.max_total_bytes:
+            raise SidecarError("sidecar state byte count exceeds its policy limit")
         raw_replicas = raw_dataset["replicas"]
         if type(raw_replicas) is not list or len(raw_replicas) > MAX_CONFIG_ITEMS:
             raise SidecarError(f"{label} replicas must be a bounded JSON array")
@@ -1005,6 +1120,8 @@ def load_state(
         target_sha256=target_sha256,
         state_generation=state_generation,
         coordinator_mode=COORDINATOR_MODE,
+        manifest_format=MANIFEST_FORMAT,
+        content_sha256=_canonical_document_hash(payload),
         datasets=tuple(datasets),
     )
 
@@ -1018,7 +1135,8 @@ def _state_payload(
     state_generation: int,
 ) -> dict[str, Any]:
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": STATE_SCHEMA_VERSION,
+        "manifest_format": MANIFEST_FORMAT,
         "registry_id": pair.registry_id,
         "registry_generation": pair.generation,
         "policy_generation": policy.policy_generation,
@@ -1202,7 +1320,7 @@ class _StagingArea:
             ):
                 raise SidecarError("new sidecar staging root is unsafe")
             self.run_root.chmod(0o700)
-            for child_name in ("datasets", "credentials"):
+            for child_name in ("datasets", "credentials", "restores"):
                 child = self.run_root / child_name
                 child.mkdir(mode=0o700)
                 child.chmod(0o700)
@@ -1298,6 +1416,7 @@ def _write_new_private_json(
     *,
     label: str,
     directory_descriptor: int,
+    operation: str = "init-config",
 ) -> _CreatedPrivateFile:
     """Publish one new ignored JSON document without overwriting any path."""
 
@@ -1345,7 +1464,7 @@ def _write_new_private_json(
             )
         except FileExistsError as exc:
             raise SidecarError(
-                "init-config refuses to overwrite an existing policy or targets file"
+                f"{operation} refuses to overwrite an existing file"
             ) from exc
         published_file = _CreatedPrivateFile(
             path=path,
@@ -1362,7 +1481,7 @@ def _write_new_private_json(
             published_file.inode,
         ):
             raise SidecarError(
-                "init-config destination changed during atomic publication"
+                f"{operation} destination changed during atomic publication"
             )
         _unlink_created_private_file(temporary_file, directory_descriptor)
         temporary_file = None
@@ -1390,7 +1509,7 @@ def _write_new_private_json(
                 cleanup_error = exc
         if cleanup_error is not None:
             raise SidecarError(
-                "init-config cleanup refused to remove a changed file"
+                f"{operation} cleanup refused to remove a changed file"
             ) from cleanup_error
 
 
@@ -1508,23 +1627,30 @@ def _run_git(
     input_data: bytes | None = None,
     text: bool = True,
 ) -> subprocess.CompletedProcess[Any]:
+    command = [
+        "git",
+        "--no-replace-objects",
+        "-C",
+        str(checkout),
+        *arguments,
+    ]
     try:
-        return subprocess.run(
-            [
-                "git",
-                "--no-replace-objects",
-                "-C",
-                str(checkout),
-                *arguments,
-            ],
-            check=False,
-            capture_output=True,
-            text=text,
-            input=input_data,
+        returncode, raw_stdout, raw_stderr = _run_bounded_process(
+            command,
+            cwd=checkout,
+            input_data=input_data or b"",
+            environment=_git_environment(),
             timeout=120.0,
-            env=_git_environment(),
+            maximum_output_bytes=MAX_INVENTORY_PATH_BYTES,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        if text:
+            stdout: str | bytes = raw_stdout.decode("utf-8")
+            stderr: str | bytes = raw_stderr.decode("utf-8")
+        else:
+            stdout = raw_stdout
+            stderr = raw_stderr
+        return subprocess.CompletedProcess(command, returncode, stdout, stderr)
+    except (OSError, UnicodeDecodeError, SidecarError) as exc:
         raise SidecarError("cannot run hardened Git inspection") from exc
 
 
@@ -1736,6 +1862,407 @@ def _prove_untracked_and_ignored(checkout: Path, paths: Sequence[str]) -> None:
             raise SidecarError("tracked .gitignore rule changed relative to HEAD")
 
 
+def _inventory_exclusion_reason(
+    selector: str,
+    *,
+    output_selector: str | None,
+) -> str | None:
+    parts = tuple(part.casefold() for part in PurePosixPath(selector).parts)
+    output_overlap = False
+    if output_selector is not None:
+        output_parts = tuple(
+            part.casefold() for part in PurePosixPath(output_selector).parts
+        )
+        shared = min(len(parts), len(output_parts))
+        output_overlap = parts[:shared] == output_parts[:shared]
+    if (
+        parts[:2] == ("config", "portfolio-sidecar")
+        or INTERNAL_NAMESPACE.casefold() in parts
+        or output_overlap
+    ):
+        return "sidecar-control"
+    if any(
+        part in _INVENTORY_CACHE_OR_BUILD_COMPONENTS
+        or part.endswith(_INVENTORY_GENERATED_SUFFIXES)
+        for part in parts
+    ):
+        return "cache-or-build"
+    name = parts[-1]
+    if (
+        name.endswith("~")
+        or name.endswith((".lock", ".swp", ".swo", ".tmp"))
+        or ".lock." in name
+        or ".tmp." in name
+    ):
+        return "lock-or-temporary"
+    return None
+
+
+def _inventory_git_candidates(checkout: Path) -> bytes:
+    result = _run_git(
+        checkout,
+        [
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+            "-z",
+            "--",
+        ],
+        text=False,
+    )
+    if result.returncode != 0:
+        raise SidecarError("cannot enumerate ignored selector candidates")
+    if len(result.stdout) > MAX_INVENTORY_PATH_BYTES:
+        raise SidecarError("ignored-path inventory exceeds its output safety limit")
+    return result.stdout
+
+
+def _decode_inventory_candidate(raw: bytes) -> str:
+    if raw.endswith(b"/"):
+        raw = raw[:-1]
+    value = _decode_git_path(raw, "ignored candidate")
+    if PurePosixPath(value).parts[0].casefold() == INTERNAL_NAMESPACE.casefold():
+        return value
+    return _validate_selector(value)
+
+
+def _discover_inventory_candidates(
+    checkout: Path,
+    expected_entry: visibility.RepositoryEntry,
+    *,
+    output_selector: str | None,
+    candidate_budget: list[int],
+    node_budget: list[int],
+    path_byte_budget: list[int],
+) -> tuple[tuple[InventoryCandidate, ...], tuple[tuple[str, int], ...]]:
+    """Inspect ignored-path metadata without opening candidate file contents."""
+
+    _verify_checkout(checkout, expected_entry)
+    try:
+        root_metadata = checkout.lstat()
+    except OSError as exc:
+        raise SidecarError("sidecar inventory checkout became unavailable") from exc
+    checkout_descriptor = _open_checkout_descriptor(checkout, root_metadata)
+    try:
+        raw_listing = _inventory_git_candidates(checkout)
+        raw_candidates = [record for record in raw_listing.split(b"\0") if record]
+        if len(raw_candidates) > candidate_budget[0]:
+            candidate_budget[0] = 0
+            raise SidecarError(
+                "ignored-path inventory exceeds its candidate safety limit"
+            )
+        candidate_budget[0] -= len(raw_candidates)
+        selectors = tuple(
+            _decode_inventory_candidate(record) for record in raw_candidates
+        )
+        if len({selector.casefold() for selector in selectors}) != len(selectors):
+            raise SidecarError("Git returned duplicate ignored selector candidates")
+
+        excluded = {reason: 0 for reason in INVENTORY_EXCLUSION_REASONS}
+        candidates: list[InventoryCandidate] = []
+        for selector in selectors:
+            reason = _inventory_exclusion_reason(
+                selector,
+                output_selector=output_selector,
+            )
+            if reason is not None:
+                excluded[reason] += 1
+                continue
+            if node_budget[0] <= 0 or path_byte_budget[0] <= 0:
+                excluded["unsafe-or-over-limit"] += 1
+                continue
+            nodes_before = node_budget[0]
+            path_bytes_before = path_byte_budget[0]
+            try:
+                paths, observed_nodes, kind = _enumerate_selector_descriptor(
+                    checkout_descriptor,
+                    selector,
+                    root_metadata.st_dev,
+                    node_budget=node_budget,
+                    path_byte_budget=path_byte_budget,
+                )
+            except SidecarError:
+                excluded["unsafe-or-over-limit"] += 1
+                continue
+            nodes_used = nodes_before - node_budget[0]
+            path_bytes_used = path_bytes_before - path_byte_budget[0]
+            if not paths:
+                excluded["unsafe-or-over-limit"] += 1
+                continue
+            nested_reason = next(
+                (
+                    reason
+                    for reason in INVENTORY_EXCLUSION_REASONS
+                    if any(
+                        _inventory_exclusion_reason(
+                            path,
+                            output_selector=output_selector,
+                        )
+                        == reason
+                        for path in paths
+                    )
+                ),
+                None,
+            )
+            if nested_reason is not None:
+                excluded[nested_reason] += 1
+                continue
+            total_bytes = 0
+            try:
+                for path in paths:
+                    metadata = observed_nodes[path]
+                    if (
+                        not stat.S_ISREG(metadata.st_mode)
+                        or stat.S_ISLNK(metadata.st_mode)
+                        or metadata.st_dev != root_metadata.st_dev
+                        or metadata.st_nlink != 1
+                        or (
+                            hasattr(os, "getuid")
+                            and metadata.st_uid != os.getuid()
+                        )
+                    ):
+                        raise SidecarError("ignored candidate contains an unsafe node")
+                    total_bytes += metadata.st_size
+                    if total_bytes > MAX_DATASET_BYTES:
+                        raise SidecarError("ignored candidate exceeds the byte ceiling")
+            except SidecarError:
+                excluded["unsafe-or-over-limit"] += 1
+                continue
+            try:
+                _prove_untracked_and_ignored(checkout, paths)
+            except SidecarError:
+                excluded["untrusted-ignore-rule"] += 1
+                continue
+            try:
+                current_paths, current_nodes, current_kind = (
+                    _enumerate_selector_descriptor(
+                        checkout_descriptor,
+                        selector,
+                        root_metadata.st_dev,
+                        node_budget=[nodes_used],
+                        path_byte_budget=[path_bytes_used],
+                    )
+                )
+                if current_kind != kind or current_paths != paths:
+                    raise SidecarError("ignored candidate file set changed")
+                if set(current_nodes) != set(observed_nodes) or any(
+                    _metadata_tuple(current_nodes[path])
+                    != _metadata_tuple(observed_nodes[path])
+                    for path in observed_nodes
+                ):
+                    raise SidecarError("ignored candidate metadata changed")
+            except SidecarError:
+                excluded["unsafe-or-over-limit"] += 1
+                continue
+            candidates.append(
+                InventoryCandidate(
+                    selector=selector,
+                    kind=kind,
+                    file_count=len(paths),
+                    total_bytes=total_bytes,
+                )
+            )
+
+        if _inventory_git_candidates(checkout) != raw_listing:
+            raise SidecarError("ignored selector candidates changed during inventory")
+        try:
+            opened_root = os.fstat(checkout_descriptor)
+            current_root = checkout.lstat()
+        except OSError as exc:
+            raise SidecarError(
+                "sidecar inventory checkout identity changed"
+            ) from exc
+        if (
+            _metadata_tuple(opened_root) != _metadata_tuple(root_metadata)
+            or _metadata_tuple(current_root) != _metadata_tuple(root_metadata)
+        ):
+            raise SidecarError("sidecar inventory checkout identity changed")
+        _verify_checkout(checkout, expected_entry)
+        ordered = tuple(
+            sorted(candidates, key=lambda value: value.selector.casefold())
+        )
+        return ordered, tuple(
+            (reason, excluded[reason]) for reason in INVENTORY_EXCLUSION_REASONS
+        )
+    finally:
+        os.close(checkout_descriptor)
+
+
+def _inventory_payload(result: InventoryResult) -> dict[str, Any]:
+    return {
+        "schema_version": CONFIG_SCHEMA_VERSION,
+        "registry_id": result.registry_id,
+        "registry_generation": result.registry_generation,
+        "catalog_generation": result.catalog_generation,
+        "advisory_only": True,
+        "repositories": [
+            {
+                "repository_id": repository.repository_id,
+                "status": repository.status,
+                "candidates": [
+                    {
+                        "selector": candidate.selector,
+                        "kind": candidate.kind,
+                        "file_count": candidate.file_count,
+                        "total_bytes": candidate.total_bytes,
+                    }
+                    for candidate in repository.candidates
+                ],
+                "excluded_counts": dict(repository.excluded_counts),
+            }
+            for repository in result.repositories
+        ],
+    }
+
+
+def _validate_existing_inventory_output(
+    path: Path,
+    pair: visibility.RegistryPair,
+) -> None:
+    try:
+        raw = _read_stable_private_text(
+            path,
+            "sidecar inventory output",
+            maximum_bytes=MAX_INVENTORY_OUTPUT_BYTES,
+        )
+        payload = json.loads(raw, object_pairs_hook=_object_without_duplicate_keys)
+    except (ValueError, RecursionError) as exc:
+        raise SidecarError("existing sidecar inventory output is malformed") from exc
+    if type(payload) is not dict:
+        raise SidecarError(
+            "existing sidecar inventory output is not an inventory document"
+        )
+    _require_exact_keys(
+        payload,
+        {
+            "schema_version",
+            "registry_id",
+            "registry_generation",
+            "catalog_generation",
+            "advisory_only",
+            "repositories",
+        },
+        "existing sidecar inventory output",
+    )
+    if (
+        payload["schema_version"] != CONFIG_SCHEMA_VERSION
+        or payload["registry_id"] != pair.registry_id
+        or payload["advisory_only"] is not True
+    ):
+        raise SidecarError(
+            "existing sidecar inventory output is not bound to this registry"
+        )
+    registry_generation = _validate_generation(
+        payload["registry_generation"],
+        "existing inventory registry_generation",
+    )
+    _validate_generation(
+        payload["catalog_generation"],
+        "existing inventory catalog_generation",
+    )
+    if registry_generation > pair.generation:
+        raise SidecarError(
+            "existing sidecar inventory output has a future generation"
+        )
+    raw_repositories = payload["repositories"]
+    if type(raw_repositories) is not list or len(raw_repositories) > MAX_CONFIG_ITEMS:
+        raise SidecarError("existing sidecar inventory repositories are invalid")
+    repository_ids: set[str] = set()
+    candidate_count = 0
+    previous_repository_id: str | None = None
+    for repository_index, raw_repository in enumerate(raw_repositories):
+        label = f"existing inventory repository {repository_index}"
+        if type(raw_repository) is not dict:
+            raise SidecarError(f"{label} is invalid")
+        _require_exact_keys(
+            raw_repository,
+            {"repository_id", "status", "candidates", "excluded_counts"},
+            label,
+        )
+        repository_id = _validate_id(
+            raw_repository["repository_id"],
+            f"{label} repository_id",
+        )
+        if (
+            repository_id in repository_ids
+            or (
+                previous_repository_id is not None
+                and repository_id < previous_repository_id
+            )
+        ):
+            raise SidecarError(
+                "existing sidecar inventory repositories are not unique and sorted"
+            )
+        repository_ids.add(repository_id)
+        previous_repository_id = repository_id
+        status = raw_repository["status"]
+        if type(status) is not str or status not in {
+            "inspected",
+            "missing",
+            "unready",
+        }:
+            raise SidecarError(f"{label} status is invalid")
+        raw_candidates = raw_repository["candidates"]
+        if type(raw_candidates) is not list:
+            raise SidecarError(f"{label} candidates are invalid")
+        candidate_count += len(raw_candidates)
+        if candidate_count > MAX_INVENTORY_CANDIDATES:
+            raise SidecarError("existing sidecar inventory has too many candidates")
+        previous_selector: str | None = None
+        for candidate_index, raw_candidate in enumerate(raw_candidates):
+            candidate_label = f"{label} candidate {candidate_index}"
+            if type(raw_candidate) is not dict:
+                raise SidecarError(f"{candidate_label} is invalid")
+            _require_exact_keys(
+                raw_candidate,
+                {"selector", "kind", "file_count", "total_bytes"},
+                candidate_label,
+            )
+            selector = _validate_selector(raw_candidate["selector"])
+            if (
+                previous_selector is not None
+                and selector.casefold() <= previous_selector
+            ):
+                raise SidecarError(
+                    f"{label} candidate selectors are not unique and sorted"
+                )
+            previous_selector = selector.casefold()
+            if type(raw_candidate["kind"]) is not str or raw_candidate[
+                "kind"
+            ] not in {"file", "directory"}:
+                raise SidecarError(f"{candidate_label} kind is invalid")
+            if (
+                _validate_generation(
+                    raw_candidate["file_count"],
+                    f"{candidate_label} file_count",
+                )
+                <= 0
+            ):
+                raise SidecarError(f"{candidate_label} file_count is invalid")
+            _validate_generation(
+                raw_candidate["total_bytes"],
+                f"{candidate_label} total_bytes",
+            )
+        if status != "inspected" and raw_candidates:
+            raise SidecarError(
+                f"{label} exposes candidates for an unready checkout"
+            )
+        excluded = raw_repository["excluded_counts"]
+        if (
+            type(excluded) is not dict
+            or set(excluded) != set(INVENTORY_EXCLUSION_REASONS)
+        ):
+            raise SidecarError(f"{label} exclusion counts are invalid")
+        for reason in INVENTORY_EXCLUSION_REASONS:
+            _validate_generation(
+                excluded[reason],
+                f"{label} exclusion {reason}",
+            )
+
+
 def _require_stable_ignored_or_outside_git(path: Path) -> None:
     """Require a tracked, unchanged ignore rule when a path is inside Git."""
 
@@ -1842,7 +2369,11 @@ def _open_checkout_descriptor(checkout: Path, observed: os.stat_result) -> int:
     try:
         descriptor = os.open(checkout, _directory_open_flags())
         opened = os.fstat(descriptor)
-        if not stat.S_ISDIR(opened.st_mode) or not _same_file_identity(opened, observed):
+        if (
+            not stat.S_ISDIR(opened.st_mode)
+            or not _same_file_identity(opened, observed)
+            or _metadata_tuple(opened) != _metadata_tuple(observed)
+        ):
             raise SidecarError("sidecar checkout changed before secure capture")
         return descriptor
     except SidecarError:
@@ -1855,6 +2386,86 @@ def _open_checkout_descriptor(checkout: Path, observed: os.stat_result) -> int:
         raise SidecarError("cannot open sidecar checkout without following links") from exc
 
 
+def _open_verified_directory(
+    parent_descriptor: int,
+    name: str,
+    root_device: int,
+    *,
+    observed: os.stat_result | None = None,
+) -> tuple[int, os.stat_result]:
+    """Open one real child directory and bind it to its no-follow metadata."""
+
+    descriptor = -1
+    try:
+        if observed is None:
+            observed = os.stat(
+                name,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+        if (
+            stat.S_ISLNK(observed.st_mode)
+            or not stat.S_ISDIR(observed.st_mode)
+            or observed.st_dev != root_device
+        ):
+            raise SidecarError(
+                "sidecar directory traversal encountered a link or mount boundary"
+            )
+        descriptor = os.open(
+            name,
+            _directory_open_flags(),
+            dir_fd=parent_descriptor,
+        )
+        opened = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(opened.st_mode)
+            or opened.st_dev != root_device
+            or not _same_file_identity(opened, observed)
+            or _metadata_tuple(opened) != _metadata_tuple(observed)
+        ):
+            raise SidecarError(
+                "sidecar directory changed while it was being opened"
+            )
+        return descriptor, observed
+    except SidecarError:
+        if descriptor >= 0:
+            os.close(descriptor)
+        raise
+    except OSError as exc:
+        if descriptor >= 0:
+            os.close(descriptor)
+        raise SidecarError(
+            "sidecar directory traversal encountered a link or changed directory"
+        ) from exc
+
+
+def _verify_open_directory(
+    parent_descriptor: int,
+    name: str,
+    descriptor: int,
+    observed: os.stat_result,
+) -> None:
+    """Require both an open directory and its parent entry to remain unchanged."""
+
+    try:
+        opened = os.fstat(descriptor)
+        current = os.stat(
+            name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+    except OSError as exc:
+        raise SidecarError(
+            "selected sidecar directory changed during enumeration"
+        ) from exc
+    if (
+        not _same_file_identity(opened, observed)
+        or _metadata_tuple(opened) != _metadata_tuple(observed)
+        or _metadata_tuple(current) != _metadata_tuple(observed)
+    ):
+        raise SidecarError("selected sidecar directory changed during enumeration")
+
+
 def _open_directory_beneath(
     root_descriptor: int,
     parts: Sequence[str],
@@ -1863,17 +2474,11 @@ def _open_directory_beneath(
     descriptor = os.dup(root_descriptor)
     try:
         for part in parts:
-            child = os.open(
+            child, _observed = _open_verified_directory(
+                descriptor,
                 part,
-                _directory_open_flags(),
-                dir_fd=descriptor,
+                root_device,
             )
-            metadata = os.fstat(child)
-            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_dev != root_device:
-                os.close(child)
-                raise SidecarError(
-                    "sidecar file traversal left its checkout filesystem"
-                )
             os.close(descriptor)
             descriptor = child
         return descriptor
@@ -1943,7 +2548,12 @@ def _copy_descriptor(
         raise SidecarError("sidecar input grew during capture")
 
 
-def _read_stable_private_text(path: Path, label: str) -> str:
+def _read_stable_private_text(
+    path: Path,
+    label: str,
+    *,
+    maximum_bytes: int = MAX_SECRET_BYTES,
+) -> str:
     parent_descriptor = -1
     source_descriptor = -1
     try:
@@ -1961,7 +2571,7 @@ def _read_stable_private_text(path: Path, label: str) -> str:
         if (
             not stat.S_ISREG(opened.st_mode)
             or opened.st_nlink != 1
-            or opened.st_size > MAX_SECRET_BYTES
+            or opened.st_size > maximum_bytes
             or not _same_file_identity(opened, observed)
             or (hasattr(os, "getuid") and opened.st_uid != os.getuid())
             or stat.S_IMODE(opened.st_mode) & 0o077
@@ -2095,6 +2705,22 @@ def _capture_regular_file(
     )
 
 
+def _captured_metadata_tuple(snapshot: FileSnapshot) -> tuple[int, ...]:
+    """Reconstruct the complete secure-source tuple recorded during capture."""
+
+    return (
+        stat.S_IFREG | snapshot.mode,
+        snapshot.uid,
+        snapshot.gid,
+        snapshot.device,
+        snapshot.inode,
+        1,
+        snapshot.size,
+        snapshot.mtime_ns,
+        snapshot.ctime_ns,
+    )
+
+
 def _safe_selector_path(checkout: Path, selector: str, root_device: int) -> Path:
     current = checkout
     for part in PurePosixPath(selector).parts:
@@ -2116,9 +2742,13 @@ def _validate_discovered_relative(value: str) -> str:
     ):
         raise SidecarError("selected sidecar filename is not normalized UTF-8 text")
     pure = PurePosixPath(value)
-    if any(part in {"", ".", ".."} for part in pure.parts) or any(
-        part.casefold() == ".git" for part in pure.parts
-    ):
+    if pure.is_absolute() or any(part in {"", ".", ".."} for part in pure.parts):
+        raise SidecarError("selected sidecar filename is not a safe relative path")
+    if len(pure.parts) > MAX_PATH_COMPONENTS:
+        raise SidecarError(
+            "selected sidecar filename exceeds its component-depth safety limit"
+        )
+    if any(part.casefold() == ".git" for part in pure.parts):
         raise SidecarError("selected sidecar tree contains nested Git control data")
     try:
         value.encode("utf-8")
@@ -2129,57 +2759,238 @@ def _validate_discovered_relative(value: str) -> str:
     return value
 
 
+def _reserve_selected_node(
+    relative_path: str,
+    *,
+    node_budget: list[int],
+    path_byte_budget: list[int] | None,
+    seen_nodes: dict[str, str],
+) -> None:
+    """Bound and casefold-deduplicate a path before retaining or traversing it."""
+
+    _validate_discovered_relative(relative_path)
+    if node_budget[0] <= 0:
+        node_budget[0] = 0
+        raise SidecarError("sidecar selection exceeds its traversal safety limit")
+    node_budget[0] -= 1
+    if path_byte_budget is not None:
+        encoded_size = len(relative_path.encode("utf-8")) + 1
+        if encoded_size > path_byte_budget[0]:
+            path_byte_budget[0] = 0
+            raise SidecarError(
+                "sidecar selection exceeds its pathname-byte safety limit"
+            )
+        path_byte_budget[0] -= encoded_size
+    folded = relative_path.casefold()
+    previous = seen_nodes.get(folded)
+    if previous is not None and previous != relative_path:
+        raise SidecarError("sidecar selection contains casefold-colliding paths")
+    if previous is not None:
+        raise SidecarError("sidecar selection contains duplicate paths")
+    seen_nodes[folded] = relative_path
+
+
+def _require_portable_file_paths(paths: Sequence[str]) -> None:
+    """Reject exact files and component aliases that collide when case-folded."""
+
+    files: set[str] = set()
+    components: dict[str, str] = {}
+    for relative_path in paths:
+        if relative_path in files:
+            raise SidecarError(
+                "sidecar dataset enumeration contains overlapping files"
+            )
+        files.add(relative_path)
+        parts = PurePosixPath(relative_path).parts
+        for length in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:length])
+            folded = prefix.casefold()
+            previous = components.get(folded)
+            if previous is not None and previous != prefix:
+                raise SidecarError(
+                    "sidecar dataset contains casefold-colliding selected paths"
+                )
+            components[folded] = prefix
+
+
+def _enumerate_selector_descriptor(
+    checkout_descriptor: int,
+    selector: str,
+    root_device: int,
+    *,
+    node_budget: list[int],
+    path_byte_budget: list[int] | None = None,
+) -> tuple[
+    tuple[str, ...],
+    dict[str, os.stat_result],
+    str,
+]:
+    """Enumerate a selector using only pinned, no-follow directory descriptors."""
+
+    selector = _validate_discovered_relative(selector)
+    parts = PurePosixPath(selector).parts
+    paths: list[str] = []
+    observed_nodes: dict[str, os.stat_result] = {}
+    seen_nodes: dict[str, str] = {}
+    selector_kind = ""
+
+    def visit_selected(
+        parent_descriptor: int,
+        name: str,
+        relative_path: str,
+        *,
+        reserved: bool,
+    ) -> None:
+        nonlocal selector_kind
+        if not reserved:
+            _reserve_selected_node(
+                relative_path,
+                node_budget=node_budget,
+                path_byte_budget=path_byte_budget,
+                seen_nodes=seen_nodes,
+            )
+        try:
+            observed = os.stat(
+                name,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+        except OSError as exc:
+            raise SidecarError(
+                "sidecar selection changed during descriptor-relative enumeration"
+            ) from exc
+        if stat.S_ISLNK(observed.st_mode):
+            raise SidecarError("sidecar selection contains a symlink")
+        if observed.st_dev != root_device:
+            raise SidecarError("sidecar selection crosses a filesystem mount")
+        observed_nodes[relative_path] = observed
+        if stat.S_ISREG(observed.st_mode):
+            if not selector_kind:
+                selector_kind = "file"
+            paths.append(relative_path)
+            return
+        if not stat.S_ISDIR(observed.st_mode):
+            raise SidecarError("sidecar selection contains a special file")
+        if not selector_kind:
+            selector_kind = "directory"
+        descriptor, opened_as = _open_verified_directory(
+            parent_descriptor,
+            name,
+            root_device,
+            observed=observed,
+        )
+        try:
+            children: list[tuple[str, str]] = []
+            try:
+                with os.scandir(descriptor) as iterator:
+                    for child in iterator:
+                        child_relative = f"{relative_path}/{child.name}"
+                        _reserve_selected_node(
+                            child_relative,
+                            node_budget=node_budget,
+                            path_byte_budget=path_byte_budget,
+                            seen_nodes=seen_nodes,
+                        )
+                        children.append((child.name, child_relative))
+            except SidecarError:
+                raise
+            except OSError as exc:
+                raise SidecarError(
+                    "cannot enumerate selected sidecar directory"
+                ) from exc
+            children.sort(key=lambda item: item[1].casefold())
+            for child_name, child_relative in children:
+                visit_selected(
+                    descriptor,
+                    child_name,
+                    child_relative,
+                    reserved=True,
+                )
+        finally:
+            try:
+                _verify_open_directory(
+                    parent_descriptor,
+                    name,
+                    descriptor,
+                    opened_as,
+                )
+            finally:
+                os.close(descriptor)
+
+    def descend(parent_descriptor: int, index: int) -> None:
+        name = parts[index]
+        relative_path = "/".join(parts[: index + 1])
+        if index == len(parts) - 1:
+            visit_selected(
+                parent_descriptor,
+                name,
+                relative_path,
+                reserved=False,
+            )
+            return
+        try:
+            observed = os.stat(
+                name,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+        except OSError as exc:
+            raise SidecarError("sidecar selector does not exist") from exc
+        descriptor, opened_as = _open_verified_directory(
+            parent_descriptor,
+            name,
+            root_device,
+            observed=observed,
+        )
+        try:
+            descend(descriptor, index + 1)
+        finally:
+            try:
+                _verify_open_directory(
+                    parent_descriptor,
+                    name,
+                    descriptor,
+                    opened_as,
+                )
+            finally:
+                os.close(descriptor)
+
+    descend(checkout_descriptor, 0)
+    paths.sort(key=str.casefold)
+    return tuple(paths), observed_nodes, selector_kind
+
+
 def _enumerate_selector(
     checkout: Path,
     selector: str,
     root_device: int,
     *,
     node_budget: list[int],
+    path_byte_budget: list[int] | None = None,
 ) -> list[str]:
-    target = _safe_selector_path(checkout, selector, root_device)
-    results: list[str] = []
-
-    node_budget[0] -= 1
-    if node_budget[0] < 0:
-        raise SidecarError("sidecar selection exceeds its traversal safety limit")
-
-    def visit(path: Path, relative_path: str) -> None:
-        try:
-            metadata = path.lstat()
-        except OSError as exc:
-            raise SidecarError("sidecar selection changed during enumeration") from exc
-        if stat.S_ISLNK(metadata.st_mode):
-            raise SidecarError("sidecar selection contains a symlink")
-        if metadata.st_dev != root_device:
-            raise SidecarError("sidecar selection crosses a filesystem mount")
-        if stat.S_ISREG(metadata.st_mode):
-            _validate_discovered_relative(relative_path)
-            results.append(relative_path)
-            return
-        if not stat.S_ISDIR(metadata.st_mode):
-            raise SidecarError("sidecar selection contains a special file")
-        if PurePosixPath(relative_path).name.casefold() == ".git":
-            raise SidecarError("sidecar selection contains nested Git control data")
-        children: list[os.DirEntry[str]] = []
-        try:
-            with os.scandir(path) as iterator:
-                for child in iterator:
-                    if len(children) >= node_budget[0]:
-                        raise SidecarError(
-                            "sidecar selection exceeds its traversal safety limit"
-                        )
-                    children.append(child)
-        except OSError as exc:
-            raise SidecarError("cannot enumerate selected sidecar directory") from exc
-        node_budget[0] -= len(children)
-        children.sort(key=lambda entry: entry.name.casefold())
-        for child in children:
-            child_relative = f"{relative_path}/{child.name}"
-            _validate_discovered_relative(child_relative)
-            visit(Path(child.path), child_relative)
-
-    visit(target, selector)
-    return results
+    try:
+        observed_root = checkout.lstat()
+    except OSError as exc:
+        raise SidecarError("sidecar checkout became unavailable") from exc
+    descriptor = _open_checkout_descriptor(checkout, observed_root)
+    try:
+        paths, _metadata, _kind = _enumerate_selector_descriptor(
+            descriptor,
+            selector,
+            root_device,
+            node_budget=node_budget,
+            path_byte_budget=path_byte_budget,
+        )
+        if (
+            _metadata_tuple(os.fstat(descriptor)) != _metadata_tuple(observed_root)
+            or _metadata_tuple(checkout.lstat()) != _metadata_tuple(observed_root)
+        ):
+            raise SidecarError("sidecar checkout changed during enumeration")
+        return list(paths)
+    except OSError as exc:
+        raise SidecarError("sidecar checkout changed during enumeration") from exc
+    finally:
+        os.close(descriptor)
 
 
 def _open_staging_descriptor(path: Path) -> int:
@@ -2239,6 +3050,113 @@ def _freeze_staging_descriptor(descriptor: int) -> None:
         raise SidecarError("cannot freeze private sidecar staging tree") from exc
 
 
+def _portable_manifest_bytes(
+    dataset: DatasetPolicy,
+    files: Sequence[FileSnapshot],
+) -> bytes:
+    payload = {
+        "format": MANIFEST_FORMAT,
+        "dataset_id": dataset.dataset_id,
+        "repository_id": dataset.repository_id,
+        "files": [
+            {
+                "path": file.relative_path,
+                "size": file.size,
+                "mode": file.mode,
+                "sha256": file.sha256,
+            }
+            for file in files
+        ],
+    }
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    if len(serialized) > MAX_MANIFEST_BYTES:
+        raise SidecarError("portable sidecar manifest exceeds its safety limit")
+    return serialized
+
+
+def _prepare_dataset_staging(staging_root: Path) -> tuple[int, int]:
+    root_descriptor = _open_staging_descriptor(staging_root)
+    namespace_descriptor = -1
+    payload_descriptor = -1
+    complete = False
+    try:
+        os.mkdir(INTERNAL_NAMESPACE, mode=0o700, dir_fd=root_descriptor)
+        namespace_descriptor = os.open(
+            INTERNAL_NAMESPACE,
+            _directory_open_flags(),
+            dir_fd=root_descriptor,
+        )
+        os.mkdir("payload", mode=0o700, dir_fd=namespace_descriptor)
+        payload_descriptor = os.open(
+            "payload",
+            _directory_open_flags(),
+            dir_fd=namespace_descriptor,
+        )
+        for descriptor in (namespace_descriptor, payload_descriptor):
+            metadata = os.fstat(descriptor)
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or (hasattr(os, "getuid") and metadata.st_uid != os.getuid())
+                or stat.S_IMODE(metadata.st_mode) != 0o700
+            ):
+                raise SidecarError("portable sidecar staging namespace is unsafe")
+        os.close(namespace_descriptor)
+        namespace_descriptor = -1
+        complete = True
+        return root_descriptor, payload_descriptor
+    except SidecarError:
+        raise
+    except OSError as exc:
+        raise SidecarError("cannot create portable sidecar staging namespace") from exc
+    finally:
+        if namespace_descriptor >= 0:
+            os.close(namespace_descriptor)
+        if not complete:
+            if payload_descriptor >= 0:
+                os.close(payload_descriptor)
+            os.close(root_descriptor)
+
+
+def _write_staged_manifest(staging_root: Path, serialized: bytes) -> None:
+    namespace = staging_root / INTERNAL_NAMESPACE
+    namespace_descriptor = -1
+    manifest_descriptor = -1
+    try:
+        namespace_descriptor = _open_staging_descriptor(namespace)
+        manifest_descriptor = os.open(
+            "manifest.json",
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+            dir_fd=namespace_descriptor,
+        )
+        offset = 0
+        while offset < len(serialized):
+            written = os.write(manifest_descriptor, serialized[offset:])
+            if written <= 0:
+                raise OSError("short portable sidecar manifest write")
+            offset += written
+        os.fsync(manifest_descriptor)
+        os.fchmod(manifest_descriptor, 0o400)
+    except SidecarError:
+        raise
+    except OSError as exc:
+        raise SidecarError("cannot create portable sidecar manifest") from exc
+    finally:
+        if manifest_descriptor >= 0:
+            os.close(manifest_descriptor)
+        if namespace_descriptor >= 0:
+            os.close(namespace_descriptor)
+
+
 def capture_dataset(
     dataset: DatasetPolicy,
     checkout: Path,
@@ -2252,31 +3170,54 @@ def capture_dataset(
     except OSError as exc:
         raise SidecarError("sidecar checkout became unavailable") from exc
     checkout_descriptor = _open_checkout_descriptor(checkout, root_metadata)
-    staging_descriptor = (
-        _open_staging_descriptor(staging_root) if staging_root is not None else None
-    )
+    staging_root_descriptor: int | None = None
+    staging_descriptor: int | None = None
+    if staging_root is not None:
+        staging_root_descriptor, staging_descriptor = _prepare_dataset_staging(
+            staging_root
+        )
+    files: list[FileSnapshot] = []
+    total_bytes = 0
+    manifest_bytes = b""
     try:
         node_budget = [min(dataset.max_files, MAX_DATASET_FILES) + MAX_CONFIG_ITEMS]
+        path_byte_budget = [MAX_DATASET_PATH_BYTES]
         paths: list[str] = []
+        selector_observations: list[
+            tuple[str, int, int, tuple[str, ...], dict[str, os.stat_result], str]
+        ] = []
         for selector in dataset.selectors:
-            paths.extend(
-                _enumerate_selector(
-                    checkout,
+            nodes_before = node_budget[0]
+            path_bytes_before = path_byte_budget[0]
+            selector_paths, observed_nodes, selector_kind = (
+                _enumerate_selector_descriptor(
+                    checkout_descriptor,
                     selector,
                     root_metadata.st_dev,
                     node_budget=node_budget,
+                    path_byte_budget=path_byte_budget,
+                )
+            )
+            nodes_used = nodes_before - node_budget[0]
+            path_bytes_used = path_bytes_before - path_byte_budget[0]
+            paths.extend(selector_paths)
+            selector_observations.append(
+                (
+                    selector,
+                    nodes_used,
+                    path_bytes_used,
+                    selector_paths,
+                    observed_nodes,
+                    selector_kind,
                 )
             )
         if not paths:
             raise SidecarError("sidecar dataset contains no regular files")
-        if len(paths) != len(set(paths)):
-            raise SidecarError("sidecar dataset enumeration contains overlapping files")
+        _require_portable_file_paths(paths)
         paths.sort(key=lambda value: value.casefold())
         if len(paths) > dataset.max_files:
             raise SidecarError("sidecar dataset exceeds max_files")
         _prove_untracked_and_ignored(checkout, paths)
-        files: list[FileSnapshot] = []
-        total_bytes = 0
         for relative_path in paths:
             captured = _capture_regular_file(
                 checkout_descriptor,
@@ -2287,43 +3228,92 @@ def capture_dataset(
             )
             total_bytes += captured.size
             files.append(captured)
+        current_paths: list[str] = []
+        current_metadata: dict[str, os.stat_result] = {}
+        for (
+            selector,
+            nodes_used,
+            path_bytes_used,
+            selector_paths,
+            observed_nodes,
+            selector_kind,
+        ) in selector_observations:
+            try:
+                verified_paths, verified_nodes, verified_kind = (
+                    _enumerate_selector_descriptor(
+                        checkout_descriptor,
+                        selector,
+                        root_metadata.st_dev,
+                        node_budget=[nodes_used],
+                        path_byte_budget=[path_bytes_used],
+                    )
+                )
+            except SidecarError as exc:
+                raise SidecarError(
+                    "sidecar dataset tree changed during capture"
+                ) from exc
+            if verified_kind != selector_kind or verified_paths != selector_paths:
+                raise SidecarError(
+                    "sidecar dataset file set changed during capture"
+                )
+            if set(verified_nodes) != set(observed_nodes):
+                raise SidecarError(
+                    "sidecar dataset tree changed during capture"
+                )
+            current_paths.extend(verified_paths)
+            current_metadata.update(verified_nodes)
+        _require_portable_file_paths(current_paths)
+        current_paths.sort(key=str.casefold)
+        if current_paths != paths:
+            raise SidecarError("sidecar dataset file set changed during capture")
+        for captured in files:
+            observed = current_metadata.get(captured.relative_path)
+            if (
+                observed is None
+                or _metadata_tuple(observed) != _captured_metadata_tuple(captured)
+            ):
+                raise SidecarError(
+                    "selected sidecar file changed after capture"
+                )
+        for (
+            _selector,
+            _nodes_used,
+            _path_bytes_used,
+            _selector_paths,
+            observed_nodes,
+            _selector_kind,
+        ) in selector_observations:
+            for path, observed in observed_nodes.items():
+                if _metadata_tuple(current_metadata[path]) != _metadata_tuple(observed):
+                    raise SidecarError(
+                        "sidecar dataset tree changed during capture"
+                    )
         try:
             current_root = checkout.lstat()
         except OSError as exc:
             raise SidecarError("sidecar checkout changed after secure capture") from exc
-        if not _same_file_identity(current_root, os.fstat(checkout_descriptor)):
+        if (
+            _metadata_tuple(current_root) != _metadata_tuple(root_metadata)
+            or _metadata_tuple(os.fstat(checkout_descriptor))
+            != _metadata_tuple(root_metadata)
+        ):
             raise SidecarError("sidecar checkout identity changed during secure capture")
         _verify_checkout(checkout, expected_entry)
         _prove_untracked_and_ignored(checkout, paths)
-        if staging_descriptor is not None:
-            _freeze_staging_descriptor(staging_descriptor)
+        manifest_bytes = _portable_manifest_bytes(dataset, files)
+        if staging_root is not None:
+            _write_staged_manifest(staging_root, manifest_bytes)
+            assert staging_root_descriptor is not None
+            _freeze_staging_descriptor(staging_root_descriptor)
     finally:
         if staging_descriptor is not None:
             os.close(staging_descriptor)
+        if staging_root_descriptor is not None:
+            os.close(staging_root_descriptor)
         os.close(checkout_descriptor)
-    manifest = [
-        {
-            "path": file.relative_path,
-            "size": file.size,
-            "mode": file.mode,
-            "uid": file.uid,
-            "gid": file.gid,
-            "device": file.device,
-            "inode": file.inode,
-            "mtime_ns": file.mtime_ns,
-            "ctime_ns": file.ctime_ns,
-            "sha256": file.sha256,
-        }
-        for file in files
-    ]
-    manifest_bytes = json.dumps(
-        manifest,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
     return DatasetCapture(
         dataset_id=dataset.dataset_id,
+        repository_id=dataset.repository_id,
         checkout=checkout,
         files=tuple(files),
         manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
@@ -2604,6 +3594,10 @@ def _restic_sftp_command(
         "-o",
         "BatchMode=yes",
         "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "ConnectionAttempts=1",
+        "-o",
         "StrictHostKeyChecking=yes",
         "-o",
         f"UserKnownHostsFile={known_hosts}",
@@ -2652,7 +3646,11 @@ def _parse_restic_snapshot_id(raw_output: bytes) -> str:
             continue
         try:
             value = json.loads(line, object_pairs_hook=_object_without_duplicate_keys)
-        except (json.JSONDecodeError, SidecarError) as exc:
+        except (
+            ValueError,
+            RecursionError,
+            SidecarError,
+        ) as exc:
             raise SidecarError("restic returned malformed JSON status output") from exc
         if type(value) is not dict:
             continue
@@ -2787,6 +3785,7 @@ def _run_bounded_process(
     input_data: bytes,
     environment: dict[str, str],
     timeout: float,
+    maximum_output_bytes: int = MAX_RESTIC_OUTPUT_BYTES,
 ) -> tuple[int, bytes, bytes]:
     with _PROCESS_RUNNER_LOCK:
         previous_subreaper = _set_linux_child_subreaper(True)
@@ -2797,6 +3796,7 @@ def _run_bounded_process(
                 input_data=input_data,
                 environment=environment,
                 timeout=timeout,
+                maximum_output_bytes=maximum_output_bytes,
             )
         finally:
             if previous_subreaper is not None:
@@ -2810,6 +3810,7 @@ def _run_bounded_process_locked(
     input_data: bytes,
     environment: dict[str, str],
     timeout: float,
+    maximum_output_bytes: int,
 ) -> tuple[int, bytes, bytes]:
     if signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL:
         raise SidecarError(
@@ -2832,6 +3833,7 @@ def _run_bounded_process_locked(
             process,
             input_data=input_data,
             timeout=timeout,
+            maximum_output_bytes=maximum_output_bytes,
         )
     except BaseException as primary_error:
         try:
@@ -2925,6 +3927,7 @@ def _communicate_bounded_process(
     *,
     input_data: bytes,
     timeout: float,
+    maximum_output_bytes: int = MAX_RESTIC_OUTPUT_BYTES,
 ) -> tuple[bytes, bytes]:
     selector: selectors.BaseSelector | None = None
     stdout = bytearray()
@@ -2997,7 +4000,7 @@ def _communicate_bounded_process(
                     close_stream(stream)
                     continue
                 destination = stdout if key.data == "stdout" else stderr
-                if len(destination) + len(chunk) > MAX_RESTIC_OUTPUT_BYTES:
+                if len(stdout) + len(stderr) + len(chunk) > maximum_output_bytes:
                     raise SidecarError("restic output exceeded the safety limit")
                 destination.extend(chunk)
 
@@ -3017,21 +4020,20 @@ def _communicate_bounded_process(
                 pass
 
 
-def _run_restic_backup(
+def _restic_base_command(
     restic: Path,
     ssh: Path,
     known_hosts: Path,
     target: Target,
     staged_target: StagedTarget,
-    capture: DatasetCapture,
-) -> str:
+) -> list[str]:
     ssh_command = _restic_sftp_command(
         ssh,
         known_hosts,
         target,
         staged_target,
     )
-    command = [
+    return [
         str(restic),
         "--no-cache",
         "--repository-file",
@@ -3040,15 +4042,38 @@ def _run_restic_backup(
         str(staged_target.password_file),
         "-o",
         f"sftp.command={ssh_command}",
+    ]
+
+
+def _run_restic_backup(
+    restic: Path,
+    ssh: Path,
+    known_hosts: Path,
+    target: Target,
+    staged_target: StagedTarget,
+    capture: DatasetCapture,
+) -> str:
+    command = [
+        *_restic_base_command(
+            restic,
+            ssh,
+            known_hosts,
+            target,
+            staged_target,
+        ),
         "backup",
         "--json",
         "--no-scan",
+        "--tag",
+        f"sidecar-format={MANIFEST_FORMAT}",
+        "--tag",
+        f"sidecar-dataset={capture.dataset_id}",
+        "--tag",
+        f"sidecar-repository={capture.repository_id}",
         "--files-from-raw",
         "-",
     ]
-    file_list = b"".join(
-        file.relative_path.encode("utf-8") + b"\0" for file in capture.files
-    )
+    file_list = INTERNAL_NAMESPACE.encode("utf-8") + b"\0"
     if capture.backup_root is None:
         raise SidecarError("restic backup requires a private staging tree")
     returncode, raw_stdout, _raw_stderr = _run_bounded_process(
@@ -3061,6 +4086,493 @@ def _run_restic_backup(
     if returncode != 0:
         raise SidecarError("restic target backup failed")
     return _parse_restic_snapshot_id(raw_stdout)
+
+
+def _run_restic_read_operation(
+    restic: Path,
+    ssh: Path,
+    known_hosts: Path,
+    target: Target,
+    staged_target: StagedTarget,
+    arguments: Sequence[str],
+    *,
+    cwd: Path,
+    timeout: float,
+    label: str,
+) -> bytes:
+    command = [
+        *_restic_base_command(
+            restic,
+            ssh,
+            known_hosts,
+            target,
+            staged_target,
+        ),
+        *arguments,
+    ]
+    returncode, stdout, _stderr = _run_bounded_process(
+        command,
+        cwd=cwd,
+        input_data=b"",
+        environment=_restic_environment(),
+        timeout=timeout,
+    )
+    if returncode != 0:
+        raise SidecarError(f"restic {label} failed")
+    return stdout
+
+
+def _run_restic_check(
+    restic: Path,
+    ssh: Path,
+    known_hosts: Path,
+    target: Target,
+    staged_target: StagedTarget,
+    *,
+    cwd: Path,
+) -> None:
+    _run_restic_read_operation(
+        restic,
+        ssh,
+        known_hosts,
+        target,
+        staged_target,
+        ("check", "--read-data"),
+        cwd=cwd,
+        timeout=3600.0,
+        label="integrity check",
+    )
+
+
+def _parse_recorded_snapshot(
+    raw_output: bytes,
+    expected_snapshot_id: str,
+    expected_tags: Sequence[str],
+) -> str:
+    if len(raw_output) > MAX_RESTIC_OUTPUT_BYTES:
+        raise SidecarError("restic output exceeded the safety limit")
+    if (
+        type(expected_snapshot_id) is not str
+        or RESTIC_SNAPSHOT_RE.fullmatch(expected_snapshot_id) is None
+    ):
+        raise SidecarError("recorded restic snapshot identifier is invalid")
+    try:
+        payload = json.loads(
+            raw_output.decode("utf-8"),
+            object_pairs_hook=_object_without_duplicate_keys,
+        )
+    except (
+        UnicodeDecodeError,
+        ValueError,
+        RecursionError,
+        SidecarError,
+    ) as exc:
+        raise SidecarError("restic returned malformed snapshot inventory") from exc
+    if type(payload) is not list or len(payload) != 1 or type(payload[0]) is not dict:
+        raise SidecarError("restic did not return one recorded dataset snapshot")
+    snapshot = payload[0]
+    expected = sorted(expected_tags)
+
+    def matches_identity_tags(value: object) -> bool:
+        return (
+            type(value) is list
+            and len(value) == len(expected)
+            and all(type(tag) is str for tag in value)
+            and sorted(value) == expected
+        )
+
+    snapshot_tags = snapshot.get("tags")
+    if not matches_identity_tags(snapshot_tags):
+        raise SidecarError("restic recorded snapshot identity tags do not match")
+    snapshot_id = snapshot.get("id")
+    if snapshot_id != expected_snapshot_id:
+        raise SidecarError("restic recorded snapshot identifier does not match state")
+    return snapshot_id
+
+
+def _run_restic_recorded_snapshot(
+    restic: Path,
+    ssh: Path,
+    known_hosts: Path,
+    target: Target,
+    staged_target: StagedTarget,
+    dataset: DatasetPolicy,
+    snapshot_id: str,
+    *,
+    cwd: Path,
+) -> str:
+    if (
+        type(snapshot_id) is not str
+        or RESTIC_SNAPSHOT_RE.fullmatch(snapshot_id) is None
+    ):
+        raise SidecarError("recorded restic snapshot identifier is invalid")
+    identity_tags = (
+        f"sidecar-format={MANIFEST_FORMAT}",
+        f"sidecar-dataset={dataset.dataset_id}",
+        f"sidecar-repository={dataset.repository_id}",
+    )
+    output = _run_restic_read_operation(
+        restic,
+        ssh,
+        known_hosts,
+        target,
+        staged_target,
+        (
+            "snapshots",
+            "--json",
+            snapshot_id,
+        ),
+        cwd=cwd,
+        timeout=300.0,
+        label="recorded-snapshot inspection",
+    )
+    return _parse_recorded_snapshot(output, snapshot_id, identity_tags)
+
+
+def _run_restic_restore(
+    restic: Path,
+    ssh: Path,
+    known_hosts: Path,
+    target: Target,
+    staged_target: StagedTarget,
+    snapshot_id: str,
+    restore_root: Path,
+    *,
+    cwd: Path,
+) -> None:
+    _run_restic_read_operation(
+        restic,
+        ssh,
+        known_hosts,
+        target,
+        staged_target,
+        ("restore", snapshot_id, "--target", str(restore_root)),
+        cwd=cwd,
+        timeout=3600.0,
+        label="restore",
+    )
+
+
+def _consume_restored_file(
+    root_descriptor: int,
+    relative_path: str,
+    root_device: int,
+    *,
+    maximum_bytes: int,
+    expected_bytes: int | None = None,
+    collect: bool,
+) -> tuple[bytes | None, str]:
+    parts = PurePosixPath(relative_path).parts
+    parent_descriptor = _open_directory_beneath(
+        root_descriptor,
+        parts[:-1],
+        root_device,
+    )
+    source_descriptor = -1
+    try:
+        observed = os.stat(
+            parts[-1],
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        source_descriptor = os.open(
+            parts[-1],
+            _file_open_flags(),
+            dir_fd=parent_descriptor,
+        )
+        opened = os.fstat(source_descriptor)
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or not _same_file_identity(opened, observed)
+            or opened.st_nlink != 1
+            or opened.st_dev != root_device
+            or opened.st_size > maximum_bytes
+            or (expected_bytes is not None and opened.st_size != expected_bytes)
+            or (hasattr(os, "getuid") and opened.st_uid != os.getuid())
+            or stat.S_IMODE(opened.st_mode) & 0o077
+        ):
+            raise SidecarError("restored sidecar file is unsafe or has the wrong size")
+        raw = bytearray() if collect else None
+        digest = hashlib.sha256()
+        _copy_descriptor(
+            source_descriptor,
+            None,
+            digest,
+            expected_bytes=opened.st_size,
+            collector=raw,
+        )
+        if _metadata_tuple(os.fstat(source_descriptor)) != _metadata_tuple(opened):
+            raise SidecarError("restored sidecar file changed during verification")
+        return (bytes(raw) if raw is not None else None), digest.hexdigest()
+    except SidecarError:
+        raise
+    except OSError as exc:
+        raise SidecarError("cannot read restored sidecar file safely") from exc
+    finally:
+        if source_descriptor >= 0:
+            os.close(source_descriptor)
+        os.close(parent_descriptor)
+
+
+def _read_restored_file(
+    root_descriptor: int,
+    relative_path: str,
+    root_device: int,
+    *,
+    maximum_bytes: int,
+) -> bytes:
+    raw, _digest = _consume_restored_file(
+        root_descriptor,
+        relative_path,
+        root_device,
+        maximum_bytes=maximum_bytes,
+        collect=True,
+    )
+    assert raw is not None
+    return raw
+
+
+def _hash_restored_file(
+    root_descriptor: int,
+    relative_path: str,
+    root_device: int,
+    *,
+    expected_bytes: int,
+) -> str:
+    _raw, digest = _consume_restored_file(
+        root_descriptor,
+        relative_path,
+        root_device,
+        maximum_bytes=expected_bytes,
+        expected_bytes=expected_bytes,
+        collect=False,
+    )
+    return digest
+
+
+def _parse_portable_manifest(
+    raw: bytes,
+    dataset: DatasetPolicy,
+    state: DatasetState,
+) -> tuple[PortableManifestFile, ...]:
+    if state.manifest_sha256 is None:
+        raise SidecarError("sidecar state has no committed portable manifest")
+    if hashlib.sha256(raw).hexdigest() != state.manifest_sha256:
+        raise SidecarError("restored portable manifest does not match committed state")
+    try:
+        payload = json.loads(raw.decode("utf-8"), object_pairs_hook=_object_without_duplicate_keys)
+    except (
+        UnicodeDecodeError,
+        ValueError,
+        RecursionError,
+        SidecarError,
+    ) as exc:
+        raise SidecarError("restored portable manifest is malformed") from exc
+    if type(payload) is not dict:
+        raise SidecarError("restored portable manifest root is not an object")
+    _require_exact_keys(
+        payload,
+        {"format", "dataset_id", "repository_id", "files"},
+        "restored portable manifest",
+    )
+    if payload["format"] != MANIFEST_FORMAT:
+        raise SidecarError("restored portable manifest format is unsupported")
+    if (
+        payload["dataset_id"] != dataset.dataset_id
+        or payload["repository_id"] != dataset.repository_id
+        or state.repository_id != dataset.repository_id
+    ):
+        raise SidecarError("restored portable manifest identity does not match state")
+    raw_files = payload["files"]
+    if type(raw_files) is not list or len(raw_files) != state.file_count:
+        raise SidecarError("restored portable manifest file count does not match state")
+    files: list[PortableManifestFile] = []
+    seen_paths: set[str] = set()
+    for index, raw_file in enumerate(raw_files):
+        label = f"restored portable manifest file {index}"
+        if type(raw_file) is not dict:
+            raise SidecarError(f"{label} is not an object")
+        _require_exact_keys(raw_file, {"path", "size", "mode", "sha256"}, label)
+        if type(raw_file["path"]) is not str:
+            raise SidecarError(f"{label} path is invalid")
+        relative_path = _validate_discovered_relative(raw_file["path"])
+        if PurePosixPath(relative_path).parts[0].casefold() == INTERNAL_NAMESPACE.casefold():
+            raise SidecarError("portable manifest path collides with internal namespace")
+        if relative_path.casefold() in seen_paths:
+            raise SidecarError("portable manifest contains duplicate file paths")
+        seen_paths.add(relative_path.casefold())
+        size = _validate_generation(raw_file["size"], f"{label} size")
+        mode = raw_file["mode"]
+        if type(mode) is not int or mode < 0 or mode > 0o7777:
+            raise SidecarError(f"{label} mode is invalid")
+        sha256 = _validate_sha256(raw_file["sha256"], f"{label} sha256")
+        files.append(PortableManifestFile(relative_path, size, mode, sha256))
+    if files != sorted(files, key=lambda value: value.relative_path.casefold()):
+        raise SidecarError("portable manifest files are not sorted")
+    if sum(file.size for file in files) != state.total_bytes:
+        raise SidecarError("restored portable manifest byte count does not match state")
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    if canonical != raw:
+        raise SidecarError("restored portable manifest is not canonically encoded")
+    return tuple(files)
+
+
+def _collect_restored_nodes(
+    root_descriptor: int,
+    *,
+    maximum_nodes: int,
+) -> tuple[set[str], set[str]]:
+    directories: set[str] = set()
+    files: set[str] = set()
+    root_device = os.fstat(root_descriptor).st_dev
+    observed_casefold: dict[str, str] = {}
+    remaining_nodes = [maximum_nodes]
+
+    def visit(descriptor: int, prefix: str) -> None:
+        children: list[tuple[str, str]] = []
+        try:
+            with os.scandir(descriptor) as iterator:
+                for entry in iterator:
+                    if remaining_nodes[0] <= 0:
+                        remaining_nodes[0] = 0
+                        raise SidecarError(
+                            "restored sidecar tree contains extra nodes"
+                        )
+                    remaining_nodes[0] -= 1
+                    relative_path = (
+                        f"{prefix}/{entry.name}" if prefix else entry.name
+                    )
+                    _validate_discovered_relative(relative_path)
+                    folded = relative_path.casefold()
+                    previous = observed_casefold.get(folded)
+                    if previous is not None:
+                        raise SidecarError(
+                            "restored sidecar tree contains colliding paths"
+                        )
+                    observed_casefold[folded] = relative_path
+                    children.append((entry.name, relative_path))
+        except SidecarError:
+            raise
+        except OSError as exc:
+            raise SidecarError("cannot enumerate restored sidecar tree") from exc
+        children.sort(key=lambda item: item[1].casefold())
+        for name, relative_path in children:
+            try:
+                metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+            except OSError as exc:
+                raise SidecarError("restored sidecar tree changed during inspection") from exc
+            is_directory = stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(
+                metadata.st_mode
+            )
+            is_file = stat.S_ISREG(metadata.st_mode) and not stat.S_ISLNK(
+                metadata.st_mode
+            )
+            if not is_directory and not is_file:
+                raise SidecarError("restored sidecar tree contains a link or special node")
+            if (
+                metadata.st_dev != root_device
+                or (hasattr(os, "getuid") and metadata.st_uid != os.getuid())
+                or stat.S_IMODE(metadata.st_mode) & 0o077
+            ):
+                raise SidecarError("restored sidecar node is outside its private boundary")
+            if is_directory:
+                directories.add(relative_path)
+                child, opened_as = _open_verified_directory(
+                    descriptor,
+                    name,
+                    root_device,
+                    observed=metadata,
+                )
+                try:
+                    visit(child, relative_path)
+                finally:
+                    try:
+                        _verify_open_directory(
+                            descriptor,
+                            name,
+                            child,
+                            opened_as,
+                        )
+                    finally:
+                        os.close(child)
+            elif is_file:
+                if metadata.st_nlink != 1:
+                    raise SidecarError("restored sidecar tree contains a hard-linked file")
+                files.add(relative_path)
+
+    visit(root_descriptor, "")
+    return directories, files
+
+
+def _verify_restored_snapshot(
+    restore_root: Path,
+    dataset: DatasetPolicy,
+    state: DatasetState,
+) -> None:
+    root_descriptor = -1
+    try:
+        observed_root = restore_root.lstat()
+        root_descriptor = os.open(restore_root, _directory_open_flags())
+        opened_root = os.fstat(root_descriptor)
+        if (
+            not stat.S_ISDIR(opened_root.st_mode)
+            or not _same_file_identity(opened_root, observed_root)
+            or _metadata_tuple(opened_root) != _metadata_tuple(observed_root)
+            or (hasattr(os, "getuid") and opened_root.st_uid != os.getuid())
+            or stat.S_IMODE(opened_root.st_mode) & 0o077
+        ):
+            raise SidecarError("restic restore root is not owner-only")
+        manifest_raw = _read_restored_file(
+            root_descriptor,
+            MANIFEST_RELATIVE_PATH,
+            opened_root.st_dev,
+            maximum_bytes=MAX_MANIFEST_BYTES,
+        )
+        manifest_files = _parse_portable_manifest(manifest_raw, dataset, state)
+        expected_files = {MANIFEST_RELATIVE_PATH}
+        expected_files.update(
+            f"{PAYLOAD_PREFIX}/{file.relative_path}" for file in manifest_files
+        )
+        expected_directories = {INTERNAL_NAMESPACE, PAYLOAD_PREFIX}
+        for relative_path in expected_files:
+            parts = PurePosixPath(relative_path).parts
+            expected_directories.update(
+                "/".join(parts[:offset]) for offset in range(1, len(parts))
+            )
+        observed_directories, observed_files = _collect_restored_nodes(
+            root_descriptor,
+            maximum_nodes=len(expected_directories) + len(expected_files),
+        )
+        if observed_directories != expected_directories or observed_files != expected_files:
+            raise SidecarError("restored sidecar tree does not contain the exact file set")
+        for file in manifest_files:
+            digest = _hash_restored_file(
+                root_descriptor,
+                f"{PAYLOAD_PREFIX}/{file.relative_path}",
+                opened_root.st_dev,
+                expected_bytes=file.size,
+            )
+            if digest != file.sha256:
+                raise SidecarError("restored sidecar payload digest does not match manifest")
+        if (
+            _metadata_tuple(os.fstat(root_descriptor))
+            != _metadata_tuple(opened_root)
+            or _metadata_tuple(restore_root.lstat())
+            != _metadata_tuple(opened_root)
+        ):
+            raise SidecarError("restic restore root changed during verification")
+    except SidecarError:
+        raise
+    except OSError as exc:
+        raise SidecarError("cannot verify restored sidecar snapshot") from exc
+    finally:
+        if root_descriptor >= 0:
+            os.close(root_descriptor)
 
 
 def _catalog_checkout(
@@ -3300,9 +4812,246 @@ def initialize_config(
     return policy, targets
 
 
+def inventory(
+    private_path_value: str,
+    public_path_value: str,
+    catalog_path_value: str,
+    portfolio_root_value: str,
+    output_path_value: str,
+) -> InventoryResult:
+    """Write a registry-bound advisory inventory of ignored path metadata."""
+
+    output_path = _control_path(output_path_value)
+    try:
+        pair = visibility.load_pair(private_path_value, public_path_value)
+        portfolio_root = materializer._safe_root(portfolio_root_value)
+        catalog = materializer.load_catalog(catalog_path_value, pair)
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        visibility.RegistryError,
+        materializer.MaterializerError,
+    ) as exc:
+        raise SidecarError(
+            "sidecar inventory registry, catalog, or portfolio-root validation failed"
+        ) from exc
+
+    for path in (output_path, output_path.parent / ".portfolio-sidecar.lock"):
+        _require_stable_ignored_or_outside_git(path)
+    _ensure_private_directory(output_path.parent)
+    try:
+        control_directory = output_path.parent.resolve(strict=True)
+    except (OSError, ValueError) as exc:
+        raise SidecarError("sidecar inventory control directory is unavailable") from exc
+    output_path = control_directory / output_path.name
+    lock_path = control_directory / ".portfolio-sidecar.lock"
+    protected_inputs = {
+        Path(os.path.realpath(os.path.abspath(path)))
+        for path in (pair.private.path, pair.public.path, catalog.path)
+    }
+    if output_path in protected_inputs or output_path == lock_path:
+        raise SidecarError(
+            "sidecar inventory output must not alias governance input or lock files"
+        )
+
+    with _SidecarLock(output_path) as control_lock:
+        if control_lock.directory_descriptor is None:
+            raise SidecarError("sidecar inventory control lock is unavailable")
+        output_existed = output_path.exists() or output_path.is_symlink()
+        output_metadata: tuple[int, ...] | None = None
+        if output_existed:
+            _require_stable_private_bootstrap_path(
+                output_path,
+                "sidecar inventory output",
+                exists=True,
+            )
+            _validate_existing_inventory_output(output_path, pair)
+            output_metadata = _metadata_tuple(output_path.lstat())
+        try:
+            with materializer._locked_registry_snapshot(pair) as current_pair:
+                with materializer._CatalogLock(catalog.path):
+                    current_catalog = materializer._reload_catalog_snapshot(
+                        current_pair,
+                        catalog,
+                    )
+                    if current_catalog != catalog:
+                        raise SidecarError("portfolio catalog changed during inventory")
+                    public_entries = {
+                        entry.repository_id: entry
+                        for entry_visibility, entry in current_pair.entries
+                        if entry_visibility == "public"
+                    }
+                    repositories: list[InventoryRepository] = []
+                    candidate_budget = [MAX_INVENTORY_CANDIDATES]
+                    node_budget = [MAX_INVENTORY_NODES]
+                    path_byte_budget = [MAX_INVENTORY_PATH_BYTES]
+                    for catalog_entry in current_catalog.repositories:
+                        expected_entry = public_entries.get(catalog_entry.repository_id)
+                        if (
+                            expected_entry is None
+                            or catalog_entry.desired_presence != "checkout"
+                        ):
+                            continue
+                        try:
+                            checkout = materializer._target_path(
+                                portfolio_root,
+                                catalog_entry.relative_path,
+                            )
+                        except materializer.MaterializerError as exc:
+                            raise SidecarError(
+                                "sidecar inventory checkout path is unsafe"
+                            ) from exc
+                        try:
+                            checkout.lstat()
+                        except FileNotFoundError:
+                            repositories.append(
+                                InventoryRepository(
+                                    repository_id=catalog_entry.repository_id,
+                                    status="missing",
+                                    candidates=(),
+                                    excluded_counts=tuple(
+                                        (reason, 0)
+                                        for reason in INVENTORY_EXCLUSION_REASONS
+                                    ),
+                                )
+                            )
+                            continue
+                        except OSError as exc:
+                            raise SidecarError(
+                                "sidecar inventory checkout is unavailable"
+                            ) from exc
+                        try:
+                            output_selector = output_path.relative_to(checkout).as_posix()
+                        except ValueError:
+                            output_selector = None
+                        try:
+                            candidates, excluded_counts = (
+                                _discover_inventory_candidates(
+                                    checkout,
+                                    expected_entry,
+                                    output_selector=output_selector,
+                                    candidate_budget=candidate_budget,
+                                    node_budget=node_budget,
+                                    path_byte_budget=path_byte_budget,
+                                )
+                            )
+                        except SidecarError:
+                            repositories.append(
+                                InventoryRepository(
+                                    repository_id=catalog_entry.repository_id,
+                                    status="unready",
+                                    candidates=(),
+                                    excluded_counts=tuple(
+                                        (
+                                            reason,
+                                            1 if reason == "checkout-unready" else 0,
+                                        )
+                                        for reason in INVENTORY_EXCLUSION_REASONS
+                                    ),
+                                )
+                            )
+                            continue
+                        repositories.append(
+                            InventoryRepository(
+                                repository_id=catalog_entry.repository_id,
+                                status="inspected",
+                                candidates=candidates,
+                                excluded_counts=excluded_counts,
+                            )
+                        )
+                    if materializer._reload_registry_snapshot(current_pair) != current_pair:
+                        raise SidecarError(
+                            "visibility registry changed during inventory"
+                        )
+                    if (
+                        materializer._reload_catalog_snapshot(
+                            current_pair,
+                            current_catalog,
+                        )
+                        != current_catalog
+                    ):
+                        raise SidecarError("portfolio catalog changed during inventory")
+                    result = InventoryResult(
+                        registry_id=current_pair.registry_id,
+                        registry_generation=current_pair.generation,
+                        catalog_generation=current_catalog.catalog_generation,
+                        repositories=tuple(
+                            sorted(
+                                repositories,
+                                key=lambda value: value.repository_id,
+                            )
+                        ),
+                    )
+                    if output_existed:
+                        try:
+                            current_output_metadata = _metadata_tuple(
+                                output_path.lstat()
+                            )
+                        except OSError as exc:
+                            raise SidecarError(
+                                "existing sidecar inventory output changed"
+                            ) from exc
+                        if current_output_metadata != output_metadata:
+                            raise SidecarError(
+                                "existing sidecar inventory output changed"
+                            )
+                        _validate_existing_inventory_output(
+                            output_path,
+                            current_pair,
+                        )
+                    elif output_path.exists() or output_path.is_symlink():
+                        raise SidecarError(
+                            "sidecar inventory output appeared during discovery"
+                        )
+                    _require_stable_private_bootstrap_path(
+                        output_path,
+                        "sidecar inventory output",
+                        exists=output_existed,
+                    )
+                    inventory_payload = _inventory_payload(result)
+                    serialized_size = len(
+                        json.dumps(
+                            inventory_payload,
+                            indent=2,
+                            ensure_ascii=False,
+                        ).encode("utf-8")
+                    ) + 1
+                    if serialized_size > MAX_INVENTORY_OUTPUT_BYTES:
+                        raise SidecarError(
+                            "sidecar inventory output exceeds its safety limit"
+                        )
+                    if output_existed:
+                        _write_state_json(
+                            output_path,
+                            inventory_payload,
+                            replace=True,
+                        )
+                    else:
+                        _write_new_private_json(
+                            output_path,
+                            inventory_payload,
+                            label="sidecar inventory output",
+                            directory_descriptor=control_lock.directory_descriptor,
+                            operation="sidecar inventory",
+                        )
+                    _require_stable_private_bootstrap_path(
+                        output_path,
+                        "sidecar inventory output",
+                        exists=True,
+                    )
+                    return result
+        except (visibility.RegistryError, materializer.MaterializerError) as exc:
+            raise SidecarError(
+                "sidecar inventory governance snapshot could not be locked"
+            ) from exc
+
+
 def initialize_state(inputs: _Inputs) -> StateDocument:
     _ensure_private_directory(inputs.state_path.parent)
-    with _SidecarLock(inputs.state_path):
+    with _SidecarLock(inputs.state_path) as control_lock:
+        if control_lock.directory_descriptor is None:
+            raise SidecarError("sidecar state control lock is unavailable")
         if inputs.state_path.exists() or inputs.state_path.is_symlink():
             raise SidecarError("init-state refuses to overwrite an existing state file")
         try:
@@ -3328,7 +5077,7 @@ def initialize_state(inputs: _Inputs) -> StateDocument:
                         )
                         for dataset in inputs.policy.datasets
                     )
-                    _write_state_json(
+                    _write_new_private_json(
                         inputs.state_path,
                         _state_payload(
                             current_pair,
@@ -3337,7 +5086,9 @@ def initialize_state(inputs: _Inputs) -> StateDocument:
                             datasets,
                             state_generation=0,
                         ),
-                        replace=False,
+                        label="sidecar state",
+                        directory_descriptor=control_lock.directory_descriptor,
+                        operation="init-state",
                     )
                     return load_state(
                         inputs.state_path,
@@ -3578,6 +5329,235 @@ def backup(
     return tuple(messages), degraded
 
 
+def _drill_evidence_path(value: str, state_path: Path) -> Path:
+    path = _control_path(value)
+    try:
+        control_directory = state_path.parent.resolve(strict=True)
+        parent = path.parent.resolve(strict=True)
+    except OSError as exc:
+        raise SidecarError("restore-drill evidence parent is unavailable") from exc
+    if parent != control_directory:
+        raise SidecarError(
+            "restore-drill evidence must use the sidecar state control directory"
+        )
+    path = parent / path.name
+    _require_stable_private_bootstrap_path(
+        path,
+        "restore-drill evidence",
+        exists=False,
+    )
+    if path.exists() or path.is_symlink():
+        raise SidecarError("restore drill refuses to overwrite existing evidence")
+    return path
+
+
+def drill(
+    inputs: _Inputs,
+    *,
+    restic: Path,
+    ssh: Path,
+    known_hosts: KnownHostsFile,
+    evidence_path_value: str,
+) -> tuple[tuple[str, ...], bool]:
+    assert inputs.state is not None
+    if not inputs.state.datasets:
+        raise SidecarError("restore drill requires at least one policy dataset")
+    evidence_path = _drill_evidence_path(evidence_path_value, inputs.state_path)
+    policy_lookup = {
+        dataset.dataset_id: dataset for dataset in inputs.policy.datasets
+    }
+    target_set_lookup = _target_set_lookup(inputs.targets)
+    messages: list[str] = []
+    results: list[dict[str, Any]] = []
+    degraded = False
+
+    with _SidecarLock(inputs.state_path) as control_lock:
+        if control_lock.directory_descriptor is None:
+            raise SidecarError("sidecar restore-drill control lock is unavailable")
+        if evidence_path.exists() or evidence_path.is_symlink():
+            raise SidecarError("restore drill refuses to overwrite existing evidence")
+        with _StagingArea(inputs.state_path) as staging_root:
+            try:
+                with materializer._locked_registry_snapshot(inputs.pair):
+                    with materializer._CatalogLock(inputs.catalog.path):
+                        _locked_current_inputs(inputs)
+                        staged_targets = _stage_targets(inputs.targets, staging_root)
+                        staged_known_hosts = _stage_known_hosts(
+                            known_hosts,
+                            staging_root,
+                        )
+                        _locked_current_inputs(inputs)
+            except (visibility.RegistryError, materializer.MaterializerError) as exc:
+                raise SidecarError(
+                    "sidecar governance snapshot could not be locked for restore drill"
+                ) from exc
+
+            for dataset_state in inputs.state.datasets:
+                dataset = policy_lookup[dataset_state.dataset_id]
+                target_set = target_set_lookup[dataset.target_set_id]
+                verified = 0
+                recorded_lookup = {
+                    replica.target_id: replica for replica in dataset_state.replicas
+                }
+                replica_results: list[dict[str, Any]] = []
+                if dataset_state.sequence > 0:
+                    dataset_restore_root = (
+                        staging_root / "restores" / dataset.dataset_id
+                    )
+                    try:
+                        dataset_restore_root.mkdir(mode=0o700, exist_ok=False)
+                        dataset_restore_root.chmod(0o700)
+                    except OSError as exc:
+                        raise SidecarError(
+                            "cannot create private dataset restore root"
+                        ) from exc
+                    for target in target_set.targets:
+                        replica = recorded_lookup.get(target.target_id)
+                        if replica is None:
+                            replica_results.append(
+                                {
+                                    "target_id": target.target_id,
+                                    "snapshot_id": None,
+                                    "status": "unrecorded",
+                                }
+                            )
+                            continue
+                        try:
+                            _run_restic_check(
+                                restic,
+                                ssh,
+                                staged_known_hosts,
+                                target,
+                                staged_targets[target.target_id],
+                                cwd=staging_root,
+                            )
+                            _run_restic_recorded_snapshot(
+                                restic,
+                                ssh,
+                                staged_known_hosts,
+                                target,
+                                staged_targets[target.target_id],
+                                dataset,
+                                replica.snapshot_id,
+                                cwd=staging_root,
+                            )
+                            restore_root = dataset_restore_root / target.target_id
+                            restore_root.mkdir(mode=0o700, exist_ok=False)
+                            restore_root.chmod(0o700)
+                            _run_restic_restore(
+                                restic,
+                                ssh,
+                                staged_known_hosts,
+                                target,
+                                staged_targets[target.target_id],
+                                replica.snapshot_id,
+                                restore_root,
+                                cwd=staging_root,
+                            )
+                            _verify_restored_snapshot(
+                                restore_root,
+                                dataset,
+                                dataset_state,
+                            )
+                        except (OSError, SidecarError):
+                            replica_results.append(
+                                {
+                                    "target_id": target.target_id,
+                                    "snapshot_id": replica.snapshot_id,
+                                    "status": "not-verified",
+                                }
+                            )
+                            continue
+                        verified += 1
+                        replica_results.append(
+                            {
+                                "target_id": target.target_id,
+                                "snapshot_id": replica.snapshot_id,
+                                "status": "verified",
+                            }
+                        )
+                else:
+                    replica_results.extend(
+                        {
+                            "target_id": target.target_id,
+                            "snapshot_id": None,
+                            "status": "unrecorded",
+                        }
+                        for target in target_set.targets
+                    )
+
+                configured = len(target_set.targets)
+                recorded = len(dataset_state.replicas)
+                if verified == configured and recorded == configured:
+                    status = "verified"
+                elif verified >= target_set.required_acks:
+                    status = "verified-degraded"
+                    degraded = True
+                else:
+                    status = "not-verified"
+                    degraded = True
+                messages.append(
+                    f"{status}\t{dataset.dataset_id}\tverified={verified}/"
+                    f"{configured}\trequired={target_set.required_acks}"
+                )
+                results.append(
+                    {
+                        "dataset_id": dataset.dataset_id,
+                        "sequence": dataset_state.sequence,
+                        "status": status,
+                        "verified_replicas": verified,
+                        "recorded_replicas": recorded,
+                        "configured_replicas": configured,
+                        "required_acks": target_set.required_acks,
+                        "replicas": replica_results,
+                    }
+                )
+
+            try:
+                with materializer._locked_registry_snapshot(inputs.pair):
+                    with materializer._CatalogLock(inputs.catalog.path):
+                        if _validate_known_hosts(known_hosts.path) != known_hosts:
+                            raise SidecarError(
+                                "known_hosts content changed during restore drill"
+                            )
+                        _locked_current_inputs(inputs)
+                        evidence_payload = {
+                            "schema_version": 1,
+                            "evidence_type": "portfolio-sidecar-restore-drill",
+                            "created_at": datetime.now(timezone.utc)
+                            .isoformat()
+                            .replace("+00:00", "Z"),
+                            "manifest_format": MANIFEST_FORMAT,
+                            "coordinator_mode": COORDINATOR_MODE,
+                            "registry_id": inputs.state.registry_id,
+                            "registry_generation": inputs.state.registry_generation,
+                            "policy_generation": inputs.state.policy_generation,
+                            "policy_sha256": inputs.state.policy_sha256,
+                            "target_generation": inputs.state.target_generation,
+                            "target_sha256": inputs.state.target_sha256,
+                            "state_generation": inputs.state.state_generation,
+                            "state_sha256": inputs.state.content_sha256,
+                            "datasets": results,
+                        }
+                        _write_new_private_json(
+                            evidence_path,
+                            evidence_payload,
+                            label="restore-drill evidence",
+                            directory_descriptor=control_lock.directory_descriptor,
+                            operation="restore drill",
+                        )
+                        _require_stable_private_bootstrap_path(
+                            evidence_path,
+                            "restore-drill evidence",
+                            exists=True,
+                        )
+            except (visibility.RegistryError, materializer.MaterializerError) as exc:
+                raise SidecarError(
+                    "sidecar governance snapshot could not be revalidated after restore drill"
+                ) from exc
+    return tuple(messages), degraded
+
+
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--private", required=True)
     parser.add_argument("--public", required=True)
@@ -3591,8 +5571,9 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Coordinate client-encrypted ignored-data backups. This v1 process "
-            "has no automatic failover; mesh nodes are storage replicas only."
+            "Coordinate client-encrypted ignored-data backups and portable "
+            "restore drills. This process has no automatic failover; mesh "
+            "nodes are storage replicas only."
         )
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -3604,17 +5585,42 @@ def _parser() -> argparse.ArgumentParser:
     init_config_parser.add_argument("--public", required=True)
     init_config_parser.add_argument("--policy", required=True)
     init_config_parser.add_argument("--targets", required=True)
-    for command in ("validate", "init-state", "plan", "backup"):
+    inventory_parser = subparsers.add_parser(
+        "inventory-candidates",
+        help=(
+            "Write an advisory owner-only inventory of ignored selector metadata."
+        ),
+    )
+    inventory_parser.add_argument("--private", required=True)
+    inventory_parser.add_argument("--public", required=True)
+    inventory_parser.add_argument("--catalog", required=True)
+    inventory_parser.add_argument("--portfolio-root", required=True)
+    inventory_parser.add_argument("--output", required=True)
+    inventory_parser.add_argument(
+        "--show-paths",
+        action="store_true",
+        help="Explicitly disclose candidate repository IDs and selectors.",
+    )
+    for command in ("validate", "init-state", "plan", "backup", "drill"):
         command_parser = subparsers.add_parser(command)
         _add_common_arguments(command_parser)
         if command == "plan":
             command_parser.add_argument("--show-paths", action="store_true")
-        if command == "backup":
+        if command in {"backup", "drill"}:
             command_parser.add_argument("--restic", default="restic")
             command_parser.add_argument("--ssh", default="ssh")
             command_parser.add_argument(
                 "--known-hosts",
                 default=str(Path.home() / ".ssh" / "known_hosts"),
+            )
+        if command == "drill":
+            command_parser.add_argument(
+                "--evidence",
+                required=True,
+                help=(
+                    "New ignored owner-only evidence JSON in the state control "
+                    "directory; existing files are never overwritten."
+                ),
             )
     return parser
 
@@ -3638,6 +5644,67 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "next: explicitly populate policy and targets, provision "
                 "credentials, then run init-state"
             )
+            return 0
+        if arguments.command == "inventory-candidates":
+            result = inventory(
+                arguments.private,
+                arguments.public,
+                arguments.catalog,
+                arguments.portfolio_root,
+                arguments.output,
+            )
+            inspected = sum(
+                repository.status == "inspected"
+                for repository in result.repositories
+            )
+            missing = sum(
+                repository.status == "missing"
+                for repository in result.repositories
+            )
+            unready = sum(
+                repository.status == "unready"
+                for repository in result.repositories
+            )
+            candidate_count = sum(
+                len(repository.candidates) for repository in result.repositories
+            )
+            exclusions = {
+                reason: sum(
+                    dict(repository.excluded_counts)[reason]
+                    for repository in result.repositories
+                )
+                for reason in INVENTORY_EXCLUSION_REASONS
+            }
+            print(
+                "wrote advisory ignored-path inventory: "
+                f"inspected={inspected}, missing={missing}, unready={unready}, "
+                f"candidates={candidate_count}, excluded={sum(exclusions.values())}"
+            )
+            print(
+                "exclusions: "
+                + ", ".join(
+                    f"{reason}={exclusions[reason]}"
+                    for reason in INVENTORY_EXCLUSION_REASONS
+                )
+            )
+            print("no candidate is enrolled until it is added to the private policy")
+            if arguments.show_paths:
+                for repository in result.repositories:
+                    if repository.status != "inspected":
+                        print(f"{repository.status}\t{repository.repository_id}")
+                    for candidate in repository.candidates:
+                        print(
+                            "\t".join(
+                                (
+                                    "candidate",
+                                    repository.repository_id,
+                                    candidate.selector,
+                                    candidate.kind,
+                                    f"files={candidate.file_count}",
+                                    f"bytes={candidate.total_bytes}",
+                                )
+                            )
+                        )
             return 0
         inputs = _load_inputs(
             arguments,
@@ -3673,21 +5740,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         restic = _resolve_executable(arguments.restic, "restic")
         ssh = _resolve_executable(arguments.ssh, "ssh")
         known_hosts = _validate_known_hosts(_control_path(arguments.known_hosts))
-        messages, degraded = backup(
-            inputs,
-            restic=restic,
-            ssh=ssh,
-            known_hosts=known_hosts,
-        )
+        if arguments.command == "drill":
+            messages, degraded = drill(
+                inputs,
+                restic=restic,
+                ssh=ssh,
+                known_hosts=known_hosts,
+                evidence_path_value=arguments.evidence,
+            )
+        else:
+            messages, degraded = backup(
+                inputs,
+                restic=restic,
+                ssh=ssh,
+                known_hosts=known_hosts,
+            )
         for message in messages:
             print(message)
         if degraded:
+            if arguments.command == "drill":
+                print(
+                    "error: sidecar restore drill was degraded; inspect the "
+                    "owner-only evidence before trusting recovery",
+                    file=sys.stderr,
+                )
+                return 3
             print(
                 "error: sidecar backup was partial or degraded; committed state "
                 "was retained only where required acknowledgements succeeded",
                 file=sys.stderr,
             )
             return 3
+        if arguments.command == "drill":
+            print("sidecar restore drill complete")
+            return 0
         print("sidecar backup complete")
         return 0
     except KeyboardInterrupt:

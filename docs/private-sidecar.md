@@ -5,7 +5,9 @@ content that must not be committed to Git. It complements the ignored
 portfolio catalog and visibility registry; it does not replace application
 transactions, Git hosting, or the lifecycle review.
 
-`scripts/portfolio_sidecar.py` is the executable schema-v1 coordinator. It is
+`scripts/portfolio_sidecar.py` is the executable coordinator. Policy and target
+configuration remain schema v1; committed state is schema v2 and binds the
+portable manifest stored inside every encrypted snapshot. The coordinator is
 deliberately standalone and single-writer. Mesh nodes are storage replicas,
 not alternative coordinators, until a quorum authority can issue leases and
 fencing tokens.
@@ -56,6 +58,42 @@ overwriting it. Confirm that the lone file is the inert owner-only bootstrap
 document, remove only that file, and rerun `init-config`; never delete a
 populated policy or targets document as generic recovery.
 
+Before editing the inert policy, create a derived advisory inventory of
+possible selectors:
+
+```bash
+python3 scripts/portfolio_sidecar.py inventory-candidates \
+  --private config/repository-visibility/private.local.json \
+  --public config/repository-visibility/public.local.json \
+  --catalog config/portfolio/portfolio.local.json \
+  --portfolio-root ../.. \
+  --output config/portfolio-sidecar/inventory.local.json
+```
+
+The command locks and revalidates the visibility registry and portfolio
+catalog, then inspects only registry-public entries whose desired presence is
+`checkout`. It writes an owner-only, ignored JSON document bound to the current
+registry and catalog generations. Refresh replaces that derived document
+atomically while holding the same control-directory lock used by the other
+sidecar commands. It never modifies policy, targets, state, or candidate data.
+
+Candidate discovery is metadata-only: hardened Git commands enumerate ignored
+names, while `lstat` and directory enumeration establish file kind, owner,
+link count, file count, and total apparent bytes. Candidate file contents are
+never opened. The inventory omits active sidecar controls, locks and temporary
+files, tool caches, and common build outputs. It records exclusion counts by
+reason. A missing desired checkout is recorded as `missing`; a dirty,
+identity-mismatched, unsafe, or otherwise unverifiable checkout is recorded as
+`unready` without candidate names.
+
+Default terminal output contains counts only. `--show-paths` is an explicit
+disclosure option for printing repository IDs and candidate selectors. The
+ignored JSON necessarily contains those identifiers and selectors, which is
+why it has the same owner-only handling requirements as policy and targets.
+The document is a review aid, not enrollment authority: no candidate is
+protected until an operator deliberately places exact selectors and limits in
+`policy.local.json` and completes target provisioning.
+
 The directory also ignores local credentials, spool, state, lock, and
 temporary artifacts as an accidental-commit guard. `.gitignore` is not an
 authorization, confidentiality, or encryption boundary: it does not stop
@@ -80,15 +118,17 @@ classified public by the current registry. That registry observation records
 the result of a separate publication review; the sidecar never authorizes a
 private-to-public transition.
 
-The state also records `policy_sha256` and `target_sha256`. The latter binds the
+State schema v2 also declares `manifest_format: portable-files-v1` and records
+`policy_sha256` and `target_sha256`. The latter binds the
 target topology and paths plus hashes of the current repository URI, restic
 password, and SSH identity bytes; raw credentials are not written to state.
 Changing policy content, target content, or any credential therefore makes the
 existing state fail closed even if an operator forgets to advance a generation.
-Schema v1 has no state migration or credential-rotation command. For an
-intentional rotation, advance the applicable generation, retain the old state
-as private audit material outside the active path, and run `init-state` to begin
-a deliberately new state epoch before backing up again.
+State v1 had no portable restore manifest and is explicitly refused; it is not
+silently upgraded into apparent restore evidence. For an intentional rotation
+or migration, advance the applicable generation, retain the old state as
+private audit material outside the active path, and run `init-state` to begin a
+deliberately new schema-v2 state epoch before backing up again.
 
 Each target supplies absolute `repository_file`, `password_file`, and
 `identity_file` paths. The first secure file contains the live restic SFTP
@@ -121,12 +161,21 @@ special files, selector overlap, limit overruns, or source/config changes
 during capture fail closed.
 
 Backup capture copies selected bytes into an ignored, owner-only local spool
-before invoking restic. The staging copy is plaintext: directories are made
+before invoking restic. User payload is placed below the reserved
+`.portfolio-sidecar/payload/` namespace and the snapshot also contains the
+canonical `.portfolio-sidecar/manifest.json`. The manifest identifies the
+dataset and repository and records each exact source path, byte size, original
+mode, and SHA-256 digest. It deliberately excludes host-specific inode, device,
+UID, GID, and timestamp values. The state `manifest_sha256` binds these portable
+manifest bytes.
+
+The staging copy and a drill restore are plaintext: directories are made
 owner-only and staged files are frozen read-only for the owner, but this is not
 at-rest encryption. Protect the backing disk accordingly. A normal run removes
 its operation directory; an interrupted process may leave a private spool that
 must be treated as sensitive and removed only after confirming no sidecar
-process is using it.
+process is using it. Selectors colliding with the reserved internal namespace
+are refused.
 
 ## Operator Workflow
 
@@ -159,14 +208,20 @@ python3 scripts/portfolio_sidecar.py backup "${sidecar_common[@]}" \
   --restic /absolute/bin/restic \
   --ssh /absolute/bin/ssh \
   --known-hosts /absolute/control/known_hosts
+python3 scripts/portfolio_sidecar.py drill "${sidecar_common[@]}" \
+  --restic /absolute/bin/restic \
+  --ssh /absolute/bin/ssh \
+  --known-hosts /absolute/control/known_hosts \
+  --evidence /absolute/control/drill-2026-07-27.local.json
 ```
 
 `plan --show-paths` is an explicit disclosure option; plain `plan` keeps
-selected private paths out of its output. `backup` is the only command that
-accepts `--restic`, `--ssh`, and `--known-hosts`. A zero backup exit means every
+selected private paths out of its output. `backup` and `drill` accept
+`--restic`, `--ssh`, and `--known-hosts`. A zero backup exit means every
 configured target acknowledged its dataset. Exit 3 means at least one result
 was partial or degraded; state advances only for datasets that still met their
-acknowledgement threshold. Neither status is restore proof.
+acknowledgement threshold. A backup status alone is not restore proof; a
+subsequent successful `drill` is.
 
 ## Protection Levels
 
@@ -194,17 +249,17 @@ boundaries, not aliases for the same disk or host.
 
 ## Snapshot And Durability Contract
 
-Each committed dataset sequence records a stable capture-manifest hash and a
-separate restic snapshot ID for each acknowledged target. Restic exit status
-zero plus one syntactically valid snapshot ID is acknowledgement evidence
-only. It is not a repository-integrity check, proof that the snapshot can be
-restored, or proof that its restored bytes match the capture manifest. For an
+Each committed dataset sequence records the portable manifest hash and a
+separate restic snapshot ID for each acknowledged target. The manifest is part
+of the Restic snapshot and is therefore client-encrypted with the payload.
+Restic exit status zero plus one syntactically valid snapshot ID is
+acknowledgement evidence only until a drill checks and restores it. For an
 L3 set of three nodes, two acknowledgements form a strict majority. The latest
 sequence may be recorded as degraded at two of three. Fewer than a strict
 majority is a failed backup. Missing members are never silently removed, and a
 `mesh-only` job never redirects to the hosted target.
 
-Executable v1 stores only the latest committed dataset state. It has no
+The executable stores only the latest committed dataset state. It has no
 append-only operation history and does not automatically repair a missing
 replica from a prior degraded sequence. Operators must preserve the degraded
 result and complete recovery work out of band; a future history and repair
@@ -217,7 +272,7 @@ consume an application-supported consistent export or hot-backup API; the
 sidecar must never copy live database, journal, WAL, or consensus files and
 claim the result is recoverable.
 
-The executable v1 treats snapshots as append-only and immutable. It has no
+The executable treats snapshots as append-only and immutable. It has no
 `forget`, `prune`, or repository-deletion path. Capacity monitoring must
 therefore assume unbounded growth until a separately reviewed retention
 design exists. This is coordinator-enforced logical immutability, not SFTP
@@ -227,14 +282,14 @@ but do not relax the independent restore-drill requirement.
 
 ## Coordinator And Failover
 
-The executable v1 has exactly one statically selected coordinator. It owns the
+The executable has exactly one statically selected coordinator. It owns the
 local operation spool and should be the only host provisioned with target write
 credentials. A same-host process lock serializes commands, but it is not a
 distributed lease or fencing token. Moving authority to
 another host is a manual fenced handoff: stop the old coordinator, revoke or
 disable all of its target identities, prove that it can no longer write, and
 only then provision the replacement. If exclusive ownership cannot be proven,
-do not start the replacement. Coordinator loss pauses backups; v1 does not
+do not start the replacement. Coordinator loss pauses backups; it does not
 promote a nearby mesh node automatically.
 
 Automatic failover is planned behind a private replicated-state authority
@@ -246,27 +301,39 @@ must never select the authoritative writer or bypass quorum.
 
 ## Restore Drills
 
-Executable v1 does not implement `restic check`, restore commands, drill
-evidence, repair, or backup history. Therefore its acknowledgement record alone
-must never be presented as restore validation. The following is an operator
-requirement and a contract for future automation, not behavior currently
-performed by `portfolio_sidecar.py`.
+`drill` turns the committed acknowledgement into offline restore proof
+for the static-filesystem adapter. For every replica recorded in state, it runs
+`restic check --read-data`, inspects the exact snapshot ID recorded by the
+committed state, requires that snapshot to carry exactly the expected
+manifest-format/dataset/repository identity tags, and restores that recorded
+snapshot into a new owner-only spool directory. It never restores over the
+source. A newer snapshot that failed to reach the acknowledgement threshold is
+an uncommitted orphan: it does not supersede or invalidate the last committed
+restore proof. It remains uncommitted repository data until a separately
+reviewed retention process handles it.
 
-A snapshot is not accepted as a backup solely because restic returned success.
-On an operator-defined schedule, a drill must:
+The verifier requires the restored manifest hash and dataset/repository
+identity to match state, then streams every payload file through SHA-256. It
+requires the exact manifest file set and byte counts and rejects missing or
+extra nodes, links, hard links, special files, unsafe or traversing paths, and
+non-private restored nodes. Payload files are never accumulated in memory.
+Governance, policy, target credentials, state, and `known_hosts` are
+revalidated around the network operation. SSH uses pinned hosts plus explicit
+identity selection, one connection attempt, and a bounded connection timeout.
 
-1. select an acknowledged immutable operation without changing retention;
-2. authenticate and run repository integrity checks;
-3. restore into a new isolated directory, never over the source;
-4. validate hashes and the application's own consistency checks;
-5. record the target, snapshot, result, duration, and policy, target, and state
-   generations without disclosing private paths in tracked output; and
-6. remove only the disposable restore directory after evidence is retained.
+`--evidence` must name a new ignored file in the state control directory. The
+command never overwrites evidence. Its owner-only JSON binds the registry ID,
+registry/policy/target/state generations, policy/target hashes, a canonical
+state hash, manifest format, and per-replica target/snapshot/status outcomes;
+it contains no repository URI or local path. Normal completion removes the
+temporary plaintext restore.
 
-L3 drills restore the same logical operation independently from at least a
-strict majority of targets. A failed target or mismatched restored manifest
-makes the set degraded and requires out-of-band handling in v1; it must not
-cause hosted fallback.
+Exit zero means every configured replica restored and verified. Exit 3 means
+the drill was degraded: an L3 strict majority may still be verified, but a
+missing member remains visible; below quorum is `not-verified`. Every recorded
+replica is attempted, and an L3 failure never causes hosted fallback. The
+drill verifies portable files and does not replace an application's own
+database consistency or recovery checks.
 
 ## Git History Caveat
 
