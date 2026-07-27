@@ -47,6 +47,7 @@ class PortfolioSidecarTests(unittest.TestCase):
         self.policy_path = self.control / "sidecar-policy.local.json"
         self.targets_path = self.control / "sidecar-targets.local.json"
         self.state_path = self.control / "sidecar-state.local.json"
+        self.inventory_path = self.control / "sidecar-inventory.local.json"
         self.known_hosts = self.secrets / "known_hosts"
         self.fake_restic = self.root / "fake-restic"
         self.fake_ssh = self.root / "fake-ssh"
@@ -293,7 +294,7 @@ class PortfolioSidecarTests(unittest.TestCase):
             "--state",
             str(self.state_path),
         ]
-        if command == "backup":
+        if command in {"backup", "drill"}:
             arguments.extend(
                 (
                     "--restic",
@@ -303,6 +304,10 @@ class PortfolioSidecarTests(unittest.TestCase):
                     "--known-hosts",
                     str(self.known_hosts),
                 )
+            )
+        if command == "drill":
+            arguments.extend(
+                ("--evidence", str(self.control / "drill-evidence.local.json"))
             )
         return arguments
 
@@ -333,6 +338,24 @@ class PortfolioSidecarTests(unittest.TestCase):
             "--targets",
             str(targets_path or self.targets_path),
         ]
+
+    def _inventory_arguments(self, *, show_paths: bool = False) -> list[str]:
+        arguments = [
+            "inventory-candidates",
+            "--private",
+            str(self.private_path),
+            "--public",
+            str(self.public_path),
+            "--catalog",
+            str(self.catalog_path),
+            "--portfolio-root",
+            str(self.portfolio),
+            "--output",
+            str(self.inventory_path),
+        ]
+        if show_paths:
+            arguments.append("--show-paths")
+        return arguments
 
     def _read_state(self) -> dict[str, object]:
         return json.loads(self.state_path.read_text(encoding="utf-8"))
@@ -666,6 +689,282 @@ class PortfolioSidecarTests(unittest.TestCase):
         )
         self.assertFalse(self.targets_path.exists())
 
+    def test_inventory_candidates_is_metadata_only_bound_and_redacted(self) -> None:
+        policy_before = self.policy_path.read_bytes()
+        targets_before = self.targets_path.read_bytes()
+        selected_files = (
+            self.checkout / "sidecar-data" / "alpha.txt",
+            self.checkout / "sidecar-data" / "nested" / "beta.bin",
+        )
+        selected_files[0].chmod(0o000)
+
+        result, stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn("advisory", stdout)
+        self.assertIn("inspected=1", stdout)
+        self.assertIn("candidates=1", stdout)
+        self.assertNotIn(self.REPOSITORY_ID, stdout + stderr)
+        self.assertNotIn("sidecar-data", stdout + stderr)
+        self.assertNotIn(str(self.inventory_path), stdout + stderr)
+        self.assertEqual(self.policy_path.read_bytes(), policy_before)
+        self.assertEqual(self.targets_path.read_bytes(), targets_before)
+        metadata = self.inventory_path.lstat()
+        self.assertTrue(stat.S_ISREG(metadata.st_mode))
+        self.assertEqual(stat.S_IMODE(metadata.st_mode), 0o600)
+        self.assertEqual(metadata.st_nlink, 1)
+        lock_metadata = (self.control / ".portfolio-sidecar.lock").lstat()
+        self.assertEqual(stat.S_IMODE(lock_metadata.st_mode), 0o600)
+        self.assertEqual(lock_metadata.st_nlink, 1)
+        payload = json.loads(self.inventory_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["registry_id"], "sidecar-synthetic-registry")
+        self.assertEqual(payload["registry_generation"], 1)
+        self.assertEqual(payload["catalog_generation"], 1)
+        self.assertIs(payload["advisory_only"], True)
+        self.assertEqual(len(payload["repositories"]), 1)
+        repository = payload["repositories"][0]
+        self.assertEqual(repository["repository_id"], self.REPOSITORY_ID)
+        self.assertEqual(repository["status"], "inspected")
+        self.assertEqual(
+            repository["candidates"],
+            [
+                {
+                    "selector": "sidecar-data",
+                    "kind": "directory",
+                    "file_count": 2,
+                    "total_bytes": sum(path.stat().st_size for path in selected_files),
+                }
+            ],
+        )
+        first_inode = metadata.st_ino
+
+        result, stdout, stderr = self._main(
+            self._inventory_arguments(show_paths=True)
+        )
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn(self.REPOSITORY_ID, stdout)
+        self.assertIn("sidecar-data", stdout)
+        self.assertNotEqual(self.inventory_path.lstat().st_ino, first_inode)
+        self.assertEqual(self.policy_path.read_bytes(), policy_before)
+        self.assertEqual(self.targets_path.read_bytes(), targets_before)
+
+    def test_inventory_candidates_excludes_control_cache_build_and_locks(self) -> None:
+        with (self.checkout / ".gitignore").open("a", encoding="utf-8") as handle:
+            handle.write(
+                "__pycache__/\n"
+                "build/\n"
+                "config/portfolio-sidecar/*.local.*\n"
+                ".portfolio-sidecar/\n"
+                "*.lock\n"
+            )
+        self._git("add", ".gitignore")
+        self._git("commit", "-qm", "add synthetic ignored metadata")
+        generated = self.checkout / "scripts" / "__pycache__"
+        generated.mkdir(parents=True)
+        (generated / "module.pyc").write_bytes(b"generated")
+        build = self.checkout / "build"
+        build.mkdir()
+        (build / "output.bin").write_bytes(b"generated")
+        sidecar_control = self.checkout / "config" / "portfolio-sidecar"
+        sidecar_control.mkdir(parents=True)
+        (sidecar_control / "policy.local.json").write_text(
+            "private control\n",
+            encoding="utf-8",
+        )
+        internal_control = self.checkout / ".portfolio-sidecar"
+        internal_control.mkdir()
+        (internal_control / "manifest.json").write_text(
+            "private control\n",
+            encoding="utf-8",
+        )
+        (self.checkout / "operation.lock").write_text("lock\n", encoding="utf-8")
+
+        result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        payload = json.loads(self.inventory_path.read_text(encoding="utf-8"))
+        repository = payload["repositories"][0]
+        self.assertEqual(
+            [candidate["selector"] for candidate in repository["candidates"]],
+            ["sidecar-data"],
+        )
+        exclusions = repository["excluded_counts"]
+        self.assertEqual(exclusions["cache-or-build"], 2)
+        self.assertEqual(exclusions["sidecar-control"], 2)
+        self.assertEqual(exclusions["lock-or-temporary"], 1)
+
+    def test_inventory_candidates_records_dirty_checkout_as_unready(self) -> None:
+        policy_before = self.policy_path.read_bytes()
+        targets_before = self.targets_path.read_bytes()
+        (self.checkout / "README.md").write_text(
+            "# dirty public code\n",
+            encoding="utf-8",
+        )
+
+        result, stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn("unready=1", stdout)
+        self.assertNotIn(self.REPOSITORY_ID, stdout + stderr)
+        payload_bytes = self.inventory_path.read_bytes()
+        payload = json.loads(payload_bytes)
+        repository = payload["repositories"][0]
+        self.assertEqual(repository["status"], "unready")
+        self.assertEqual(repository["candidates"], [])
+        self.assertEqual(repository["excluded_counts"]["checkout-unready"], 1)
+        self.assertNotIn(b"sidecar-data", payload_bytes)
+        self.assertEqual(self.policy_path.read_bytes(), policy_before)
+        self.assertEqual(self.targets_path.read_bytes(), targets_before)
+
+    def test_inventory_candidates_refuses_input_aliases_and_unrelated_output(
+        self,
+    ) -> None:
+        for protected in (
+            self.private_path,
+            self.public_path,
+            self.catalog_path,
+        ):
+            with self.subTest(protected=protected.name):
+                before = protected.read_bytes()
+                arguments = self._inventory_arguments()
+                arguments[arguments.index("--output") + 1] = str(protected)
+
+                result, _stdout, stderr = self._main(arguments)
+
+                self.assertEqual(result, 2)
+                self.assertIn("must not alias", stderr)
+                self.assertEqual(protected.read_bytes(), before)
+
+        self._write_secret(self.inventory_path, "unrelated private document\n")
+        before = self.inventory_path.read_bytes()
+
+        result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 2)
+        self.assertIn("inventory output", stderr)
+        self.assertEqual(self.inventory_path.read_bytes(), before)
+
+    def test_inventory_candidates_first_publication_never_overwrites_a_race(
+        self,
+    ) -> None:
+        original_link = sidecar.os.link
+        collided = False
+
+        def publish_after_collision(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int,
+            dst_dir_fd: int,
+            follow_symlinks: bool,
+        ) -> None:
+            nonlocal collided
+            if destination == self.inventory_path.name and not collided:
+                collided = True
+                self._write_secret(
+                    self.inventory_path,
+                    "concurrent file must survive\n",
+                )
+            original_link(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+                follow_symlinks=follow_symlinks,
+            )
+
+        with mock.patch.object(sidecar.os, "link", side_effect=publish_after_collision):
+            result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 2)
+        self.assertTrue(collided)
+        self.assertIn("refuses to overwrite", stderr)
+        self.assertEqual(
+            self.inventory_path.read_text(encoding="utf-8"),
+            "concurrent file must survive\n",
+        )
+
+    def test_inventory_candidates_never_inspects_private_registry_entries(self) -> None:
+        private_id = "R_private_sidecar_synthetic"
+        private_slug = "synthetic-owner/private-sidecar-synthetic"
+        common = {
+            "schema_version": 1,
+            "registry_id": "sidecar-synthetic-registry",
+            "generation": 1,
+        }
+        self._write_json(
+            self.private_path,
+            {
+                **common,
+                "visibility": "private",
+                "repositories": [{"id": private_id, "slug": private_slug}],
+            },
+        )
+        self._write_json(
+            self.catalog_path,
+            {
+                "schema_version": 1,
+                "registry_id": "sidecar-synthetic-registry",
+                "registry_generation": 1,
+                "catalog_generation": 1,
+                "repositories": [
+                    {
+                        "repository_id": private_id,
+                        "relative_path": "private-sidecar",
+                        "lifecycle": "active",
+                        "sync_policy": "manual",
+                        "desired_presence": "checkout",
+                    },
+                    {
+                        "repository_id": self.REPOSITORY_ID,
+                        "relative_path": "public-sidecar",
+                        "lifecycle": "active",
+                        "sync_policy": "manual",
+                        "desired_presence": "checkout",
+                    },
+                ],
+            },
+        )
+        private_checkout = self.portfolio / "private-sidecar"
+        private_checkout.mkdir()
+        (private_checkout / ".git").write_text("must not be inspected\n", encoding="utf-8")
+
+        result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        payload_bytes = self.inventory_path.read_bytes()
+        payload = json.loads(payload_bytes)
+        self.assertEqual(len(payload["repositories"]), 1)
+        self.assertEqual(
+            payload["repositories"][0]["repository_id"],
+            self.REPOSITORY_ID,
+        )
+        self.assertNotIn(private_id.encode(), payload_bytes)
+
+    def test_inventory_candidates_counts_local_only_ignore_as_untrusted(self) -> None:
+        local_only = self.checkout / "local-only"
+        local_only.mkdir()
+        (local_only / "secret.txt").write_text("not read\n", encoding="utf-8")
+        (self.checkout / ".git" / "info" / "exclude").write_text(
+            "local-only/\n",
+            encoding="utf-8",
+        )
+
+        result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        payload = json.loads(self.inventory_path.read_text(encoding="utf-8"))
+        repository = payload["repositories"][0]
+        self.assertEqual(
+            [candidate["selector"] for candidate in repository["candidates"]],
+            ["sidecar-data"],
+        )
+        self.assertEqual(
+            repository["excluded_counts"]["untrusted-ignore-rule"],
+            1,
+        )
+
     def test_validate_and_plan_are_redacted_unless_paths_are_requested(self) -> None:
         self._init_state()
         result, stdout, stderr = self._main(self._arguments("validate"))
@@ -694,6 +993,8 @@ class PortfolioSidecarTests(unittest.TestCase):
         self.assertNotIn("RAW-SOURCE-PATH", stdout + stderr)
         self.assertNotIn("RAW-RESTIC", stdout + stderr)
         state = self._read_state()
+        self.assertEqual(state["schema_version"], 2)
+        self.assertEqual(state["manifest_format"], "portable-files-v1")
         self.assertEqual(state["state_generation"], 1)
         dataset = state["datasets"][0]
         self.assertEqual(dataset["sequence"], 1)
@@ -740,6 +1041,8 @@ class PortfolioSidecarTests(unittest.TestCase):
         for required in (
             "-F /dev/null",
             "BatchMode=yes",
+            "ConnectTimeout=10",
+            "ConnectionAttempts=1",
             "StrictHostKeyChecking=yes",
             "UserKnownHostsFile=",
             "GlobalKnownHostsFile=/dev/null",
@@ -758,7 +1061,7 @@ class PortfolioSidecarTests(unittest.TestCase):
         raw_file_list = bytes.fromhex(calls[0]["stdin_hex"])
         self.assertEqual(
             raw_file_list,
-            b"sidecar-data/alpha.txt\0sidecar-data/nested/beta.bin\0",
+            b".portfolio-sidecar\0",
         )
         self.assertEqual(list((self.control / "spool").iterdir()), [])
 
@@ -779,6 +1082,58 @@ class PortfolioSidecarTests(unittest.TestCase):
         self.assertEqual(result, 2)
         self.assertIn("different target or credential content", stderr)
 
+    def test_state_v1_is_refused_without_automatic_migration(self) -> None:
+        self._init_state()
+        payload = self._read_state()
+        payload["schema_version"] = 1
+        payload.pop("manifest_format")
+        self._write_json(self.state_path, payload)
+
+        result, stdout, stderr = self._main(self._arguments("validate"))
+
+        self.assertEqual(result, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn("schema_version 1 has no portable restore manifest", stderr)
+        self.assertIn("automatic migration is refused", stderr)
+
+    def test_init_state_first_publication_never_overwrites_a_race(self) -> None:
+        original_link = sidecar.os.link
+        collided = False
+
+        def publish_after_collision(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int,
+            dst_dir_fd: int,
+            follow_symlinks: bool,
+        ) -> None:
+            nonlocal collided
+            if destination == self.state_path.name and not collided:
+                collided = True
+                self._write_secret(
+                    self.state_path,
+                    "concurrent state path must survive\n",
+                )
+            original_link(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+                follow_symlinks=follow_symlinks,
+            )
+
+        with mock.patch.object(sidecar.os, "link", side_effect=publish_after_collision):
+            result, _stdout, stderr = self._main(self._arguments("init-state"))
+
+        self.assertEqual(result, 2)
+        self.assertTrue(collided)
+        self.assertIn("refuses to overwrite", stderr)
+        self.assertEqual(
+            self.state_path.read_text(encoding="utf-8"),
+            "concurrent state path must survive\n",
+        )
+
     def test_stale_plaintext_spool_refuses_backup_without_deleting_evidence(self) -> None:
         self._init_state()
         stale = self.control.resolve() / "spool" / "run-stale"
@@ -793,6 +1148,243 @@ class PortfolioSidecarTests(unittest.TestCase):
         self.assertIn("stale sidecar staging data", stderr)
         self.assertTrue(marker.exists())
         self.assertFalse(Path(str(self.fake_restic) + ".log").exists())
+
+    def test_drill_restores_recorded_committed_snapshot_and_writes_bound_evidence(
+        self,
+    ) -> None:
+        self._init_state()
+        initial_state_sha256 = sidecar._canonical_document_hash(self._read_state())
+        backup_result, _stdout, stderr = self._main(self._arguments("backup"))
+        self.assertEqual(backup_result, 0, stderr)
+        committed_state = self._read_state()
+        snapshot_id = committed_state["datasets"][0]["replicas"][0]["snapshot_id"]
+
+        pair = sidecar.visibility.load_pair(self.private_path, self.public_path)
+        policy = sidecar.load_policy(self.policy_path, pair)
+        catalog = sidecar.materializer.load_catalog(self.catalog_path, pair)
+        dataset = policy.datasets[0]
+        checkout, registry_entry = sidecar._catalog_checkout(
+            pair,
+            catalog,
+            self.portfolio,
+            dataset,
+        )
+        capture = sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        def restore_snapshot(
+            _restic: Path,
+            _ssh: Path,
+            _known_hosts: Path,
+            _target: sidecar.Target,
+            _staged_target: sidecar.StagedTarget,
+            _snapshot_id: str,
+            restore_root: Path,
+            *,
+            cwd: Path,
+        ) -> None:
+            self.assertTrue(str(restore_root).startswith(str(cwd / "restores")))
+            namespace = restore_root / sidecar.INTERNAL_NAMESPACE
+            payload_root = namespace / "payload"
+            payload_root.mkdir(mode=0o700, parents=True)
+            manifest = namespace / "manifest.json"
+            manifest.write_bytes(sidecar._portable_manifest_bytes(dataset, capture.files))
+            manifest.chmod(0o400)
+            for captured in capture.files:
+                destination = payload_root / captured.relative_path
+                destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                destination.write_bytes((checkout / captured.relative_path).read_bytes())
+                destination.chmod(0o400)
+            for directory, subdirectories, _files in os.walk(
+                namespace,
+                topdown=False,
+            ):
+                for subdirectory in subdirectories:
+                    Path(directory, subdirectory).chmod(0o500)
+                Path(directory).chmod(0o500)
+
+        arguments = self._arguments("drill")
+        evidence_path = Path(arguments[arguments.index("--evidence") + 1])
+        with (
+            mock.patch.object(sidecar, "_run_restic_check"),
+            mock.patch.object(
+                sidecar,
+                "_run_restic_recorded_snapshot",
+                return_value=snapshot_id,
+            ),
+            mock.patch.object(
+                sidecar,
+                "_run_restic_restore",
+                side_effect=restore_snapshot,
+            ) as restore,
+        ):
+            result, stdout, stderr = self._main(arguments)
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn(
+            f"verified\t{self.DATASET_ID}\tverified=1/1\trequired=1",
+            stdout,
+        )
+        self.assertIn("sidecar restore drill complete", stdout)
+        restore.assert_called_once()
+        self.assertEqual(tuple((self.control / "spool").iterdir()), ())
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        self.assertEqual(stat.S_IMODE(evidence_path.stat().st_mode), 0o600)
+        self.assertEqual(evidence_path.stat().st_nlink, 1)
+        self.assertEqual(evidence["schema_version"], 1)
+        self.assertEqual(evidence["registry_id"], "sidecar-synthetic-registry")
+        self.assertEqual(evidence["manifest_format"], "portable-files-v1")
+        self.assertEqual(evidence["state_generation"], 1)
+        self.assertEqual(
+            evidence["state_sha256"],
+            sidecar._canonical_document_hash(committed_state),
+        )
+        self.assertNotEqual(evidence["state_sha256"], initial_state_sha256)
+        self.assertEqual(evidence["datasets"][0]["status"], "verified")
+        self.assertEqual(
+            evidence["datasets"][0]["replicas"],
+            [
+                {
+                    "target_id": "target-1",
+                    "snapshot_id": snapshot_id,
+                    "status": "verified",
+                }
+            ],
+        )
+        serialized_evidence = json.dumps(evidence)
+        self.assertNotIn(str(self.checkout), serialized_evidence)
+        self.assertNotIn("sftp:", serialized_evidence)
+
+        before = evidence_path.read_bytes()
+        result, _stdout, stderr = self._main(arguments)
+        self.assertEqual(result, 2)
+        self.assertIn("refuses to overwrite", stderr)
+        self.assertEqual(evidence_path.read_bytes(), before)
+
+    def test_drill_rejects_a_recorded_snapshot_identity_mismatch(self) -> None:
+        self._init_state()
+        backup_result, _stdout, stderr = self._main(self._arguments("backup"))
+        self.assertEqual(backup_result, 0, stderr)
+        with (
+            mock.patch.object(sidecar, "_run_restic_check"),
+            mock.patch.object(
+                sidecar,
+                "_run_restic_recorded_snapshot",
+                side_effect=sidecar.SidecarError(
+                    "restic recorded snapshot identifier does not match state"
+                ),
+            ),
+            mock.patch.object(sidecar, "_run_restic_restore") as restore,
+        ):
+            result, stdout, stderr = self._main(self._arguments("drill"))
+
+        self.assertEqual(result, 3)
+        self.assertIn("not-verified", stdout)
+        self.assertIn("restore drill was degraded", stderr)
+        restore.assert_not_called()
+        evidence = json.loads(
+            (self.control / "drill-evidence.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(evidence["datasets"][0]["status"], "not-verified")
+        self.assertEqual(
+            evidence["datasets"][0]["replicas"][0]["status"],
+            "not-verified",
+        )
+
+    def test_mesh_drill_distinguishes_full_degraded_quorum_and_below_quorum(
+        self,
+    ) -> None:
+        self._write_policy(tier="mesh-only")
+        self._write_targets(tier="mesh-only", failures=())
+        self._init_state()
+        backup_result, _stdout, stderr = self._main(self._arguments("backup"))
+        self.assertEqual(backup_result, 0, stderr)
+        state = self._read_state()["datasets"][0]
+        snapshots = {
+            replica["target_id"]: replica["snapshot_id"]
+            for replica in state["replicas"]
+        }
+
+        cases = (
+            (3, 0, "verified"),
+            (2, 3, "verified-degraded"),
+            (1, 3, "not-verified"),
+        )
+        for successful_targets, expected_exit, expected_status in cases:
+            with self.subTest(successful_targets=successful_targets):
+                evidence_path = (
+                    self.control
+                    / f"drill-mesh-{successful_targets}.local.json"
+                )
+                arguments = self._arguments("drill")
+                arguments[arguments.index("--evidence") + 1] = str(evidence_path)
+
+                def check_target(
+                    _restic: Path,
+                    _ssh: Path,
+                    _known_hosts: Path,
+                    target: sidecar.Target,
+                    _staged_target: sidecar.StagedTarget,
+                    *,
+                    cwd: Path,
+                ) -> None:
+                    self.assertTrue(cwd.is_dir())
+                    target_number = int(target.target_id.rsplit("-", 1)[1])
+                    if target_number > successful_targets:
+                        raise sidecar.SidecarError("synthetic target outage")
+
+                def recorded_snapshot(
+                    _restic: Path,
+                    _ssh: Path,
+                    _known_hosts: Path,
+                    target: sidecar.Target,
+                    _staged_target: sidecar.StagedTarget,
+                    _dataset: sidecar.DatasetPolicy,
+                    snapshot_id: str,
+                    *,
+                    cwd: Path,
+                ) -> str:
+                    self.assertTrue(cwd.is_dir())
+                    self.assertEqual(snapshot_id, snapshots[target.target_id])
+                    return snapshot_id
+
+                with (
+                    mock.patch.object(
+                        sidecar,
+                        "_run_restic_check",
+                        side_effect=check_target,
+                    ) as check,
+                    mock.patch.object(
+                        sidecar,
+                        "_run_restic_recorded_snapshot",
+                        side_effect=recorded_snapshot,
+                    ),
+                    mock.patch.object(sidecar, "_run_restic_restore"),
+                    mock.patch.object(sidecar, "_verify_restored_snapshot"),
+                ):
+                    result, stdout, stderr = self._main(arguments)
+
+                self.assertEqual(result, expected_exit, stderr)
+                self.assertIn(
+                    f"{expected_status}\t{self.DATASET_ID}\t"
+                    f"verified={successful_targets}/3\trequired=2",
+                    stdout,
+                )
+                self.assertEqual(check.call_count, 3)
+                evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+                dataset_evidence = evidence["datasets"][0]
+                self.assertEqual(dataset_evidence["status"], expected_status)
+                self.assertEqual(
+                    dataset_evidence["verified_replicas"],
+                    successful_targets,
+                )
+                self.assertEqual(len(dataset_evidence["replicas"]), 3)
+                self.assertEqual(
+                    sum(
+                        replica["status"] == "verified"
+                        for replica in dataset_evidence["replicas"]
+                    ),
+                    successful_targets,
+                )
 
     def test_known_hosts_swap_uses_staged_copy_and_prevents_state_commit(self) -> None:
         self._init_state()
@@ -921,6 +1513,98 @@ class PortfolioSidecarTests(unittest.TestCase):
         state = self._read_state()
         self.assertEqual(state["state_generation"], 0)
         self.assertEqual(state["datasets"][0]["sequence"], 0)
+
+    def test_drill_uses_committed_ids_after_a_below_quorum_orphan(self) -> None:
+        self._write_policy(tier="mesh-only")
+        self._write_targets(tier="mesh-only", failures=())
+        self._init_state()
+        result, _stdout, stderr = self._main(self._arguments("backup"))
+        self.assertEqual(result, 0, stderr)
+        committed_state = self._read_state()
+        committed_replicas = {
+            replica["target_id"]: replica["snapshot_id"]
+            for replica in committed_state["datasets"][0]["replicas"]
+        }
+        committed_bytes = self.state_path.read_bytes()
+        orphan_snapshot = "f" * 64
+        self.assertNotIn(orphan_snapshot, committed_replicas.values())
+
+        self.fake_restic.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, pathlib, sys\n"
+            "arguments = sys.argv[1:]\n"
+            "repository_file = pathlib.Path(\n"
+            "    arguments[arguments.index('--repository-file') + 1]\n"
+            ")\n"
+            "repository = repository_file.read_text(encoding='utf-8').strip()\n"
+            "sys.stdin.buffer.read()\n"
+            "if repository.endswith(('/repo-2', '/repo-3')):\n"
+            "    raise SystemExit(17)\n"
+            f"print(json.dumps({{'snapshot_id': {orphan_snapshot!r}}}))\n",
+            encoding="utf-8",
+        )
+        self.fake_restic.chmod(0o700)
+
+        result, stdout, stderr = self._main(self._arguments("backup"))
+        self.assertEqual(result, 3, stderr)
+        self.assertIn("not-committed", stdout)
+        self.assertEqual(self.state_path.read_bytes(), committed_bytes)
+
+        inspected: list[str] = []
+        restored: list[str] = []
+
+        def inspect_recorded(
+            _restic: Path,
+            _ssh: Path,
+            _known_hosts: Path,
+            target: sidecar.Target,
+            _staged_target: sidecar.StagedTarget,
+            _dataset: sidecar.DatasetPolicy,
+            snapshot_id: str,
+            *,
+            cwd: Path,
+        ) -> str:
+            self.assertTrue(cwd.is_dir())
+            self.assertEqual(snapshot_id, committed_replicas[target.target_id])
+            inspected.append(snapshot_id)
+            return snapshot_id
+
+        def restore_recorded(
+            _restic: Path,
+            _ssh: Path,
+            _known_hosts: Path,
+            _target: sidecar.Target,
+            _staged_target: sidecar.StagedTarget,
+            snapshot_id: str,
+            _restore_root: Path,
+            *,
+            cwd: Path,
+        ) -> None:
+            self.assertTrue(cwd.is_dir())
+            restored.append(snapshot_id)
+
+        with (
+            mock.patch.object(sidecar, "_run_restic_check"),
+            mock.patch.object(
+                sidecar,
+                "_run_restic_recorded_snapshot",
+                side_effect=inspect_recorded,
+            ),
+            mock.patch.object(
+                sidecar,
+                "_run_restic_restore",
+                side_effect=restore_recorded,
+            ),
+            mock.patch.object(sidecar, "_verify_restored_snapshot"),
+        ):
+            result, stdout, stderr = self._main(self._arguments("drill"))
+
+        self.assertEqual(result, 0, stderr)
+        self.assertIn("verified", stdout)
+        self.assertCountEqual(inspected, committed_replicas.values())
+        self.assertCountEqual(restored, committed_replicas.values())
+        self.assertNotIn(orphan_snapshot, inspected)
+        self.assertNotIn(orphan_snapshot, restored)
 
     def test_hosted_target_set_cannot_back_a_mesh_dataset(self) -> None:
         self._write_policy(

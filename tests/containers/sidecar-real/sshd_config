@@ -1,0 +1,31 @@
+Port 22
+AddressFamily inet
+ListenAddress 0.0.0.0
+HostKey /run/sshd/ssh_host_ed25519_key
+PidFile /run/sshd.pid
+LogLevel VERBOSE
+
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+AuthorizedKeysFile /run/sshd/authorized_keys/%u
+PermitEmptyPasswords no
+UsePAM no
+StrictModes yes
+AllowUsers sidecarbackup
+
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+PermitTunnel no
+PermitUserEnvironment no
+X11Forwarding no
+
+Subsystem sftp internal-sftp
+
+Match User sidecarbackup
+    ForceCommand internal-sftp
+    DisableForwarding yes
+    PermitTTY no
