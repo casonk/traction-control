@@ -69,3 +69,21 @@ Linux capabilities, enables `no-new-privileges`, runs as an unprivileged user,
 and mounts no host checkout, ignored data, credentials, SSH agent, or container
 socket. Fake SFTP/Restic endpoints exercise hosted-encrypted and mesh-majority
 behavior without transmitting any live content.
+
+The restore-proof path also has an opt-in real Podman regression:
+
+```bash
+bash tests/test_portfolio_sidecar_real_podman.sh
+```
+
+It builds dependencies before creating an internal-only Podman bridge, then
+runs one coordinator against four real key-only OpenSSH/SFTP targets: one L2
+hosted target and three fixed-address RFC 1918 L3 targets. The harness creates
+fresh client and server identities, pinned `known_hosts`, Restic passwords,
+repositories, governance documents, ignored source data, and drill evidence
+under disposable synthetic test state. It exercises full L2/L3 backup and
+restore drills, stops one mesh target, and proves that a two-of-three strict
+majority commits and drills with degraded status. No host SSH material,
+portfolio checkout, external runtime route, container socket, or live sidecar
+configuration enters the test containers. Exact containers, volumes, network,
+and temporary state are removed on exit.

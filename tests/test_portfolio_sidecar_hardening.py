@@ -127,6 +127,7 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
             "private-data/../escape",
             "private-data//value",
             "private-data/.git/config",
+            ".portfolio-sidecar/private-data",
             "private-data\\value",
             "private-data/*",
             "private-e\N{COMBINING ACUTE ACCENT}",
@@ -135,6 +136,287 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
             with self.subTest(selector=repr(selector)):
                 self._write_policy(tier="hosted-encrypted", selector=selector)
                 self._assert_init_rejected()
+
+    def test_portable_manifest_is_encrypted_snapshot_content_and_metadata_stable(
+        self,
+    ) -> None:
+        capture, _target, _staged_target = self._capture_into_staging(
+            "portable-manifest-staging"
+        )
+        assert capture.backup_root is not None
+        manifest_path = capture.backup_root / sidecar.MANIFEST_RELATIVE_PATH
+        manifest_raw = manifest_path.read_bytes()
+        manifest = json.loads(manifest_raw.decode("utf-8"))
+
+        self.assertEqual(manifest["format"], sidecar.MANIFEST_FORMAT)
+        self.assertEqual(manifest["dataset_id"], self.DATASET_ID)
+        self.assertEqual(manifest["repository_id"], self.REPOSITORY_ID)
+        self.assertEqual(
+            hashlib.sha256(manifest_raw).hexdigest(),
+            capture.manifest_sha256,
+        )
+        self.assertEqual(
+            set(manifest),
+            {"format", "dataset_id", "repository_id", "files"},
+        )
+        self.assertEqual(
+            set(manifest["files"][0]),
+            {"path", "size", "mode", "sha256"},
+        )
+        self.assertTrue(
+            (capture.backup_root / sidecar.PAYLOAD_PREFIX / "sidecar-data/alpha.txt").is_file()
+        )
+        self.assertFalse((capture.backup_root / "sidecar-data").exists())
+
+        dataset, registry_entry, checkout = self._loaded_capture_components()
+        before = sidecar.capture_dataset(dataset, checkout, registry_entry)
+        source = self.checkout / "sidecar-data" / "alpha.txt"
+        replacement = self.checkout / "sidecar-data" / "replacement.tmp"
+        replacement.write_bytes(source.read_bytes())
+        replacement.chmod(source.stat().st_mode & 0o7777)
+        os.replace(replacement, source)
+        os.utime(source, None)
+        after = sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        self.assertEqual(before.manifest_sha256, after.manifest_sha256)
+        self.assertNotEqual(
+            (before.files[0].inode, before.files[0].ctime_ns),
+            (after.files[0].inode, after.files[0].ctime_ns),
+        )
+
+    def test_restore_verification_streams_payload_hashes_without_collecting_bytes(
+        self,
+    ) -> None:
+        capture, _target, _staged_target = self._capture_into_staging(
+            "streaming-restore-verification"
+        )
+        dataset, _registry_entry, _checkout = self._loaded_capture_components()
+        state = sidecar.DatasetState(
+            dataset_id=dataset.dataset_id,
+            repository_id=dataset.repository_id,
+            sequence=1,
+            manifest_sha256=capture.manifest_sha256,
+            file_count=len(capture.files),
+            total_bytes=capture.total_bytes,
+            committed_at="2026-07-27T00:00:00Z",
+            replicas=(sidecar.ReplicaState("target-1", "a" * 64),),
+        )
+        collectors: list[object | None] = []
+        original_copy = sidecar._copy_descriptor
+
+        def observe_copy(
+            source: int,
+            destination: int | None,
+            digest: object,
+            *,
+            expected_bytes: int,
+            collector: bytearray | None = None,
+        ) -> None:
+            collectors.append(collector)
+            original_copy(
+                source,
+                destination,
+                digest,
+                expected_bytes=expected_bytes,
+                collector=collector,
+            )
+
+        assert capture.backup_root is not None
+        with mock.patch.object(sidecar, "_copy_descriptor", side_effect=observe_copy):
+            sidecar._verify_restored_snapshot(capture.backup_root, dataset, state)
+
+        self.assertEqual(sum(collector is not None for collector in collectors), 1)
+        self.assertEqual(sum(collector is None for collector in collectors), len(capture.files))
+
+    def test_restore_verifier_rejects_tampering_unsafe_nodes_and_path_traversal(
+        self,
+    ) -> None:
+        cases = {
+            "tampered-manifest": "does not match committed state",
+            "missing-file": "exact file set",
+            "extra-file": "extra nodes|exact file set",
+            "symlink": "link or special node",
+            "hardlink": "hard-linked file",
+            "path-traversal-manifest": "safe relative path",
+        }
+        for case, expected_error in cases.items():
+            with self.subTest(case=case):
+                capture, _target, _staged_target = self._capture_into_staging(
+                    f"restore-reject-{case}"
+                )
+                dataset, _registry_entry, _checkout = self._loaded_capture_components()
+                assert capture.backup_root is not None
+                root_descriptor = os.open(
+                    capture.backup_root,
+                    sidecar._directory_open_flags(),
+                )
+                try:
+                    sidecar._thaw_staging_descriptor(root_descriptor)
+                finally:
+                    os.close(root_descriptor)
+                manifest_path = capture.backup_root / sidecar.MANIFEST_RELATIVE_PATH
+                payload_file = (
+                    capture.backup_root
+                    / sidecar.PAYLOAD_PREFIX
+                    / "sidecar-data/alpha.txt"
+                )
+                manifest_sha256 = capture.manifest_sha256
+                if case == "tampered-manifest":
+                    manifest_path.write_bytes(manifest_path.read_bytes() + b"\n")
+                elif case == "missing-file":
+                    payload_file.unlink()
+                elif case == "extra-file":
+                    extra = capture.backup_root / sidecar.INTERNAL_NAMESPACE / "extra"
+                    extra.write_bytes(b"extra")
+                    extra.chmod(0o600)
+                elif case == "symlink":
+                    payload_file.unlink()
+                    payload_file.symlink_to(manifest_path)
+                elif case == "hardlink":
+                    os.link(payload_file, payload_file.with_name("hardlink"))
+                else:
+                    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    payload["files"][0]["path"] = "../escape"
+                    raw = json.dumps(
+                        payload,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                    manifest_path.write_bytes(raw)
+                    manifest_sha256 = hashlib.sha256(raw).hexdigest()
+                state = sidecar.DatasetState(
+                    dataset_id=dataset.dataset_id,
+                    repository_id=dataset.repository_id,
+                    sequence=1,
+                    manifest_sha256=manifest_sha256,
+                    file_count=len(capture.files),
+                    total_bytes=capture.total_bytes,
+                    committed_at="2026-07-27T00:00:00Z",
+                    replicas=(sidecar.ReplicaState("target-1", "a" * 64),),
+                )
+
+                with self.assertRaisesRegex(sidecar.SidecarError, expected_error):
+                    sidecar._verify_restored_snapshot(
+                        capture.backup_root,
+                        dataset,
+                        state,
+                    )
+
+    def test_restore_fanout_is_capped_before_name_preallocation(self) -> None:
+        restore_root = self.fixture.root / "restore-fanout"
+        restore_root.mkdir(mode=0o700)
+        yielded = 0
+
+        class Entry:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+        class Fanout:
+            def __enter__(self) -> Fanout:
+                return self
+
+            def __exit__(self, *arguments: object) -> None:
+                return None
+
+            def __iter__(self) -> Fanout:
+                return self
+
+            def __next__(self) -> Entry:
+                nonlocal yielded
+                yielded += 1
+                if yielded > 2:
+                    raise AssertionError("restore fanout was preallocated past its cap")
+                return Entry(f"synthetic-{yielded}")
+
+        descriptor = os.open(restore_root, sidecar._directory_open_flags())
+        try:
+            with (
+                mock.patch.object(sidecar.os, "scandir", return_value=Fanout()),
+                self.assertRaisesRegex(sidecar.SidecarError, "extra nodes"),
+            ):
+                sidecar._collect_restored_nodes(descriptor, maximum_nodes=1)
+        finally:
+            os.close(descriptor)
+
+        self.assertEqual(yielded, 2)
+
+    def test_restore_directory_swap_cannot_expose_outside_metadata(self) -> None:
+        restore_root = self.fixture.root / "restore-directory-swap"
+        selected = restore_root / "selected"
+        selected.mkdir(parents=True, mode=0o700)
+        selected.chmod(0o700)
+        benign = selected / "inside.json"
+        benign.write_text("inside\n", encoding="utf-8")
+        benign.chmod(0o600)
+        parked = restore_root / ".selected-before-swap"
+        outside = self.fixture.root / "outside-restore-swap"
+        outside.mkdir(mode=0o700)
+        outside.chmod(0o700)
+        canary_name = "outside-restore-canary.json"
+        canary = outside / canary_name
+        canary.write_text("outside\n", encoding="utf-8")
+        canary.chmod(0o600)
+        selected_metadata = selected.lstat()
+        original_scandir = sidecar.os.scandir
+        original_stat = sidecar.os.stat
+        swapped = False
+        canary_metadata_observed = False
+
+        def swap_before_scandir(path: object) -> object:
+            nonlocal swapped
+            if (
+                isinstance(path, int)
+                and not swapped
+                and sidecar._same_file_identity(
+                    os.fstat(path),
+                    selected_metadata,
+                )
+            ):
+                selected.rename(parked)
+                selected.symlink_to(outside, target_is_directory=True)
+                swapped = True
+            return original_scandir(path)
+
+        def observe_stat(path: object, *args: object, **kwargs: object) -> os.stat_result:
+            nonlocal canary_metadata_observed
+            if path == canary_name:
+                canary_metadata_observed = True
+            return original_stat(path, *args, **kwargs)
+
+        descriptor = os.open(restore_root, sidecar._directory_open_flags())
+        try:
+            try:
+                with (
+                    mock.patch.object(
+                        sidecar.os,
+                        "scandir",
+                        side_effect=swap_before_scandir,
+                    ),
+                    mock.patch.object(
+                        sidecar.os,
+                        "stat",
+                        side_effect=observe_stat,
+                    ),
+                    self.assertRaisesRegex(
+                        sidecar.SidecarError,
+                        "changed during enumeration",
+                    ),
+                ):
+                    sidecar._collect_restored_nodes(
+                        descriptor,
+                        maximum_nodes=2,
+                    )
+            finally:
+                if selected.is_symlink():
+                    selected.unlink()
+                if parked.exists():
+                    parked.rename(selected)
+        finally:
+            os.close(descriptor)
+
+        self.assertTrue(swapped)
+        self.assertFalse(canary_metadata_observed)
 
     def test_selector_case_collisions_and_parent_child_overlap_are_rejected(
         self,
@@ -266,6 +548,285 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
                 checkout.lstat().st_dev,
                 node_budget=[2],
             )
+
+    def test_pathname_budget_is_reserved_before_descendant_metadata(self) -> None:
+        checkout = self.fixture.root / "bounded-pathname-enumeration"
+        selected = checkout / "selected"
+        selected.mkdir(parents=True)
+        child_name = "must-not-be-statted-after-budget"
+        (selected / child_name).write_text("bounded\n", encoding="utf-8")
+        original_stat = sidecar.os.stat
+        child_statted = False
+
+        def observe_stat(path: object, *args: object, **kwargs: object) -> os.stat_result:
+            nonlocal child_statted
+            if path == child_name:
+                child_statted = True
+            return original_stat(path, *args, **kwargs)
+
+        with (
+            mock.patch.object(sidecar.os, "stat", side_effect=observe_stat),
+            self.assertRaisesRegex(sidecar.SidecarError, "pathname-byte"),
+        ):
+            sidecar._enumerate_selector(
+                checkout,
+                "selected",
+                checkout.lstat().st_dev,
+                node_budget=[10],
+                path_byte_budget=[len(b"selected") + 1],
+            )
+
+        self.assertFalse(child_statted)
+
+    def test_path_component_depth_is_rejected_before_recursive_traversal(self) -> None:
+        too_deep = "/".join("d" for _ in range(sidecar.MAX_PATH_COMPONENTS + 1))
+
+        for validator in (
+            sidecar._validate_selector,
+            sidecar._validate_discovered_relative,
+        ):
+            with self.subTest(validator=validator.__name__):
+                with self.assertRaisesRegex(sidecar.SidecarError, "component-depth"):
+                    validator(too_deep)
+
+        node_budget = [sidecar.MAX_PATH_COMPONENTS + 2]
+        with self.assertRaisesRegex(sidecar.SidecarError, "component-depth"):
+            sidecar._reserve_selected_node(
+                too_deep,
+                node_budget=node_budget,
+                path_byte_budget=[len(too_deep.encode("utf-8")) + 1],
+                seen_nodes={},
+            )
+        self.assertEqual(node_budget, [sidecar.MAX_PATH_COMPONENTS + 2])
+
+    def test_capture_reserves_pathname_budget_before_reading_files(self) -> None:
+        dataset, registry_entry, checkout = self._loaded_capture_components()
+        root_only_budget = len(dataset.selectors[0].encode("utf-8")) + 1
+
+        with (
+            mock.patch.object(
+                sidecar,
+                "MAX_DATASET_PATH_BYTES",
+                root_only_budget,
+            ),
+            mock.patch.object(sidecar, "_capture_regular_file") as capture_file,
+            self.assertRaisesRegex(sidecar.SidecarError, "pathname-byte"),
+        ):
+            sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        capture_file.assert_not_called()
+
+    def test_inventory_stability_pass_reuses_first_pass_pathname_cap(self) -> None:
+        source = self.checkout / "sidecar-data" / "alpha.txt"
+        long_name = f"{'x' * 200}.json"
+        replacement = source.with_name(long_name)
+        original_prove = sidecar._prove_untracked_and_ignored
+        original_stat = sidecar.os.stat
+        mutated = False
+        replacement_statted = False
+
+        def prove_then_rename(checkout: Path, paths: tuple[str, ...]) -> None:
+            nonlocal mutated
+            original_prove(checkout, paths)
+            if not mutated:
+                source.rename(replacement)
+                mutated = True
+
+        def observe_stat(path: object, *args: object, **kwargs: object) -> os.stat_result:
+            nonlocal replacement_statted
+            if path == long_name:
+                replacement_statted = True
+            return original_stat(path, *args, **kwargs)
+
+        with (
+            mock.patch.object(
+                sidecar,
+                "_prove_untracked_and_ignored",
+                side_effect=prove_then_rename,
+            ),
+            mock.patch.object(sidecar.os, "stat", side_effect=observe_stat),
+        ):
+            result, _stdout, stderr = self._main(self._inventory_arguments())
+
+        self.assertEqual(result, 0, stderr)
+        self.assertTrue(mutated)
+        self.assertFalse(replacement_statted)
+        repository = json.loads(
+            self.inventory_path.read_text(encoding="utf-8")
+        )["repositories"][0]
+        self.assertEqual(repository["candidates"], [])
+        self.assertEqual(repository["excluded_counts"]["unsafe-or-over-limit"], 1)
+
+    def test_inventory_directory_swap_never_exposes_outside_metadata(self) -> None:
+        selected = self.checkout / "sidecar-data"
+        parked = self.checkout / ".sidecar-data-before-swap"
+        outside = self.fixture.root / "outside-inventory"
+        outside.mkdir()
+        canary_name = "outside-inventory-canary.json"
+        (outside / canary_name).write_text(
+            "content-must-not-be-opened\n",
+            encoding="utf-8",
+        )
+        selected_metadata = selected.lstat()
+        original_scandir = sidecar.os.scandir
+        original_stat = sidecar.os.stat
+        original_open = sidecar.os.open
+        swapped = False
+        outside_metadata_observed = False
+        opened_candidate_files: set[str] = set()
+
+        def swap_before_scandir(path: object) -> object:
+            nonlocal swapped
+            if (
+                isinstance(path, int)
+                and not swapped
+                and sidecar._same_file_identity(
+                    os.fstat(path),
+                    selected_metadata,
+                )
+            ):
+                selected.rename(parked)
+                selected.symlink_to(outside, target_is_directory=True)
+                swapped = True
+            return original_scandir(path)
+
+        def observe_stat(path: object, *args: object, **kwargs: object) -> os.stat_result:
+            nonlocal outside_metadata_observed
+            if path == canary_name:
+                outside_metadata_observed = True
+            return original_stat(path, *args, **kwargs)
+
+        def observe_open(
+            path: object,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            if path in {"alpha.txt", "beta.bin", canary_name}:
+                opened_candidate_files.add(str(path))
+            return original_open(path, flags, mode, dir_fd=dir_fd)
+
+        try:
+            with (
+                mock.patch.object(
+                    sidecar.os,
+                    "scandir",
+                    side_effect=swap_before_scandir,
+                ),
+                mock.patch.object(sidecar.os, "stat", side_effect=observe_stat),
+                mock.patch.object(sidecar.os, "open", side_effect=observe_open),
+            ):
+                result, stdout, stderr = self._main(self._inventory_arguments())
+        finally:
+            if selected.is_symlink():
+                selected.unlink()
+            if parked.exists():
+                parked.rename(selected)
+
+        self.assertEqual(result, 0, stderr)
+        self.assertTrue(swapped)
+        self.assertFalse(outside_metadata_observed)
+        self.assertEqual(opened_candidate_files, set())
+        serialized = self.inventory_path.read_bytes()
+        self.assertNotIn(canary_name.encode("utf-8"), serialized)
+        self.assertNotIn(canary_name, stdout + stderr)
+        repository = json.loads(serialized)["repositories"][0]
+        self.assertEqual(repository["status"], "unready")
+        self.assertEqual(repository["candidates"], [])
+
+    def test_capture_rechecks_an_earlier_file_after_later_capture(self) -> None:
+        dataset, registry_entry, checkout = self._loaded_capture_components()
+        first = checkout / "sidecar-data" / "alpha.txt"
+        original_capture = sidecar._capture_regular_file
+        mutated = False
+
+        def capture_then_mutate_first(
+            checkout_descriptor: int,
+            relative_path: str,
+            root_device: int,
+            **kwargs: object,
+        ) -> sidecar.FileSnapshot:
+            nonlocal mutated
+            captured = original_capture(
+                checkout_descriptor,
+                relative_path,
+                root_device,
+                **kwargs,
+            )
+            if relative_path.endswith("nested/beta.bin"):
+                first.write_bytes(b"changed after its capture\n")
+                mutated = True
+            return captured
+
+        with (
+            mock.patch.object(
+                sidecar,
+                "_capture_regular_file",
+                side_effect=capture_then_mutate_first,
+            ),
+            self.assertRaisesRegex(sidecar.SidecarError, "changed after capture"),
+        ):
+            sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        self.assertTrue(mutated)
+
+    def test_capture_rejects_file_added_after_selected_tree_copy(self) -> None:
+        dataset, registry_entry, checkout = self._loaded_capture_components()
+        original_capture = sidecar._capture_regular_file
+        added = False
+
+        def capture_then_add_file(
+            checkout_descriptor: int,
+            relative_path: str,
+            root_device: int,
+            **kwargs: object,
+        ) -> sidecar.FileSnapshot:
+            nonlocal added
+            captured = original_capture(
+                checkout_descriptor,
+                relative_path,
+                root_device,
+                **kwargs,
+            )
+            if relative_path.endswith("nested/beta.bin"):
+                (checkout / "sidecar-data" / "late.json").write_text(
+                    "late arrival\n",
+                    encoding="utf-8",
+                )
+                added = True
+            return captured
+
+        with (
+            mock.patch.object(
+                sidecar,
+                "_capture_regular_file",
+                side_effect=capture_then_add_file,
+            ),
+            self.assertRaisesRegex(sidecar.SidecarError, "tree changed during capture"),
+        ):
+            sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        self.assertTrue(added)
+
+    def test_linux_casefold_collision_is_rejected_before_file_capture(self) -> None:
+        dataset, registry_entry, checkout = self._loaded_capture_components()
+        synthetic_paths = (
+            "sidecar-data/A.json",
+            "sidecar-data/a.json",
+        )
+        with (
+            mock.patch.object(
+                sidecar,
+                "_enumerate_selector_descriptor",
+                return_value=(synthetic_paths, {}, "directory"),
+            ),
+            mock.patch.object(sidecar, "_capture_regular_file") as capture_file,
+            self.assertRaisesRegex(sidecar.SidecarError, "casefold-colliding"),
+        ):
+            sidecar.capture_dataset(dataset, checkout, registry_entry)
+
+        capture_file.assert_not_called()
 
     def test_fifo_is_rejected_promptly_without_invoking_restic(self) -> None:
         fifo = self.checkout / "sidecar-data" / "unsafe-fifo"
@@ -468,7 +1029,13 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
             "#!/usr/bin/env python3\n"
             "import hashlib, json, pathlib, sys\n"
             "paths = [p for p in sys.stdin.buffer.read().split(b'\\0') if p]\n"
-            "content = b''.join(pathlib.Path(p.decode()).read_bytes() for p in paths)\n"
+            "roots = [pathlib.Path(p.decode()) for p in paths]\n"
+            "content = b''.join(\n"
+            "    candidate.read_bytes()\n"
+            "    for root in roots\n"
+            "    for candidate in sorted(root.rglob('*'))\n"
+            "    if candidate.is_file()\n"
+            ")\n"
             f"pathlib.Path({str(observed)!r}).write_bytes(content)\n"
             "print(json.dumps({'snapshot_id': hashlib.sha256(content).hexdigest()}))\n",
             encoding="utf-8",
@@ -830,16 +1397,17 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
         command = runner.call_args.args[0]
         keyword = runner.call_args.kwargs
         self.assertEqual(command[0], str(self.fake_restic))
-        self.assertEqual(
-            command[-5:],
-            ["backup", "--json", "--no-scan", "--files-from-raw", "-"],
-        )
+        self.assertEqual(command[-1], "-")
+        self.assertIn("backup", command)
+        self.assertIn("sidecar-format=portable-files-v1", command)
+        self.assertIn(f"sidecar-dataset={self.DATASET_ID}", command)
+        self.assertIn(f"sidecar-repository={self.REPOSITORY_ID}", command)
         self.assertNotIn("sidecar-data/alpha.txt", command)
         self.assertEqual(keyword["cwd"], capture.backup_root)
         self.assertEqual(keyword["timeout"], 3600.0)
         self.assertEqual(
             keyword["input_data"],
-            b"sidecar-data/alpha.txt\0sidecar-data/nested/beta.bin\0",
+            b".portfolio-sidecar\0",
         )
         self.assertFalse(any(value.startswith("sftp.args=") for value in command))
         ssh_arguments = next(
@@ -855,11 +1423,152 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
             ssh_arguments,
         )
         self.assertIn("PasswordAuthentication=no", ssh_arguments)
+        self.assertIn("ConnectTimeout=10", ssh_arguments)
+        self.assertIn("ConnectionAttempts=1", ssh_arguments)
         self.assertNotIn("HOME", keyword["environment"])
         self.assertNotIn("SSH_AUTH_SOCK", keyword["environment"])
         self.assertNotIn("RESTIC_PASSWORD", keyword["environment"])
         self.assertNotIn("RESTIC_REPOSITORY", keyword["environment"])
         self.assertNotIn("shell", keyword)
+
+    def test_recorded_snapshot_inspection_requires_exact_id_and_identity_tags(
+        self,
+    ) -> None:
+        _capture, target, staged_target = self._capture_into_staging(
+            "recorded-snapshot-inspection-staging"
+        )
+        dataset, _registry_entry, _checkout = self._loaded_capture_components()
+        snapshot_id = "b" * 64
+        expected_tags = sorted(
+            (
+                "sidecar-format=portable-files-v1",
+                f"sidecar-dataset={self.DATASET_ID}",
+                f"sidecar-repository={self.REPOSITORY_ID}",
+            )
+        )
+        output = json.dumps(
+            [
+                {
+                    "id": snapshot_id,
+                    "short_id": snapshot_id[:8],
+                    "tags": expected_tags,
+                    "hostname": "restic-version-specific-field",
+                }
+            ]
+        ).encode("utf-8")
+
+        with mock.patch.object(
+            sidecar,
+            "_run_bounded_process",
+            return_value=(0, output, b""),
+        ) as runner:
+            observed = sidecar._run_restic_recorded_snapshot(
+                self.fake_restic,
+                self.fake_ssh,
+                self.known_hosts,
+                target,
+                staged_target,
+                dataset,
+                snapshot_id,
+                cwd=self.fixture.root,
+            )
+
+        self.assertEqual(observed, snapshot_id)
+        command = runner.call_args.args[0]
+        self.assertEqual(command[-3:], ["snapshots", "--json", snapshot_id])
+        self.assertNotIn("--latest", command)
+        self.assertNotIn("--group-by", command)
+        self.assertNotIn("--tag", command)
+        self.assertEqual(runner.call_args.kwargs["timeout"], 300.0)
+        self.assertEqual(runner.call_args.kwargs["input_data"], b"")
+
+        for malformed in (
+            [{"id": "c" * 64, "tags": expected_tags}],
+            [
+                {
+                    "id": snapshot_id,
+                    "tags": [*expected_tags, "unexpected=tag"],
+                }
+            ],
+            [
+                {
+                    "group_key": {
+                        "hostname": "",
+                        "paths": None,
+                        "tags": expected_tags,
+                    },
+                    "snapshots": [
+                        {
+                            "id": snapshot_id,
+                            "tags": expected_tags,
+                        }
+                    ],
+                }
+            ],
+            [
+                {"id": snapshot_id, "tags": expected_tags},
+                {"id": snapshot_id, "tags": expected_tags},
+            ],
+        ):
+            with self.subTest(malformed=malformed):
+                with self.assertRaises(sidecar.SidecarError):
+                    sidecar._parse_recorded_snapshot(
+                        json.dumps(malformed).encode("utf-8"),
+                        snapshot_id,
+                        expected_tags,
+                    )
+
+    def test_pathological_json_is_translated_to_fail_closed_errors(self) -> None:
+        huge_integer = b'{"snapshot_id":' + (b"9" * 5000) + b"}\n"
+        with self.assertRaisesRegex(sidecar.SidecarError, "malformed JSON status"):
+            sidecar._parse_restic_snapshot_id(huge_integer)
+
+        recursion_probe = b"[]"
+        dataset, _registry_entry, _checkout = self._loaded_capture_components()
+        state = sidecar.DatasetState(
+            dataset_id=dataset.dataset_id,
+            repository_id=dataset.repository_id,
+            sequence=1,
+            manifest_sha256=hashlib.sha256(recursion_probe).hexdigest(),
+            file_count=0,
+            total_bytes=0,
+            committed_at="2026-07-27T00:00:00Z",
+            replicas=(),
+        )
+        pair = visibility.load_pair(self.private_path, self.public_path)
+        self.inventory_path.write_bytes(recursion_probe)
+        self.inventory_path.chmod(0o600)
+        with mock.patch.object(
+            sidecar.json,
+            "loads",
+            side_effect=RecursionError("synthetic recursion limit"),
+        ):
+            with self.assertRaisesRegex(
+                sidecar.SidecarError,
+                "malformed snapshot inventory",
+            ):
+                sidecar._parse_recorded_snapshot(
+                    recursion_probe,
+                    "a" * 64,
+                    (),
+                )
+            with self.assertRaisesRegex(sidecar.SidecarError, "manifest is malformed"):
+                sidecar._parse_portable_manifest(recursion_probe, dataset, state)
+            with self.assertRaisesRegex(
+                sidecar.SidecarError,
+                "inventory output is malformed",
+            ):
+                sidecar._validate_existing_inventory_output(self.inventory_path, pair)
+
+        self.policy_path.write_bytes(
+            b'{"schema_version":' + (b"9" * 5000) + b"}"
+        )
+        self.policy_path.chmod(0o600)
+        result, stdout, stderr = self._main(self._arguments("init-state"))
+        self.assertEqual(result, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn("invalid JSON in sidecar policy", stderr)
+        self.assertNotIn("Traceback", stderr)
 
     def test_restic_stdout_and_stderr_are_capped_during_execution(self) -> None:
         for stream_name, descriptor in (("stdout", 1), ("stderr", 2)):
@@ -891,6 +1600,36 @@ class PortfolioSidecarHardeningTests(unittest.TestCase):
 
                 self.assertLess(time.monotonic() - started, 5.0)
                 kill_process_group.assert_called_once()
+
+    def test_git_inspection_output_is_capped_during_execution(self) -> None:
+        executable_directory = self.fixture.root / "fake-git-bin"
+        executable_directory.mkdir()
+        fake_git = executable_directory / "git"
+        fake_git.write_text(
+            f"#!{sys.executable}\n"
+            "import os\n"
+            "chunk = b'x' * 65536\n"
+            "while True:\n"
+            "    os.write(1, chunk)\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+
+        started = time.monotonic()
+        with (
+            mock.patch.dict(os.environ, {"PATH": str(executable_directory)}),
+            mock.patch.object(sidecar, "MAX_INVENTORY_PATH_BYTES", 1024),
+            mock.patch.object(
+                sidecar,
+                "_kill_process_group",
+                wraps=sidecar._kill_process_group,
+            ) as kill_process_group,
+            self.assertRaisesRegex(sidecar.SidecarError, "Git inspection"),
+        ):
+            sidecar._run_git(self.checkout, ["status"], text=False)
+
+        self.assertLess(time.monotonic() - started, 5.0)
+        kill_process_group.assert_called_once()
 
     def test_restic_timeout_kills_the_isolated_process_group(self) -> None:
         started = time.monotonic()

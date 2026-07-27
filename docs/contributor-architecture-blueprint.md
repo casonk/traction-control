@@ -39,12 +39,18 @@ still not a long-running application binary.
      data selection. L2 writes client-encrypted restic snapshots to private
      hosted SFTP; L3 requires a strict-majority acknowledgement threshold
      across at least three private-address SFTP targets intended for the
-     WireGuard mesh and has no hosted fallback. Schema v1 does not prove peer
-     membership, repository integrity, or restore success.
+     WireGuard mesh and has no hosted fallback. `init-config` creates an inert
+     owner-only local pair, and `inventory-candidates` produces a metadata-only
+     advisory report without enrolling or reading candidate contents.
+     Policy/targets schema v1 does not prove peer membership. State schema v2
+     binds an encrypted portable manifest; `drill` checks and exactly restores
+     the committed snapshot ID for each replica recorded in state before
+     writing owner-only, no-overwrite evidence bound to the control-plane state.
    - The first executable sidecar remains a statically selected standalone
      coordinator with no prune path. It stores only latest committed state and
-     does not implement repair, history, restore drills, or automatic failover;
-     those wait for a quorum-backed rqlite/Raft authority and later automation.
+     does not implement repair, history, application-specific recovery, or
+     automatic failover; those wait for a quorum-backed rqlite/Raft authority
+     and later automation.
 3. Bootstrap profile layer (`scripts/install_traction_control_agents.sh`)
    - `config/traction-control-agents/repos.conf` defines the cumulative support
      repos for the light, moderate, and heavy profiles.
@@ -111,6 +117,13 @@ still not a long-running application binary.
    - Real-Git regression tests exercise catalog reconciliation, atomic
      materialization, fetch-only behavior, lifecycle dependency evidence,
      private-name disclosure checks, and fail-closed identity/path rules.
+   - `tests/test_portfolio_sidecar_containers.sh` runs the synthetic sidecar
+     suite in a networkless read-only Linux container. The opt-in
+     `tests/test_portfolio_sidecar_real_podman.sh` creates one coordinator plus
+     four disposable key-only OpenSSH/SFTP targets on an internal Podman
+     network, initializes real Restic repositories, and verifies full and
+     one-mesh-node-outage backup/restore-drill behavior without using live
+     portfolio data or infrastructure.
    - The CI job checks that the control-plane repo stays internally consistent,
      but it does not itself perform portfolio-wide maintenance.
 
@@ -136,7 +149,10 @@ still not a long-running application binary.
 - `tests/test_portfolio_sidecar.py`
 - `tests/test_portfolio_sidecar_hardening.py`
 - `tests/test_portfolio_sidecar_containers.sh`
+- `tests/test_portfolio_sidecar_real_podman.sh`
 - `tests/containers/Sidecar.Containerfile`
+- `tests/containers/SidecarRealCoordinator.Containerfile`
+- `tests/containers/SidecarRealSftp.Containerfile`
 - `scripts/install_traction_control_agents.sh`
 - `config/traction-control-agents/repos.conf`
 - `config/traction-control-agents/jobs.conf`
