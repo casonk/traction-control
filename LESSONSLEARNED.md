@@ -845,3 +845,20 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - Bind backup tools to immutable staged bytes and explicit credentials. Hashing
   a live pathname before handing that pathname to another process leaves a
   symlink/rename race that can copy data outside the reviewed selection.
+
+### 2026-07-27 — Backup acknowledgement is not portable restore proof
+
+- Archive a canonical manifest inside the client-encrypted snapshot and bind
+  committed state to that manifest. Paths, sizes, original modes, and content
+  hashes are portable evidence; inode, device, UID, GID, and timestamps are
+  host-specific capture metadata and must not define cross-node identity.
+- Prove recovery by checking repository data, restoring the exact snapshot
+  recorded by committed state into a new private directory, and rejecting
+  missing, extra, linked, traversing, or hash-mismatched nodes. A successful
+  backup process and a syntactically valid snapshot ID are only acknowledgements.
+- A backup repository's newest snapshot is not the transaction commit record.
+  Treat the locally committed state generation and its full snapshot IDs as
+  authoritative, inspect each exact ID and its identity tags, and restore that
+  exact snapshot. Newer below-quorum snapshots are uncommitted orphans and must
+  not invalidate proof of the last committed generation. Exercise this with a
+  second real generation and disjoint below-quorum orphan regressions.

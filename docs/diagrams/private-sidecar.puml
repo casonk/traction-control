@@ -10,7 +10,13 @@ folder "Repository checkout" {
   artifact "Explicit L3 selectors\nhighest-sensitivity data" as L3
 }
 
-component "Standalone coordinator\nmanual failover (v1)" as Coordinator
+artifact "Metadata-only candidate report\nadvisory; owner-only" as Inventory
+component "Standalone coordinator\nmanual failover" as Coordinator
+folder "Owner-only disposable spool" as Spool {
+  artifact "Portable manifest\n+ namespaced payload" as Portable
+  artifact "Exact drill restore" as Restore
+}
+artifact "Ignored drill evidence\nstate/policy/target bound" as Evidence
 database "Reviewed Git remote\n(private first)" as GitRemote
 database "Private hosted SFTP\nrestic repository" as Hosted
 
@@ -23,18 +29,29 @@ cloud "WireGuard mesh" {
 component "Planned quorum authority\nrqlite / Raft" as Authority
 
 L1 --> GitRemote : Git
+L2 ..> Inventory : metadata only
+L3 ..> Inventory : metadata only
+Inventory ..> Coordinator : explicit enrollment only
 L2 --> Coordinator : explicit selector
 L3 --> Coordinator : explicit selector
+Coordinator --> Portable : immutable capture
 Coordinator --> Hosted : L2 client-encrypted restic
 Coordinator --> NodeA : L3 client-encrypted restic
 Coordinator --> NodeB : L3 client-encrypted restic
 Coordinator --> NodeC : L3 client-encrypted restic
+Hosted --> Restore : check + exact recorded restore
+NodeA --> Restore : check + exact recorded restore
+NodeB --> Restore : check + exact recorded restore
+NodeC --> Restore : check + exact recorded restore
+Restore --> Coordinator : exact paths, sizes, hashes
+Coordinator --> Evidence : no-overwrite result
 Coordinator ..> Authority : future lease and fence epochs
 
 note bottom of Coordinator
-  v1: one statically selected writer
+  one statically selected writer
   L3: strict-majority acknowledgement threshold
-  acknowledgement is not an integrity/restore proof
+  state v2 binds portable-files-v1
+  acknowledgement needs a successful drill
   mesh peer/route attestation pending
   no hosted fallback; no prune
 end note
