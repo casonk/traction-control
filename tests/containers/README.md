@@ -63,12 +63,28 @@ The ignored-state sidecar has a separate, narrow Linux regression image:
 bash tests/test_portfolio_sidecar_containers.sh
 ```
 
-That runner stages only the three sidecar/registry modules and their synthetic
-tests. It disables networking, uses a read-only root filesystem, drops all
+That runner stages only the four sidecar/registry/rendering modules, their
+three synthetic test modules, and the two synthetic topology examples. It
+disables networking, uses a read-only root filesystem, drops all
 Linux capabilities, enables `no-new-privileges`, runs as an unprivileged user,
 and mounts no host checkout, ignored data, credentials, SSH agent, or container
 socket. Fake SFTP/Restic endpoints exercise hosted-encrypted and mesh-majority
 behavior without transmitting any live content.
+
+Two focused Podman proofs cover the production-shaped target artifacts:
+
+```bash
+bash tests/test_portfolio_sidecar_sftp_image_podman.sh
+bash tests/test_portfolio_sidecar_quadlet_generator_podman.sh
+```
+
+The first builds the owned key-only SFTP image and proves its authentication,
+forced-SFTP, chroot, capability, read-only-root, and persistent-volume
+contracts. The second renders one inactive target and passes its `.container`
+and `.volume` files through the real rootless Quadlet generator inside the
+macOS Podman VM. It uses dry-run mode, asserts that no Podman resource or live
+systemd unit appears, verifies both generated services with `systemd-analyze`,
+and removes the temporary isolated VM input directory.
 
 The restore-proof path also has an opt-in real Podman regression:
 

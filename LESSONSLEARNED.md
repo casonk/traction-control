@@ -862,3 +862,21 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   exact snapshot. Newer below-quorum snapshots are uncommitted orphans and must
   not invalidate proof of the last committed generation. Exercise this with a
   second real generation and disjoint below-quorum orphan regressions.
+
+### 2026-07-28 — Podman is a node runtime, not the WireGuard mesh
+
+- Put WireGuard on each native Linux host and bind a rootless Podman target only
+  to the private address that host actually owns. Podman bridge networks are
+  local container networking; they do not establish multi-host membership,
+  routing, failure-domain independence, or writer authority.
+- Treat macOS Podman Machine as a container-verification environment unless
+  host-to-VM routing is separately designed and proven. Its containers run in
+  a Linux VM and cannot be assumed to bind the Mac's WireGuard interface.
+- Render one target-specific Quadlet bundle at a time and omit `[Install]`
+  until activation has a separate reviewed host/network gate. Replacing a
+  Podman secret does not update an existing container, so key rotation must
+  recreate the target before the old credential is revoked.
+- Pass rendered `.container` and `.volume` files through the real Quadlet
+  generator, not only string assertions. Keep full credential validation,
+  host-key/`known_hosts` binding, and bounded storage capacity as explicit false
+  manifest gates until an activation workflow can prove them transactionally.
