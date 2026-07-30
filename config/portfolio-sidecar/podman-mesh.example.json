@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "deployment_id": "DEPLOYMENT_EXAMPLE_PODMAN_MESH_001",
+  "deployment_generation": 1,
+  "coordinator_mode": "standalone-no-automatic-failover",
+  "target_set_id": "TARGET_SET_EXAMPLE_MESH_001",
+  "coordinator": {
+    "image": "registry.example.invalid/traction-control/sidecar-coordinator@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "unit_name": "portfolio-sidecar-coordinator",
+    "container_name": "portfolio-sidecar-coordinator"
+  },
+  "targets": [
+    {
+      "target_id": "TARGET_EXAMPLE_MESH_001",
+      "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_001",
+      "image": "registry.example.invalid/traction-control/sidecar-sftp@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "unit_name": "portfolio-sidecar-target-001",
+      "container_name": "portfolio-sidecar-target-001",
+      "mesh_address": "10.77.0.11",
+      "published_port": 2222,
+      "container_port": 2222,
+      "repository_volume": "portfolio-sidecar-repository-001",
+      "host_key_secret": "portfolio-sidecar-host-key-001",
+      "authorized_keys_secret": "portfolio-sidecar-authorized-keys-001"
+    },
+    {
+      "target_id": "TARGET_EXAMPLE_MESH_002",
+      "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_002",
+      "image": "registry.example.invalid/traction-control/sidecar-sftp@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "unit_name": "portfolio-sidecar-target-002",
+      "container_name": "portfolio-sidecar-target-002",
+      "mesh_address": "10.77.0.12",
+      "published_port": 2222,
+      "container_port": 2222,
+      "repository_volume": "portfolio-sidecar-repository-002",
+      "host_key_secret": "portfolio-sidecar-host-key-002",
+      "authorized_keys_secret": "portfolio-sidecar-authorized-keys-002"
+    },
+    {
+      "target_id": "TARGET_EXAMPLE_MESH_003",
+      "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_003",
+      "image": "registry.example.invalid/traction-control/sidecar-sftp@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "unit_name": "portfolio-sidecar-target-003",
+      "container_name": "portfolio-sidecar-target-003",
+      "mesh_address": "10.77.0.13",
+      "published_port": 2222,
+      "container_port": 2222,
+      "repository_volume": "portfolio-sidecar-repository-003",
+      "host_key_secret": "portfolio-sidecar-host-key-003",
+      "authorized_keys_secret": "portfolio-sidecar-authorized-keys-003"
+    }
+  ]
+}

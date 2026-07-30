@@ -60,6 +60,8 @@ MAX_INVENTORY_PATH_BYTES = 8 * 1024 * 1024
 MAX_INVENTORY_OUTPUT_BYTES = 16 * 1024 * 1024
 MAX_PATH_COMPONENTS = 128
 MAX_LIMIT = (1 << 63) - 1
+DEFAULT_SFTP_PORT = 22
+MAX_TCP_PORT = 65_535
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 RESTIC_SNAPSHOT_RE = re.compile(r"[0-9a-f]{64}")
 RESTIC_COMMAND_TOKEN_RE = re.compile(r"[A-Za-z0-9_@%+=:,./-]+")
@@ -97,9 +99,11 @@ TARGET_KEYS = {
     "repository_file",
     "password_file",
     "identity_file",
+    "sftp_port",
     "mesh_address",
     "failure_domain",
 }
+TARGET_V1_REQUIRED_KEYS = TARGET_KEYS - {"sftp_port"}
 STATE_ROOT_KEYS = {
     "schema_version",
     "manifest_format",
@@ -223,6 +227,7 @@ class Target:
     identity_file: Path
     sftp_host: str
     sftp_user: str
+    sftp_port: int
     mesh_address: str | None
     failure_domain: str
     repository_sha256: str
@@ -380,6 +385,22 @@ def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -
     raise SidecarError(f"{label} has invalid keys ({'; '.join(details)})")
 
 
+def _require_target_keys(value: dict[str, Any], label: str) -> None:
+    """Accept schema-v1 targets with an omitted port while rejecting other drift."""
+
+    actual = set(value)
+    missing = sorted(TARGET_V1_REQUIRED_KEYS - actual)
+    unknown = sorted(actual - TARGET_KEYS)
+    if not missing and not unknown:
+        return
+    details: list[str] = []
+    if missing:
+        details.append(f"missing {', '.join(missing)}")
+    if unknown:
+        details.append(f"unknown {', '.join(unknown)}")
+    raise SidecarError(f"{label} has invalid keys ({'; '.join(details)})")
+
+
 def _validate_id(value: object, label: str) -> str:
     if type(value) is not str or ID_RE.fullmatch(value) is None:
         raise SidecarError(f"{label} must be a stable opaque identifier")
@@ -395,6 +416,12 @@ def _validate_generation(value: object, label: str) -> int:
 def _validate_limit(value: object, label: str) -> int:
     if type(value) is not int or value <= 0 or value > MAX_LIMIT:
         raise SidecarError(f"{label} must be an integer from 1 through {MAX_LIMIT}")
+    return value
+
+
+def _validate_sftp_port(value: object, label: str) -> int:
+    if type(value) is not int or value < 1 or value > MAX_TCP_PORT:
+        raise SidecarError(f"{label} must be an integer from 1 through {MAX_TCP_PORT}")
     return value
 
 
@@ -763,7 +790,7 @@ def load_targets(path: Path, pair: visibility.RegistryPair) -> TargetsDocument:
             target_label = f"{label} target {target_index}"
             if type(raw_target) is not dict:
                 raise SidecarError(f"{target_label} must be a JSON object")
-            _require_exact_keys(raw_target, TARGET_KEYS, target_label)
+            _require_target_keys(raw_target, target_label)
             target_id = _validate_id(raw_target["target_id"], f"{target_label} id")
             if target_id in seen_target_ids:
                 raise SidecarError("sidecar targets contain a duplicate target_id")
@@ -791,6 +818,10 @@ def load_targets(path: Path, pair: visibility.RegistryPair) -> TargetsDocument:
                 )
             seen_secret_files.update(target_secret_files)
             sftp_host, sftp_user = _parse_sftp_repository(repository_file)
+            sftp_port = _validate_sftp_port(
+                raw_target.get("sftp_port", DEFAULT_SFTP_PORT),
+                f"{target_label} sftp_port",
+            )
             _validate_password_file(password_file)
             repository_sha256 = hashlib.sha256(
                 _read_secure_text_file(
@@ -863,6 +894,7 @@ def load_targets(path: Path, pair: visibility.RegistryPair) -> TargetsDocument:
                     identity_file=identity_file,
                     sftp_host=sftp_host,
                     sftp_user=sftp_user,
+                    sftp_port=sftp_port,
                     mesh_address=mesh_address,
                     failure_domain=failure_domain,
                     repository_sha256=repository_sha256,
@@ -908,6 +940,7 @@ def load_targets(path: Path, pair: visibility.RegistryPair) -> TargetsDocument:
                         "repository_file": str(target.repository_file),
                         "password_file": str(target.password_file),
                         "identity_file": str(target.identity_file),
+                        "sftp_port": target.sftp_port,
                         "mesh_address": target.mesh_address,
                         "failure_domain": target.failure_domain,
                         "repository_sha256": target.repository_sha256,
@@ -3628,7 +3661,7 @@ def _restic_sftp_command(
         "-o",
         "RequestTTY=no",
     ]
-    tokens.extend(("-l", target.sftp_user))
+    tokens.extend(("-p", str(target.sftp_port), "-l", target.sftp_user))
     tokens.extend((target.sftp_host, "-s", "sftp"))
     return " ".join(_restic_command_token(token) for token in tokens)
 

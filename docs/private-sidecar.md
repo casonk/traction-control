@@ -131,17 +131,29 @@ private audit material outside the active path, and run `init-state` to begin a
 deliberately new schema-v2 state epoch before backing up again.
 
 Each target supplies absolute `repository_file`, `password_file`, and
-`identity_file` paths. The first secure file contains the live restic SFTP
-repository URI, the second contains its password, and the third is an explicit
-SSH private key selected for that target. None of their contents appears in JSON, logs,
-or tracked examples. Each file must be a real owner-only file, separate from
-the other two. Every SFTP repository URI must include an explicit safe
+`identity_file` paths plus an explicit integer `sftp_port` from 1 through
+65535. The first secure file contains the live restic SFTP repository URI, the
+second contains its password, and the third is an explicit SSH private key
+selected for that target. None of their contents appears in JSON, logs, or
+tracked examples. Each file must be a real owner-only file, separate from the
+other two. Every SFTP repository URI must include an explicit safe
 `user@host`; the coordinator never falls back to the local operating-system
-username, including during a manual failover. A hosted target has a null
-`mesh_address`. A mesh target has a distinct failure domain and an RFC 1918
-IPv4 literal `mesh_address` that must exactly match the SFTP repository URI
-host. Schema v1 accepts only scp-style SFTP repository URIs; IPv6 and custom
-SSH ports remain unsupported until they have live Restic integration coverage.
+username, including during a manual failover. The hardened SSH command passes
+the selected port directly with `-p`. For compatibility, an older schema-v1
+target entry that omits `sftp_port` is interpreted and canonically bound as
+port 22; new and reviewed target entries should always spell the port out. A
+hosted target has a null `mesh_address`. A mesh target has a distinct failure
+domain and an RFC 1918 IPv4 literal `mesh_address` that must exactly match the
+SFTP repository URI host. Schema v1 accepts only scp-style SFTP repository
+URIs; IPv6 remains unsupported.
+
+For a non-default port, pin the server key in `known_hosts` under OpenSSH's
+`[host]:port` name rather than the unbracketed host name. The normalized port
+is part of `target_sha256`. Therefore, a state document created by a runtime
+from before explicit-port support intentionally fails its target binding even
+when an old target entry omits the port. Archive that state as private audit
+material, advance the target generation, and run `init-state` for a reviewed
+new epoch; do not weaken the binding to preserve the old hash.
 
 That address check is a syntactic fail-closed restriction, not proof of
 WireGuard membership or routing. Schema v1 does not consult an authoritative
@@ -246,6 +258,99 @@ Three members is the minimum; adding a member changes the fixed membership and
 the strict-majority threshold rather than creating a best-effort destination
 pool. Distinct failure domains must represent independently useful durability
 boundaries, not aliases for the same disk or host.
+
+## Render-Only Podman Target Scaffold
+
+`scripts/render_portfolio_sidecar_quadlets.py` is the first inactive deployment
+slice for L3 targets. It does not turn a Podman network into a multi-host mesh:
+WireGuard remains host-owned infrastructure, provisioned through the shared
+`short-circuit` utility. Each production SFTP target is intended for a native
+rootless Linux Podman host that owns the exact RFC 1918 WireGuard address in the
+authoritative `targets.local.json`. A macOS Podman Machine is useful for
+disposable image and Quadlet verification, but its Linux VM cannot be assumed
+to bind the Mac's WireGuard interface. See the focused
+[Podman-on-WireGuard target guide](podman-on-wireguard-sidecar.md) for the
+complete schema, rendering, transfer, and future activation boundaries.
+
+Create the additional ignored local deployment document from the repository
+root:
+
+```bash
+python3 scripts/render_portfolio_sidecar_quadlets.py init-config \
+  --deployment "$(pwd)/config/portfolio-sidecar/podman-mesh.local.json"
+```
+
+The result is owner-only generation zero with no coordinator, target set, or
+targets. It is deliberately inert and does not alter `policy.local.json`,
+`targets.local.json`, or sidecar state. To prepare a review, advance a copy to
+generation one, keep exactly one standalone coordinator declaration, and add
+at least three sorted mesh targets. The deployment must exactly match one
+`mesh-only` set in the authoritative targets document: target-set and target
+generations, target IDs, failure domains, private addresses, explicit high
+SFTP ports, membership, and strict-majority threshold are bound into the
+rendered manifest, together with a digest of the complete target document.
+This renderer validates only that topology projection; it does not open the
+repository, password, or identity files or validate unrelated target sets.
+The full `portfolio_sidecar.py validate` governance path remains mandatory
+before activation. Image values must be registry digests or full local
+`sha256:` image IDs; tags are refused and every target unit uses `Pull=never`.
+
+Render exactly one physical node per invocation:
+
+```bash
+python3 scripts/render_portfolio_sidecar_quadlets.py render \
+  --deployment "$(pwd)/config/portfolio-sidecar/podman-mesh.local.json" \
+  --targets "$(pwd)/config/portfolio-sidecar/targets.local.json" \
+  --target-id TARGET_REVIEWED_MESH_001 \
+  --output "$(pwd)/config/portfolio-sidecar/target-001.local.d"
+```
+
+That no-overwrite output contains one `.container`, its one `.volume`, and an
+owner-only manifest. It never emits another node's unit. The target unit binds
+only the reviewed private host address and high port, references named Podman
+secrets without their values, keeps the image read-only except for explicit
+tmpfs and one `nodev,nosuid,noexec` repository volume, drops all capabilities
+before restoring the five capabilities exercised by the rootless SFTP smoke
+test, and never mounts the Podman socket. The owned image contract lives under
+`containers/portfolio-sidecar-sftp/`; its OpenSSH service permits only pinned
+Ed25519 public-key authentication and forced `internal-sftp` access to the
+Restic repository.
+
+All generated units omit `[Install]`, and their manifests say
+`activation_ready: false`. Rendering never invokes Podman, systemd, WireGuard,
+or a secret provider and does not create a container, volume, secret, live
+unit, firewall rule, route, or activation symlink. A separate future activation
+gate must run on each native Linux target and prove the image is present by its
+exact content address, secrets exist, the bind address belongs to the intended
+WireGuard interface, firewall scope is private, storage is an independent
+failure domain, every host key is transactionally bound to the coordinator's
+custom-port `known_hosts`, the repository has a monitored quota or dedicated
+bounded filesystem, and the reviewed resource limits are suitable.
+
+On macOS, the disposable generator proof is:
+
+```bash
+bash tests/test_portfolio_sidecar_quadlet_generator_podman.sh
+```
+
+It stages one target bundle briefly outside every live Quadlet search path in
+the Podman VM, selects that isolated directory through `QUADLET_UNIT_DIRS`, runs
+the real generator in dry-run mode, verifies both generated user services with
+`systemd-analyze`, proves that no container, volume, secret, or live service
+was created, and cleans up.
+
+The coordinator remains intentionally non-containerized. The optional
+`render-coordinator-review` command emits a non-Quadlet
+`.coordinator-review` artifact only; policy-derived mounts, state/spool writes,
+scheduling, credential scope, and a fenced static host identity must be
+designed before a coordinator unit can be activatable. Neither target rendering
+nor network proximity authorizes coordinator promotion.
+
+Podman secret replacement affects only newly created containers. Rotate client
+keys with an overlap, prove the new key, recreate the target container, and
+then revoke the old key. Rotate host keys with overlapping `[host]:port`
+`known_hosts` entries. An image digest provides immutability, not publisher
+provenance; image review/signing remains a separate gate.
 
 ## Snapshot And Durability Contract
 
