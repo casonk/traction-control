@@ -62,6 +62,10 @@ git check-ignore --quiet --no-index \
 git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/portfolio-sidecar/state/authority.json"
 git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/podman-mesh.local.json"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/portfolio-sidecar/quadlets.local.d/target.container"
+git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/secret-scan/repositories.local.txt"
 
 TRACKED_OPERATIONAL_FILES="$(

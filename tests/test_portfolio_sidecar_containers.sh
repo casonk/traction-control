@@ -53,11 +53,15 @@ fi
   || fail "container engine is installed but unavailable: ${ENGINE}"
 
 [[ -f "${CONTAINERFILE}" ]] || fail "missing Containerfile: ${CONTAINERFILE}"
-mkdir -p "${CONTEXT_ROOT}/scripts" "${CONTEXT_ROOT}/tests"
+mkdir -p \
+  "${CONTEXT_ROOT}/config/portfolio-sidecar" \
+  "${CONTEXT_ROOT}/scripts" \
+  "${CONTEXT_ROOT}/tests"
 
 for source_name in \
   portfolio_materializer.py \
   portfolio_sidecar.py \
+  render_portfolio_sidecar_quadlets.py \
   repository_visibility.py; do
   [[ -f "${REPO_ROOT}/scripts/${source_name}" ]] \
     || fail "required script not found: ${source_name}"
@@ -68,12 +72,23 @@ done
 
 for test_name in \
   test_portfolio_sidecar.py \
-  test_portfolio_sidecar_hardening.py; do
+  test_portfolio_sidecar_hardening.py \
+  test_portfolio_sidecar_quadlets.py; do
   [[ -f "${REPO_ROOT}/tests/${test_name}" ]] \
     || fail "required test not found: ${test_name}"
   cp -p \
     "${REPO_ROOT}/tests/${test_name}" \
     "${CONTEXT_ROOT}/tests/${test_name}"
+done
+
+for example_name in \
+  podman-mesh.example.json \
+  targets.example.json; do
+  [[ -f "${REPO_ROOT}/config/portfolio-sidecar/${example_name}" ]] \
+    || fail "required example not found: ${example_name}"
+  cp -p \
+    "${REPO_ROOT}/config/portfolio-sidecar/${example_name}" \
+    "${CONTEXT_ROOT}/config/portfolio-sidecar/${example_name}"
 done
 
 printf 'Building %s with %s...\n' "${IMAGE_TAG}" "${ENGINE_COMMAND[*]}"

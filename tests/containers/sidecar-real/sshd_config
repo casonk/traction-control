@@ -1,4 +1,4 @@
-Port 22
+Port 2222
 AddressFamily inet
 ListenAddress 0.0.0.0
 HostKey /run/sshd/ssh_host_ed25519_key

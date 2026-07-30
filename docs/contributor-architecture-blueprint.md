@@ -46,6 +46,13 @@ still not a long-running application binary.
      binds an encrypted portable manifest; `drill` checks and exactly restores
      the committed snapshot ID for each replica recorded in state before
      writing owner-only, no-overwrite evidence bound to the control-plane state.
+   - `scripts/render_portfolio_sidecar_quadlets.py` adds a separate inactive
+     deployment boundary for L3 storage nodes. It binds an owner-only local
+     document to the authoritative registry/target generation, strict-majority
+     threshold, and exact topology, then renders only one native-Linux target
+     Quadlet and volume per invocation. The owned SFTP image is key-only and
+     rootless; WireGuard remains host-owned, `[Install]` is absent, and the
+     coordinator artifact has a deliberately non-Quadlet review suffix.
    - The first executable sidecar remains a statically selected standalone
      coordinator with no prune path. It stores only latest committed state and
      does not implement repair, history, application-specific recovery, or
@@ -124,6 +131,16 @@ still not a long-running application binary.
      network, initializes real Restic repositories, and verifies full and
      one-mesh-node-outage backup/restore-drill behavior without using live
      portfolio data or infrastructure.
+   - `tests/test_portfolio_sidecar_quadlets.py` proves generation-zero and
+     node-specific rendering remains owner-only, topology-bound, and inactive.
+     `tests/test_portfolio_sidecar_sftp_image_podman.sh` builds the owned target
+     image and exercises custom-port, pinned-key, forced-SFTP, read-only,
+     minimal-capability, and persistent-volume behavior with disposable Podman
+     resources. `tests/test_portfolio_sidecar_quadlet_generator_podman.sh`
+     renders one inactive node and proves the real rootless generator accepts
+     its container/volume dependency without creating runtime resources or a
+     live service. macOS Podman Machine remains verification-only, not evidence
+     of binding the Mac's WireGuard interface.
    - The CI job checks that the control-plane repo stays internally consistent,
      but it does not itself perform portfolio-wide maintenance.
 
@@ -140,9 +157,11 @@ still not a long-running application binary.
 - `scripts/portfolio_materializer.py`
 - `scripts/portfolio_lifecycle_review.py`
 - `scripts/portfolio_sidecar.py`
+- `scripts/render_portfolio_sidecar_quadlets.py`
 - `config/repository-visibility/*.example.json`
 - `config/portfolio/*.example.json`
 - `config/portfolio-sidecar/*.example.json`
+- `containers/portfolio-sidecar-sftp/Containerfile`
 - `scripts/check_portfolio_privacy.sh`
 - `tests/test_repository_visibility.py`
 - `tests/test_portfolio_materializer.py`
@@ -150,6 +169,9 @@ still not a long-running application binary.
 - `tests/test_portfolio_sidecar_hardening.py`
 - `tests/test_portfolio_sidecar_containers.sh`
 - `tests/test_portfolio_sidecar_real_podman.sh`
+- `tests/test_portfolio_sidecar_quadlets.py`
+- `tests/test_portfolio_sidecar_quadlet_generator_podman.sh`
+- `tests/test_portfolio_sidecar_sftp_image_podman.sh`
 - `tests/containers/Sidecar.Containerfile`
 - `tests/containers/SidecarRealCoordinator.Containerfile`
 - `tests/containers/SidecarRealSftp.Containerfile`
