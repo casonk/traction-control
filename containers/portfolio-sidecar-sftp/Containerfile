@@ -1,0 +1,47 @@
+FROM docker.io/library/debian:bookworm-slim@sha256:7b140f374b289a7c2befc338f42ebe6441b7ea838a042bbd5acbfca6ec875818
+
+LABEL org.opencontainers.image.title="traction-control portfolio sidecar SFTP target"
+LABEL org.opencontainers.image.description="Rootless-Podman SFTP-only target for client-encrypted Restic repositories"
+LABEL org.opencontainers.image.source="https://github.com/casonk/traction-control"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    SIDECAR_SFTP_PORT=2222 \
+    SIDECAR_SFTP_HOST_KEY=/run/secrets/sidecar-host-key \
+    SIDECAR_SFTP_AUTHORIZED_KEYS=/run/secrets/sidecar-authorized-keys
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        openssh-server \
+    && rm -f /etc/ssh/ssh_host_* \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd \
+        --home-dir /repository \
+        --no-create-home \
+        --shell /usr/sbin/nologin \
+        --uid 10001 \
+        sidecarbackup \
+    && passwd -d sidecarbackup \
+    && install -d -m 0755 /srv/portfolio-sidecar \
+    && install -d -m 0700 -o sidecarbackup -g sidecarbackup \
+        /srv/portfolio-sidecar/repository
+
+COPY sshd_config /etc/ssh/sshd_config
+COPY start-sftp-target.sh /usr/local/bin/start-sftp-target
+COPY sftp-target-healthcheck.sh /usr/local/bin/sftp-target-healthcheck
+
+RUN chmod 0644 /etc/ssh/sshd_config \
+    && chmod 0755 \
+        /usr/local/bin/start-sftp-target \
+        /usr/local/bin/sftp-target-healthcheck
+
+VOLUME ["/srv/portfolio-sidecar/repository"]
+
+EXPOSE 2222
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/usr/local/bin/sftp-target-healthcheck"]
+
+STOPSIGNAL SIGTERM
+
+ENTRYPOINT ["/usr/local/bin/start-sftp-target"]

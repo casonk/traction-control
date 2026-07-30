@@ -14,6 +14,13 @@ All notable changes to `traction-control` are documented here.
   identity. Hostile-tree tests and a disposable real OpenSSH/Restic Podman
   topology exercise full and degraded quorum paths while automatic failover
   remains reserved for future quorum-issued leases and fencing tokens.
+- Added explicit per-target SFTP ports and a render-only Podman-on-WireGuard
+  deployment slice. It bootstraps inert local config, binds one-node-at-a-time
+  inactive Quadlets to the complete private target-document digest and selected
+  mesh topology, and includes an owned rootless key-only SFTP image. Disposable
+  Podman proofs exercise the image and the real rootless Quadlet generator. No
+  coordinator unit, WireGuard provisioning, Podman socket exposure, secret
+  creation, or service activation is performed.
 - Added a fail-closed GitHub repository-creation wrapper that always creates
   an empty private repository, verifies `isPrivate`, and keeps source, remote,
   push, and any later public release as separate reviewed actions.

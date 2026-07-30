@@ -20,6 +20,6 @@ COPY sidecar-real/start-sftp-target.sh /usr/local/bin/start-sftp-target
 RUN chmod 0755 /usr/local/bin/start-sftp-target \
     && chmod 0644 /etc/ssh/sshd_config
 
-EXPOSE 22
+EXPOSE 2222
 
 ENTRYPOINT ["/usr/local/bin/start-sftp-target"]

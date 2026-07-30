@@ -12,6 +12,8 @@ folder "Repository checkout" {
 
 artifact "Metadata-only candidate report\nadvisory; owner-only" as Inventory
 component "Standalone coordinator\nmanual failover" as Coordinator
+artifact "Owner-only Podman mesh config\nreviewed target topology" as MeshDeploy
+component "Render-only Quadlet builder\none target bundle per run" as QuadletRender
 folder "Owner-only disposable spool" as Spool {
   artifact "Portable manifest\n+ namespaced payload" as Portable
   artifact "Exact drill restore" as Restore
@@ -20,10 +22,19 @@ artifact "Ignored drill evidence\nstate/policy/target bound" as Evidence
 database "Reviewed Git remote\n(private first)" as GitRemote
 database "Private hosted SFTP\nrestic repository" as Hosted
 
-cloud "WireGuard mesh" {
-  database "Explicit SFTP node A\nrestic repository" as NodeA
-  database "Explicit SFTP node B\nrestic repository" as NodeB
-  database "Explicit SFTP node C\nrestic repository" as NodeC
+cloud "WireGuard mesh\nhost routing, not Podman" {
+  node "Native Linux host A\nowned WireGuard address" {
+    component "Rootless Podman\nkey-only SFTP A" as NodeA
+    database "Named Restic volume A" as VolumeA
+  }
+  node "Native Linux host B\nowned WireGuard address" {
+    component "Rootless Podman\nkey-only SFTP B" as NodeB
+    database "Named Restic volume B" as VolumeB
+  }
+  node "Native Linux host C\nowned WireGuard address" {
+    component "Rootless Podman\nkey-only SFTP C" as NodeC
+    database "Named Restic volume C" as VolumeC
+  }
 }
 
 component "Planned quorum authority\nrqlite / Raft" as Authority
@@ -32,6 +43,11 @@ L1 --> GitRemote : Git
 L2 ..> Inventory : metadata only
 L3 ..> Inventory : metadata only
 Inventory ..> Coordinator : explicit enrollment only
+MeshDeploy --> QuadletRender : validate exact target set
+QuadletRender ..> NodeA : inactive node-specific units
+QuadletRender ..> NodeB : separate render
+QuadletRender ..> NodeC : separate render
+QuadletRender ..> Coordinator : review metadata only
 L2 --> Coordinator : explicit selector
 L3 --> Coordinator : explicit selector
 Coordinator --> Portable : immutable capture
@@ -43,6 +59,9 @@ Hosted --> Restore : check + exact recorded restore
 NodeA --> Restore : check + exact recorded restore
 NodeB --> Restore : check + exact recorded restore
 NodeC --> Restore : check + exact recorded restore
+NodeA --> VolumeA : encrypted repository only
+NodeB --> VolumeB : encrypted repository only
+NodeC --> VolumeC : encrypted repository only
 Restore --> Coordinator : exact paths, sizes, hashes
 Coordinator --> Evidence : no-overwrite result
 Coordinator ..> Authority : future lease and fence epochs
@@ -53,7 +72,14 @@ note bottom of Coordinator
   state v2 binds portable-files-v1
   acknowledgement needs a successful drill
   mesh peer/route attestation pending
+  no coordinator Quadlet activation
   no hosted fallback; no prune
+end note
+
+note bottom of QuadletRender
+  native rootless Linux targets only
+  no [Install], Podman API, secrets, or activation
+  macOS Podman Machine is verification-only
 end note
 
 @enduml

@@ -218,6 +218,7 @@ class PortfolioSidecarTests(unittest.TestCase):
                     "repository_file": str(repository_file.resolve()),
                     "password_file": str(password_file.resolve()),
                     "identity_file": str(identity_file.resolve()),
+                    "sftp_port": 2200 + index,
                     "mesh_address": mesh_address,
                     "failure_domain": f"failure-domain-{index}",
                 }
@@ -1035,8 +1036,16 @@ class PortfolioSidecarTests(unittest.TestCase):
         ssh_tokens = ssh_options.split()
         self.assertEqual(ssh_tokens[0], str(self.fake_ssh.resolve()))
         self.assertEqual(
-            ssh_tokens[-5:],
-            ["-l", "backup", "backup-1.example.invalid", "-s", "sftp"],
+            ssh_tokens[-7:],
+            [
+                "-p",
+                "2201",
+                "-l",
+                "backup",
+                "backup-1.example.invalid",
+                "-s",
+                "sftp",
+            ],
         )
         for required in (
             "-F /dev/null",
@@ -1434,6 +1443,49 @@ class PortfolioSidecarTests(unittest.TestCase):
         self.assertEqual(result, 2)
         self.assertIn("globally unique", stderr)
 
+    def test_schema_v1_target_without_sftp_port_defaults_to_22(self) -> None:
+        payload = json.loads(self.targets_path.read_text(encoding="utf-8"))
+        target_payload = payload["target_sets"][0]["targets"][0]
+        target_payload.pop("sftp_port")
+        self._write_json(self.targets_path, payload)
+        pair = sidecar.visibility.load_pair(self.private_path, self.public_path)
+
+        legacy_targets = sidecar.load_targets(self.targets_path, pair)
+
+        self.assertEqual(legacy_targets.target_sets[0].targets[0].sftp_port, 22)
+        target_payload["sftp_port"] = 22
+        self._write_json(self.targets_path, payload)
+        explicit_targets = sidecar.load_targets(self.targets_path, pair)
+        self.assertEqual(
+            legacy_targets.content_sha256,
+            explicit_targets.content_sha256,
+        )
+
+    def test_sftp_port_requires_a_real_tcp_port_integer(self) -> None:
+        invalid_ports: tuple[object, ...] = (True, 0, 65_536, "22")
+        for invalid_port in invalid_ports:
+            with self.subTest(invalid_port=invalid_port):
+                self._write_targets(tier="hosted-encrypted", failures=())
+                payload = json.loads(self.targets_path.read_text(encoding="utf-8"))
+                payload["target_sets"][0]["targets"][0]["sftp_port"] = invalid_port
+                self._write_json(self.targets_path, payload)
+
+                result, _stdout, stderr = self._main(self._arguments("init-state"))
+
+                self.assertEqual(result, 2)
+                self.assertIn("sftp_port must be an integer from 1 through 65535", stderr)
+
+    def test_sftp_port_rotation_invalidates_existing_state_binding(self) -> None:
+        self._init_state()
+        payload = json.loads(self.targets_path.read_text(encoding="utf-8"))
+        payload["target_sets"][0]["targets"][0]["sftp_port"] = 2202
+        self._write_json(self.targets_path, payload)
+
+        result, _stdout, stderr = self._main(self._arguments("validate"))
+
+        self.assertEqual(result, 2)
+        self.assertIn("different target or credential content", stderr)
+
     def test_hosted_target_set_is_exactly_one_of_one(self) -> None:
         second_repository = self.secrets / "repository-2.txt"
         second_password = self.secrets / "password-2.txt"
@@ -1451,6 +1503,7 @@ class PortfolioSidecarTests(unittest.TestCase):
                 "repository_file": str(second_repository.resolve()),
                 "password_file": str(second_password.resolve()),
                 "identity_file": str(second_identity.resolve()),
+                "sftp_port": 2202,
                 "mesh_address": None,
                 "failure_domain": "failure-domain-2",
             }
