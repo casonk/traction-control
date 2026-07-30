@@ -10,6 +10,7 @@ CONTROL_ROOT="${TEST_ROOT}/control"
 PORTFOLIO_ROOT="${TEST_ROOT}/portfolio"
 CHECKOUT="${PORTFOLIO_ROOT}/public-sidecar"
 SIDECAR="/opt/scripts/portfolio_sidecar.py"
+SFTP_PORT=2222
 
 HOSTED_HOST="${SIDECAR_HOSTED_HOST:?SIDECAR_HOSTED_HOST is required}"
 MESH_1_ADDRESS="${SIDECAR_MESH_1_ADDRESS:?SIDECAR_MESH_1_ADDRESS is required}"
@@ -49,14 +50,16 @@ write_fixture_documents() {
     "${HOSTED_HOST}" \
     "${MESH_1_ADDRESS}" \
     "${MESH_2_ADDRESS}" \
-    "${MESH_3_ADDRESS}" <<'PY'
+    "${MESH_3_ADDRESS}" \
+    "${SFTP_PORT}" <<'PY'
 import json
 import shutil
 import sys
 from pathlib import Path
 
 control = Path(sys.argv[1])
-hosted_host, mesh_1, mesh_2, mesh_3 = sys.argv[2:]
+hosted_host, mesh_1, mesh_2, mesh_3 = sys.argv[2:6]
+sftp_port = int(sys.argv[6])
 registry_id = "sidecar-real-podman-synthetic-registry"
 repository_id = "R_SIDECAR_REAL_PODMAN_SYNTHETIC"
 repository_slug = "synthetic-owner/sidecar-real-podman"
@@ -196,6 +199,7 @@ for target_id, host, mesh_address, failure_domain in target_specs:
             "repository_file": repository_file,
             "password_file": password_file,
             "identity_file": str(identity_file),
+            "sftp_port": sftp_port,
             "mesh_address": mesh_address,
             "failure_domain": failure_domain,
         }
@@ -235,7 +239,7 @@ host_entries = (
 with known_hosts.open("w", encoding="utf-8") as stream:
     for host, public_key_path in host_entries:
         fields = Path(public_key_path).read_text(encoding="utf-8").split()
-        stream.write(f"{host} {fields[0]} {fields[1]}\n")
+        stream.write(f"[{host}]:{sftp_port} {fields[0]} {fields[1]}\n")
 known_hosts.chmod(0o600)
 PY
 }
@@ -276,20 +280,21 @@ PY
 
 wait_for_target() {
   local host="$1"
-  python3 - "${host}" <<'PY'
+  python3 - "${host}" "${SFTP_PORT}" <<'PY'
 import socket
 import sys
 import time
 
 host = sys.argv[1]
+port = int(sys.argv[2])
 deadline = time.monotonic() + 20.0
 while time.monotonic() < deadline:
     try:
-        with socket.create_connection((host, 22), timeout=0.5):
+        with socket.create_connection((host, port), timeout=0.5):
             raise SystemExit(0)
     except OSError:
         time.sleep(0.2)
-raise SystemExit(f"SFTP target {host} did not become ready")
+raise SystemExit(f"SFTP target {host}:{port} did not become ready")
 PY
 }
 
@@ -314,6 +319,7 @@ sftp_command() {
     " -o RemoteCommand=none" \
     " -o ClearAllForwardings=yes" \
     " -o RequestTTY=no" \
+    " -p ${SFTP_PORT}" \
     " -l sidecarbackup ${host} -s sftp"
 }
 

@@ -14,6 +14,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/ /opt/scripts/
+COPY config/ /opt/config/
 COPY tests/ /opt/tests/
 
 USER 65532:65532

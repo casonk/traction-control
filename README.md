@@ -46,6 +46,17 @@ generation-bound, metadata-only private review aid for registry-public desired
 checkouts; candidates remain unenrolled until the operator explicitly adds
 exact selectors to the ignored policy.
 
+The separate Podman-on-WireGuard renderer bootstraps another inert owner-only
+local document and can emit one inactive Linux target bundle at a time. Each
+bundle binds the complete private target-document digest plus its selected mesh
+generation and topology, contains one rootless key-only SFTP Quadlet plus one
+persistent volume, and has no `[Install]` section. It never configures
+WireGuard, creates secrets, exposes the Podman API, or activates services. Full
+credential/governance validation, host-key pinning, and storage capacity
+boundaries remain explicit activation gates. The coordinator remains the
+existing static host-controlled writer; its container artifact is review-only
+until policy-derived mounts, credentials, scheduling, and fencing are designed.
+
 The tiered bootstrap downloads its allowlisted support repos and renders
 Linux or macOS scheduler definitions around the existing workload scripts. The
 effective runtime is still the documented governance loop: read the
@@ -96,10 +107,13 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
 - `scripts/portfolio_sidecar.py`: standalone, fail-closed local-config bootstrap, metadata-only candidate inventory, portable-manifest backup, and exact restore-drill coordinator for explicitly selected ignored data
+- `scripts/render_portfolio_sidecar_quadlets.py`: owner-only generation-zero bootstrap and render-only, one-node-at-a-time Linux Quadlet builder for mesh SFTP targets
+- `containers/portfolio-sidecar-sftp/`: owned key-only OpenSSH/SFTP target image contract for a rootless Podman node
 - `docs/repository-visibility.md`: private-first classification and observed-transition policy
 - `docs/portfolio-lifecycle.md`: master checkout, dependency, retirement, and consistency architecture
 - `docs/private-sidecar.md`: three-level ignored-data selection, encryption, acknowledgement, portable restore proof, and manual-failover contract
-- `config/portfolio-sidecar/*.example.json`: synthetic sidecar policy and target schemas; operational `*.local.json` files stay ignored
+- `docs/podman-on-wireguard-sidecar.md`: native-Linux/WireGuard boundary, node-specific render workflow, and deliberately unimplemented activation gate
+- `config/portfolio-sidecar/*.example.json`: synthetic sidecar policy, target, and Podman-mesh schemas; operational `*.local.json` files stay ignored
 - `scripts/install_traction_control_agents.sh`: cross-platform tiered support-repo and agent scheduler bootstrap
 - `config/traction-control-agents/repos.conf`: cumulative support-repository bundles for the three profiles
 - `config/traction-control-agents/jobs.conf`: cumulative job membership, runtime environment, and schedule data

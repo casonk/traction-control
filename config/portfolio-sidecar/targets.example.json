@@ -14,6 +14,7 @@
           "repository_file": "/example/portfolio-sidecar/credentials/hosted-repository",
           "password_file": "/example/portfolio-sidecar/credentials/hosted-password",
           "identity_file": "/example/portfolio-sidecar/credentials/hosted-identity",
+          "sftp_port": 22,
           "mesh_address": null,
           "failure_domain": "FAILURE_DOMAIN_EXAMPLE_HOSTED_001"
         }
@@ -29,6 +30,7 @@
           "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-001",
           "password_file": "/example/portfolio-sidecar/credentials/mesh-password-001",
           "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-001",
+          "sftp_port": 2222,
           "mesh_address": "10.77.0.11",
           "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_001"
         },
@@ -37,6 +39,7 @@
           "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-002",
           "password_file": "/example/portfolio-sidecar/credentials/mesh-password-002",
           "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-002",
+          "sftp_port": 2222,
           "mesh_address": "10.77.0.12",
           "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_002"
         },
@@ -45,6 +48,7 @@
           "repository_file": "/example/portfolio-sidecar/credentials/mesh-repository-003",
           "password_file": "/example/portfolio-sidecar/credentials/mesh-password-003",
           "identity_file": "/example/portfolio-sidecar/credentials/mesh-identity-003",
+          "sftp_port": 2222,
           "mesh_address": "10.77.0.13",
           "failure_domain": "FAILURE_DOMAIN_EXAMPLE_MESH_003"
         }
