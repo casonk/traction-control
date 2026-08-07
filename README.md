@@ -218,6 +218,31 @@ eligible existing repo outside the two light support repos. The profile
 controls which supporting tools are present and which jobs are installed, not
 which local repos those jobs may inspect.
 
+### Local bundle extensions
+
+Private support repos must not be named in the tracked
+`config/traction-control-agents/repos.conf`, in keeping with the private-name
+disclosure policy. To include one in a profile, render an ignored, owner-only
+local copy of the bundle — the tracked base plus the private lines — and pass
+it to the installer explicitly:
+
+```bash
+umask 077
+mkdir -p ~/.config/traction-control
+cat config/traction-control-agents/repos.conf > ~/.config/traction-control/repos.local.conf
+# append private `profiles|name|github_slug|relative_path|purpose` lines here
+bash scripts/install_traction_control_agents.sh \
+  --tier light \
+  --repo-config ~/.config/traction-control/repos.local.conf \
+  --clone-protocol ssh
+```
+
+Private repos that participate in a bundle should ship their own overlay
+renderer so the local file is regenerated from the current tracked base and
+cannot drift. Use `--clone-protocol ssh` (or an authenticated HTTPS helper)
+when the overlay includes repos the default anonymous HTTPS clone cannot
+reach.
+
 Heavy remains discovery-first by default. It installs
 `ci-repair-agentic-repair.service` as an on-demand worker while retaining the
 read-only discovery schedule. Start that worker only after discovery has
