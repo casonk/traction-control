@@ -115,7 +115,9 @@ bash tests/test_create_private_github_repo.sh
 - `docs/podman-on-wireguard-sidecar.md`: native-Linux/WireGuard boundary, node-specific render workflow, and deliberately unimplemented activation gate
 - `config/portfolio-sidecar/*.example.json`: synthetic sidecar policy, target, and Podman-mesh schemas; operational `*.local.json` files stay ignored
 - `scripts/install_traction_control_agents.sh`: cross-platform tiered support-repo and agent scheduler bootstrap
-- `config/traction-control-agents/repos.conf`: cumulative support-repository bundles for the three profiles
+- `config/traction-control-agents/repos.conf`: cumulative public support-repository bundles for the three profiles
+- `scripts/render_private_bundle_overlay.sh`: fail-closed, registry-verified private support-repo overlay merged into an owner-only local bundle
+- `config/traction-control-agents/private-repos.example.conf`: synthetic private-overlay template; the operational `*.local.conf` stays ignored
 - `config/traction-control-agents/jobs.conf`: cumulative job membership, runtime environment, and schedule data
 - `scripts/run_traction_control_job.sh`: launchd runtime adapter for local env files, startup delay, and jitter
 - `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
@@ -218,30 +220,55 @@ eligible existing repo outside the two light support repos. The profile
 controls which supporting tools are present and which jobs are installed, not
 which local repos those jobs may inspect.
 
-### Local bundle extensions
+### Private support repos
 
-Private support repos must not be named in the tracked
-`config/traction-control-agents/repos.conf`, in keeping with the private-name
-disclosure policy. To include one in a profile, render an ignored, owner-only
-local copy of the bundle — the tracked base plus the private lines — and pass
-it to the installer explicitly:
+The tracked `config/traction-control-agents/repos.conf` can only ever name
+public repositories: it is a tracked file in a public repo, so the private-name
+disclosure gate treats a private slug there as a leak. Private support repos
+use a second deployment workflow instead. Their membership lives in an ignored,
+owner-only overlay that is verified against the private visibility registry and
+merged with the tracked base into a local bundle:
 
 ```bash
-umask 077
-mkdir -p ~/.config/traction-control
-cat config/traction-control-agents/repos.conf > ~/.config/traction-control/repos.local.conf
-# append private `profiles|name|github_slug|relative_path|purpose` lines here
+bash scripts/render_private_bundle_overlay.sh --init   # starter from the registry
+# uncomment the repos to enroll, then:
+bash scripts/render_private_bundle_overlay.sh
+bash scripts/render_private_bundle_overlay.sh --list   # membership per profile
+```
+
+`--init` writes every private-registry repository as a **commented-out**
+candidate, so nothing is enrolled until the operator uncomments it — the same
+opt-in posture as `portfolio_sidecar.py inventory-candidates`. The overlay
+defaults to
+`${XDG_CONFIG_HOME:-$HOME/.config}/traction-control/private-repos.local.conf`,
+outside any repository; the rendered merged bundle lands beside it as
+`repos.local.conf`. Both are written `0600`.
+
+The renderer is fail-closed. It refuses a slug the registry classifies as
+public (that belongs in the tracked base) or unclassified (record it first with
+`scripts/create_private_github_repo.sh`), an overlay that Git tracks or that
+sits unignored inside a work tree, a name that collides with the tracked base,
+a malformed line, an unknown profile, and an overlay that enrolls nothing.
+
+Pass the merged bundle to the installer. Private repos need SSH or an
+authenticated HTTPS credential helper on machines where they are not already
+checked out; where the checkout exists, the installer only verifies its origin
+slug:
+
+```bash
 bash scripts/install_traction_control_agents.sh \
   --tier light \
   --repo-config ~/.config/traction-control/repos.local.conf \
   --clone-protocol ssh
 ```
 
-Private repos that participate in a bundle should ship their own overlay
-renderer so the local file is regenerated from the current tracked base and
-cannot drift. Use `--clone-protocol ssh` (or an authenticated HTTPS helper)
-when the overlay includes repos the default anonymous HTTPS clone cannot
-reach.
+Re-render after every change to the tracked base bundle — the merged file is
+generated from the current base, so it cannot drift. Its offline contract test
+is:
+
+```bash
+bash tests/test_render_private_bundle_overlay.sh
+```
 
 Heavy remains discovery-first by default. It installs
 `ci-repair-agentic-repair.service` as an on-demand worker while retaining the
