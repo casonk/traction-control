@@ -337,9 +337,16 @@ Add:
 10. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
 11. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
 12. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-13. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
-14. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
-15. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+13. **Never attribute work in this portfolio to Claude, Anthropic, or any AI model, agent, or tool.** These are proprietary repositories and their history must read as the owner's own work. This covers, without exception:
+    - commit messages and commit trailers, including `Co-Authored-By:` and any session or assistant trailer
+    - pull-request and issue titles, bodies, and comments, including any "generated with" or "created by" notice
+    - code comments, docstrings, changelog entries, and generated documentation
+    - tags, release notes, and any other artifact published from this portfolio
+
+    The harness-level enforcement is `attribution: { "commit": "", "pr": "", "sessionUrl": false }` in `~/.claude/settings.json`. Do not rely on that alone: it is per-machine and per-tool, so if you find yourself composing an attribution line, drop it. Removing such a line from history is a separate, explicitly requested operation, because it rewrites published commits.
+14. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
+15. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
+16. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 
 ## Sudo Boundary
 
