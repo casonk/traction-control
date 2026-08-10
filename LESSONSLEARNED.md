@@ -12,6 +12,75 @@
 
 ## Lessons
 
+### 2026-08-10 — Gitleaks baselines are pinned to commit SHAs and do not survive a history rewrite
+
+- A `.gitleaks-baseline.json` entry suppresses a finding by *fingerprint*, and
+  the fingerprint embeds the commit SHA (`<commit>:<file>:<rule>:<line>`). Any
+  history rewrite re-creates every commit under a new SHA, so every baseline
+  entry silently stops matching and previously accepted findings all come back.
+  The symptom is a Secret Scan that fails without any change to the repository
+  contents.
+- Regenerate baselines from a **clean clone of the remote**, never from a local
+  checkout. A local checkout can still reach pre-rewrite commits through stale
+  refs and reflogs, so `--log-opts=--all` there yields a superset — in this
+  sweep, exactly double the real count.
+- Before accepting a regenerated baseline, diff it against the old one on
+  `(RuleID, File, StartLine, EndLine, Secret, Match)`. Identical sets prove
+  only the commit anchors moved and that no new secret was quietly accepted.
+  Do this unredacted and locally; `--redact` blanks the field the comparison
+  depends on.
+- `gitleaks/gitleaks-action@v2` has **no way to consume a baseline file**. A
+  workflow that runs the action on push/pull_request and the CLI with
+  `--baseline-path` only on schedule will pass or fail based on the shape of
+  the push rather than the contents of the repo. Run the CLI with the baseline
+  on every trigger.
+
+### 2026-08-10 — `pre-commit run --all-files` does not see untracked files
+
+- `--all-files` means all files *known to Git*. New files that are still
+  untracked are skipped entirely, so a green local run says nothing about
+  them, and they land unlinted the moment they are committed.
+- `git add` new work **before** running the hooks, and re-run the hooks after
+  staging. Otherwise CI is the first thing to lint the new code.
+
+### 2026-08-10 — Rolling-window defaults plus fixed fixture dates create time-bomb tests
+
+- When production code defaults to a rolling window (`today - 60d`) and a test
+  fixture pins a fixed date, the test passes until the calendar moves past the
+  window and then fails with no code change. Date fixtures that must fall
+  inside a rolling window should be derived from `date.today()`.
+- Tests that pass an explicit `since=` are unaffected; the trap is specifically
+  tests that exercise the default.
+
+### 2026-08-10 — Platform-specific liveness checks fail open on macOS
+
+- `Path("/proc/<pid>").exists()` is a Linux-only liveness probe. On macOS there
+  is no `/proc`, so it reports every process as dead. Where that answer gates a
+  delete or prune, the failure mode is silent data loss on the developer's own
+  platform while Linux CI stays green.
+- Use `os.kill(pid, 0)`, which performs the existence and permission checks
+  without delivering a signal. Treat `PermissionError` as live — the process
+  exists but belongs to another user.
+
+### 2026-08-10 — Tool-prefixed environment variables can collide with the tool's own config
+
+- `rclone` maps `RCLONE_<FLAG>` environment variables onto its flags, so a
+  workflow that pins a release with `RCLONE_VERSION: 1.75.0` makes every
+  `rclone` invocation parse it as the boolean `--version` flag and abort.
+- Name release-pinning variables so they cannot be read as flags
+  (`RCLONE_RELEASE_VERSION`). The same hazard applies to any tool that adopts
+  the `TOOL_FLAG` environment convention.
+
+### 2026-08-10 — `skip-install` and `run-pytest` are contradictory in the shared Python CI workflow
+
+- `skip-install: true` suppresses the install step that also provides pytest,
+  so pairing it with `run-pytest: true` exits 127 before running a single test.
+- A repo that ships scripts and config but still has tests should declare a
+  build backend with an empty `py-modules` list rather than skipping the
+  install. `pip install -e ".[dev]"` then succeeds without inventing a package
+  layout and provides the test runner.
+
+
 ### 2026-07-25 — A portfolio master should be an identity-bound orchestrator, not a Git superproject
 
 - Keep private repository names and checkout layout in ignored owner-only
