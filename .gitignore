@@ -23,3 +23,9 @@ CLAUDE.md
 .tachometer/
 
 /REFS-LOCAL.md
+
+# KeePass-snowbridge local config (contains host/path details, no passwords)
+config/keepass-snowbridge.env.local
+
+# Agent-local state: machine-specific settings and scratch worktrees.
+.claude/
