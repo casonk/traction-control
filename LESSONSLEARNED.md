@@ -88,6 +88,31 @@
   possible and explicit platform branches for differences such as GNU
   `du --exclude` versus BSD `du -I`.
 
+### 2026-06-29 — Check Android TV network placement before diagnosing ADB
+
+- A Sharp Android TV 10 device with USB debugging enabled exposed authenticated
+  ADB on TCP port 5555 only after it joined the primary Wi-Fi network. Guest
+  isolation had made the port appear unavailable from the management host.
+- Before concluding that an Android TV firmware lacks network ADB, verify both
+  devices are on the intended non-isolated network, confirm the TV's current
+  per-SSID MAC and lease, then retest the standard ADB port.
+- On this firmware, ADB could revoke AirScreen location permission and deny
+  overlay access while preserving AirPlay, but Android blocked shell-level
+  disabling of the app's boot receiver. Keep boot/background startup as a
+  manual in-app control.
+- For `io.github.jqssun.airplay`, `AirPlayService` is deliberately
+  `exported=false`, so shell `am startservice` and `am stopservice` are not a
+  supported control API. A reliable ADB wrapper can keep launch-time auto-start
+  enabled while boot start remains disabled: launch the package to start, use
+  `am force-stop` to stop, and inspect `dumpsys` plus DNS-SD for status.
+
+### 2026-06-28 — Do not use `path` as a loop variable in zsh
+
+- In zsh, `path` is a special array tied to the `PATH` environment variable.
+  Assigning a filesystem path to a loop variable named `path` can replace
+  command lookup and make subsequent commands fail with `command not found`.
+- Use names such as `target_path` in zsh verification and cleanup scripts.
+
 ### 2026-06-21 — Pre-commit all-files does not validate untracked generated artifacts
 
 - `pre-commit run --all-files` only runs against tracked files. If a change adds
