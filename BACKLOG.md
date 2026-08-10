@@ -66,6 +66,32 @@ Mark items `[x]` when complete and move them to Done.
   Standardize the fix so normal `git push` and `ssh -T git@github.com` work
   without one-off `GIT_SSH_COMMAND` overrides.
 
+- [ ] [manual:2026-06-26] **Server-side SSH hardening against DoS/brute-force** — On the
+  Linux desktop SSH server, harden `sshd_config` and install connection rate limiting:
+  (1) Set `ClientAliveInterval 60` / `ClientAliveCountMax 3` so stale server-side
+  sessions are reaped (mirrors the client-side `~/.ssh/config` keepalive now in place).
+  (2) Set `MaxAuthTries 3`, `LoginGraceTime 30`, `MaxStartups 10:30:100` to limit
+  unauthenticated connection accumulation.
+  (3) Install `fail2ban` (or configure `nftables` rate-limit rules) to ban IPs after
+  repeated failed auth attempts — protect any port-forwarded SSH or WireGuard ingress.
+  (4) Confirm `PasswordAuthentication no` and `PermitRootLogin no` in sshd_config.
+  Related: see `util-repos/snowbridge` host-setup docs for the desktop's network/firewall context.
+
+- [ ] [manual:2026-06-26] **ttyd web terminal hardening** — The session-control webterm
+  integration (via `SESSION_CONTROL_WEBTERM_URL`) proxies to a ttyd instance. Harden it:
+  (1) Confirm ttyd binds only to loopback or VPN interface, never 0.0.0.0 publicly.
+  (2) Set `--max-clients 5` (or appropriate limit) so a connection flood cannot exhaust
+  file descriptors.
+  (3) Set `--ping-interval 30` in ttyd so idle websocket connections are reaped server-side.
+  (4) Configure Caddy rate limiting (`rate_limit` directive or middleware) in front of the
+  ttyd endpoint so a single IP cannot open more than ~10 connections per minute.
+
+- [ ] [manual:2026-06-26] **Router DoS protection settings audit** — Review the Aterm
+  WG1200CR's SPI firewall and DoS-mitigation knobs via `aterm-config/show.py`. If the
+  router exposes configurable SYN-flood or port-scan detection settings (check
+  `DEVICE.ADVMENU` and `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add
+  the patches to `aterm-config/harden.py` so they survive PSK rotations.
+
 - [ ] [manual:2026-06-17] **Private local-only repositories** — Review each
   ignored-catalog local checkout, create a private remote only through the
   private-first workflow when appropriate, and keep names, paths, and push
@@ -105,6 +131,15 @@ Mark items `[x]` when complete and move them to Done.
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-06-26] **KeePass-via-snowbridge macOS integration** — Mount the
+  snowbridge SMB share on the Mac and access server KeePass vaults through it.
+  Added `config/keepass-snowbridge.example.env` (host/path config, no passwords),
+  `scripts/setup_keepass_snowbridge.sh` (one-time setup: installs keepassxc via
+  Homebrew, stores SMB credentials in macOS Keychain, wires auto-pass profiles),
+  `scripts/mount_snowbridge.sh` (idempotent mount via Keychain credential lookup),
+  and `scripts/unmount_snowbridge.sh`. Passwords never touch disk — Keychain only.
+  `--host` override on mount allows one-off remote connections over WireGuard/Tailscale.
 
 - [x] [manual:2026-06-11] Add stale-age archive rotation to
   `util-repos/fedora-debugg` for ignored `artifacts/snapshot-*` directories.
