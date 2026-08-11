@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "registry_id": "example-portfolio",
+  "visibility": "private-local",
+  "repositories": [
+    {
+      "name": "example-local-only-repository",
+      "reason": "Synthetic example. Never published; has no GitHub remote."
+    }
+  ]
+}

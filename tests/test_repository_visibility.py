@@ -955,6 +955,46 @@ class RepositoryVisibilityTests(unittest.TestCase):
             skip_github=True,
         )
 
+    def test_local_only_repositories_classify_private_and_are_guarded(self) -> None:
+        """A repo with no GitHub remote must still count as private.
+
+        The paired registry is keyed on immutable GitHub ids and reconciled
+        against GitHub, so it cannot represent a local-only repository. Left out
+        entirely such a repo classifies as "unclassified" -- which fails closed
+        wherever something asks, but leaves its name invisible to the disclosure
+        matcher, so it could be committed to a tracked file unnoticed.
+        """
+        self._write_pair(
+            private=[{"id": "R_private", "slug": "example-owner/private-agent"}],
+            public=[{"id": "R_public", "slug": "casonk/traction-control"}],
+        )
+        local_path = Path(self.private_path).parent / "local-private.json"
+        local_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "registry_id": "test-portfolio",
+                    "visibility": "private-local",
+                    "repositories": [{"name": "workstation-only", "reason": "no remote"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        pair = visibility.load_pair(self.private_path, self.public_path, local_path)
+        self.assertEqual(pair.classification("casonk/workstation-only"), "private")
+        self.assertEqual(pair.classification("WORKSTATION-ONLY"), "private")
+        self.assertEqual(pair.classification("casonk/traction-control"), "public")
+
+        matcher, _, _ = visibility._private_disclosure_matcher(pair)
+        self.assertIsNotNone(matcher)
+        self.assertTrue(matcher.search(b"see workstation-only for details"))
+        self.assertFalse(matcher.search(b"see traction-control for details"))
+
+        # Omitting the registry must not change existing behaviour.
+        without = visibility.load_pair(self.private_path, self.public_path)
+        self.assertEqual(without.classification("casonk/workstation-only"), "unclassified")
+
 
 if __name__ == "__main__":
     unittest.main()
