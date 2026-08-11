@@ -87,6 +87,13 @@ class RegistryDocument:
 class RegistryPair:
     private: RegistryDocument
     public: RegistryDocument
+    # Repositories that exist only on this machine. They have no GitHub id or
+    # slug, so the paired registry -- which is keyed on immutable GitHub ids and
+    # reconciled against GitHub -- cannot represent them. Without this they
+    # classify as "unclassified", which fails closed to private everywhere that
+    # asks, but leaves them invisible to the disclosure matcher: their names
+    # could be committed to a tracked file and nothing would object.
+    local_private: tuple[str, ...] = ()
 
     @property
     def registry_id(self) -> str:
@@ -108,6 +115,9 @@ class RegistryPair:
         for visibility, entry in self.entries:
             if entry.slug.casefold() == slug_key:
                 return visibility
+        name_key = slug.rsplit("/", 1)[-1].casefold()
+        if any(name.casefold() == name_key for name in self.local_private):
+            return "private"
         return "unclassified"
 
 
@@ -322,9 +332,34 @@ def _read_document(path_value: str | os.PathLike[str], expected_visibility: str)
     )
 
 
+def _read_local_private(path: str | os.PathLike[str] | None) -> tuple[str, ...]:
+    """Names of local-only private repositories, if a registry is supplied.
+
+    Deliberately not reconciled against GitHub: these have no remote, so an
+    absent-from-GitHub finding would be the expected state, not a fault.
+    """
+    if path is None:
+        return ()
+    document = Path(path)
+    if not document.is_file():
+        return ()
+    try:
+        payload = json.loads(document.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RegistryError(f"local-only registry is not readable JSON: {document}") from error
+    names: list[str] = []
+    for entry in payload.get("repositories", []):
+        name = (entry or {}).get("name", "").strip() if isinstance(entry, dict) else ""
+        if not name:
+            raise RegistryError(f"local-only registry entry is missing a name: {document}")
+        names.append(name)
+    return tuple(names)
+
+
 def load_pair(
     private_path: str | os.PathLike[str],
     public_path: str | os.PathLike[str],
+    local_private_path: str | os.PathLike[str] | None = None,
 ) -> RegistryPair:
     private = _read_document(private_path, "private")
     public = _read_document(public_path, "public")
@@ -352,7 +387,11 @@ def load_pair(
                 )
             seen_ids[entry.repository_id] = (visibility, entry)
             seen_slugs[slug_key] = (visibility, entry)
-    return RegistryPair(private=private, public=public)
+    return RegistryPair(
+        private=private,
+        public=public,
+        local_private=_read_local_private(local_private_path),
+    )
 
 
 def _document_payload(
@@ -1040,7 +1079,9 @@ def _private_disclosure_matcher(
         )
         for entry in pair.private.repositories
     }
-    if not full_slugs:
+    for name in pair.local_private:
+        repository_names.setdefault(name.casefold(), name.encode("ascii"))
+    if not full_slugs and not repository_names:
         return None, 0, None
 
     alternatives: list[bytes] = [
@@ -1359,6 +1400,15 @@ def audit_private_disclosures(
 def _add_pair_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--private", required=True, help="Private registry JSON path.")
     parser.add_argument("--public", required=True, help="Public registry JSON path.")
+    parser.add_argument(
+        "--local-private",
+        default=None,
+        help=(
+            "Optional registry of local-only private repositories. These have no "
+            "GitHub remote, so they cannot appear in the paired registry, but their "
+            "names must still be treated as private."
+        ),
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -1474,7 +1524,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("reconciled observed repository" if changed else "already reconciled")
             return 0
 
-        pair = load_pair(args.private, args.public)
+        pair = load_pair(args.private, args.public, getattr(args, 'local_private', None))
         if args.command == "validate":
             if not args.quiet:
                 print(
