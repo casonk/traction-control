@@ -108,6 +108,10 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
 - `scripts/portfolio_sidecar.py`: standalone, fail-closed local-config bootstrap, metadata-only candidate inventory, portable-manifest backup, and exact restore-drill coordinator for explicitly selected ignored data
 - `scripts/render_portfolio_sidecar_quadlets.py`: owner-only generation-zero bootstrap and render-only, one-node-at-a-time Linux Quadlet builder for mesh SFTP targets
+- `scripts/render_air_primary.py`: render-only Air coordinator that stages private inputs, independently gates native Snowbridge SMB, and invokes the unchanged enabled sibling macOS renderers
+- `config/air-primary.example.toml`: synthetic template for the ignored owner-only Air interface, peer /32s, paths, and fixed service ports
+- `docs/air-primary-render.md`: prerequisites, immutable output layout, failure categories, and explicit activation boundary for the temporary laptop service host
+- `tests/test_air_primary_coordinator_podman.sh`: networkless real-renderer proof for successful, refused-reuse, unsafe-inventory, and consumed-failure generations
 - `containers/portfolio-sidecar-sftp/`: owned key-only OpenSSH/SFTP target image contract for a rootless Podman node
 - `docs/repository-visibility.md`: private-first classification and observed-transition policy
 - `docs/portfolio-lifecycle.md`: master checkout, dependency, retirement, and consistency architecture
@@ -119,7 +123,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/render_private_bundle_overlay.sh`: fail-closed, registry-verified private support-repo overlay merged into an owner-only local bundle
 - `config/traction-control-agents/private-repos.example.conf`: synthetic private-overlay template; the operational `*.local.conf` stays ignored
 - `config/traction-control-agents/jobs.conf`: cumulative job membership, runtime environment, and schedule data
-- `scripts/run_traction_control_job.sh`: launchd runtime adapter for local env files, startup delay, and jitter
+- `scripts/run_traction_control_job.sh` and `.py`: launchd entry point plus owner-only stateful interval/catch-up, jitter, and network-readiness adapter
 - `scripts/bug_sweep_agentic.sh`: unattended daily review of clean code repos for potential bugs and regressions
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
@@ -174,6 +178,46 @@ Its deterministic programmatic path creates the baseline starter strictly from c
 ## Contributing
 
 See `CONTRIBUTING.md`.
+
+## Air-Primary Service Render
+
+While Air is the temporary mesh host, Traction Control can coordinate the
+existing native macOS renderers without activating any service:
+
+```bash
+python3 scripts/render_air_primary.py init
+# edit config/air-primary.local.toml and keep it mode 0600
+python3 scripts/render_air_primary.py validate
+python3 scripts/render_air_primary.py render
+```
+
+The local config is ignored and owner-only. Validation distinguishes unsafe
+configuration, missing prerequisites, sibling API drift, and render failures.
+Each render consumes a new generation and writes only inert artifacts. When
+`native_smb_enabled = true`, the Snowbridge plan stays below Snowbridge's own
+ignored `artifacts/` boundary; when false, its SMB prerequisites, child, logs,
+and artifacts are omitted with the reason recorded in the manifest. Renderer
+code is never copied into this repo. Clockwork remains loopback-only on
+`127.0.0.1:5001`, its IP-literal mTLS edge is `8443`, and Snowbridge's web role
+is governed independently: it is omitted unless local configuration explicitly
+enables the reviewed `127.0.0.1:8080` backend. See
+[docs/air-primary-render.md](docs/air-primary-render.md).
+
+The bounded real-renderer regression is:
+
+```bash
+bash tests/test_air_primary_coordinator_podman.sh
+```
+
+It stages an allowlist of current sibling sources into a disposable Podman
+image, creates only synthetic credentials and an isolated dummy `utun7`, and
+runs with no network, a read-only root, no host mounts, all capabilities
+dropped except namespace-local `NET_ADMIN`, and `no-new-privileges`. Its five
+cases prove a successful real three-renderer/Caddy bundle, immutable successful
+generation refusal, unsafe wildcard-SMB inventory rejection before wiring,
+immutable consumption of the failed generation, and native-SMB-off/web-on
+decoupling with no SMB child or artifact. Nothing activates on the host or
+inside the container.
 
 ## Tiered Agent Bootstrap
 
@@ -304,17 +348,36 @@ Platform output is selected automatically, or explicitly with `--platform`:
 - Linux renders `clockwork` user units. Inactive output goes below the
   bootstrap state directory; `--activate` writes to
   `${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user` and enables the selected timers.
-- macOS renders native `io.github.casonk.traction-control.*` LaunchAgent plists.
-  Inactive output goes below the bootstrap state directory; `--activate` writes
-  to `~/Library/LaunchAgents` and loads the selected agents with `launchctl`.
-  `scripts/run_traction_control_job.sh` loads optional local job env files and
-  applies the configured startup delay and jitter before execution.
+- macOS builds a launchd-adapted Clockwork manifest, and Clockwork is the sole
+  plist renderer. Each manifest carries the explicit
+  `io.github.casonk.traction-control.<job>` label also consumed by Clockwork's
+  web status and controls, preventing a second label from scheduling the same
+  workload. Inactive output goes below the bootstrap state directory;
+  `--activate` writes to `~/Library/LaunchAgents` and loads the selected agents
+  with `launchctl`. Optional private job environments are declared as
+  `environment_files` and loaded only by Clockwork's owner-only,
+  no-symlink data loader; the runtime adapter never parses them in Bash.
+  Calendar jobs keep native launchd calendar triggers. Interval jobs use a
+  five-minute launchd poll plus a locked owner-only state file: boot-relative
+  startup delay is applied once, missed sleep time produces one catch-up run,
+  and the original interval advances only after success. A failed due run
+  stays due but cannot retry before the next poll. Jitter and the bounded
+  network-readiness gate run only for a due execution. This is an explicit
+  adapter, not a claim that launchd `StartInterval`, `After=`, or `Wants=` has
+  systemd persistence semantics.
 
-Reapplying an activated profile disables/unloads and archives known managed
-jobs that are not selected, so a heavy-to-light transition does not leave
-heavy authority active. It refuses to reconcile a workload that is already
-running or starting. Render-only transitions reconcile only their inactive
-artifacts.
+Reapplying an activated profile pre-renders and validates every selected
+candidate before changing launchd. It then snapshots all managed plist, load,
+and disabled-override state, including the distinction between an absent
+override and an explicit `false` entry. Activation calls `launchctl enable`
+only for an explicitly disabled selected job, so absent and explicit-enabled
+entries are never materialized or rewritten. A failed transition restores and
+re-queries every managed override entry as well as the prior plist/load state;
+an ambiguous override listing fails before mutation. Only a successful
+transaction leaves unselected jobs unloaded and archived, so a heavy-to-light
+transition does not leave heavy authority active. It refuses to reconcile a
+workload that is already running or starting. Render-only transitions reconcile
+only their inactive artifacts.
 Backups and the moderate/heavy Archility shim live below the bootstrap state
 directory; do not delete it or point an activated profile at ephemeral storage.
 Render-only output is rejected in the live scheduler directories.
@@ -322,9 +385,12 @@ Render-only output is rejected in the live scheduler directories.
 Before activation, install Python 3.10+ for Clockwork and Python 3.11+ for
 Archility, plus `gh`, `jq`, and one supported agent provider. The bootstrap
 checks command presence, while provider authentication/model availability and
-GitHub authentication are validated when the workloads run. On macOS, local
-job env files are parsed as data (not sourced), must be owned by the current
-user, and must not be writable by group or others.
+GitHub authentication are validated when the workloads run. On macOS,
+Clockwork parses local job env files as data (never shell code), opens them
+with no-follow semantics, and requires a regular, current-user-owned,
+owner-only file. Interval scheduler state is likewise current-user-owned with
+0700 directories, 0600 state/lock files, atomic writes, and a non-blocking lock
+that prevents concurrent executions.
 
 Existing git checkouts are not pulled, reset, or rewritten. Their `origin`
 slug is verified against the tracked allowlist on every run, and a

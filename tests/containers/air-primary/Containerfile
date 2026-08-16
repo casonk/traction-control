@@ -1,0 +1,52 @@
+FROM docker.io/library/caddy:2.10.2-alpine AS caddy-bin
+
+FROM docker.io/library/python:3.11-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        git \
+        iproute2 \
+        libcap2-bin \
+        openssl \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --no-cache-dir \
+        "flask==3.1.2" \
+        "tomlkit==0.13.3" \
+    && if [ ! -e /usr/bin/python3 ]; then ln -s /usr/local/bin/python3 /usr/bin/python3; fi
+
+COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
+COPY repo-sources/ /opt/staged/util-repos/
+COPY test-support/run-test.sh /usr/local/bin/run-air-primary-test
+COPY test-support/assert_bundle.py /usr/local/bin/assert-air-primary-bundle
+
+# The rendered edge uses only unprivileged 8443/8444 listeners. Remove the
+# upstream image's privileged-port file capability so Caddy remains executable
+# under the regression's no-new-privileges boundary.
+RUN setcap -r /usr/bin/caddy
+
+# The coordinator requires exact sibling Git worktree roots and records their
+# HEADs. Create deterministic synthetic histories without copying host .git.
+RUN set -eu; \
+    chmod 0755 /usr/local/bin/run-air-primary-test /usr/local/bin/assert-air-primary-bundle; \
+    for repository in \
+        /opt/staged/util-repos/traction-control \
+        /opt/staged/util-repos/clockwork \
+        /opt/staged/util-repos/snowbridge \
+        /opt/staged/util-repos/wiring-harness; do \
+        git -C "$repository" init --quiet; \
+        git -C "$repository" config user.name "Air Primary Integration"; \
+        git -C "$repository" config user.email "air-primary-integration.invalid"; \
+        git -C "$repository" add --all; \
+        env \
+            GIT_AUTHOR_DATE="2026-01-01T00:00:00Z" \
+            GIT_COMMITTER_DATE="2026-01-01T00:00:00Z" \
+            git -C "$repository" commit --quiet --message "synthetic integration fixture"; \
+    done
+
+ENTRYPOINT ["/usr/local/bin/run-air-primary-test"]

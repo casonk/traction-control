@@ -145,6 +145,36 @@
   dedicated non-root user manager. Runtime-mask every managed service before
   enabling timers so validation cannot launch provider-backed workloads.
 
+### 2026-08-16 — Scheduler identity belongs in the shared renderer contract
+
+- When a downstream installer and Clockwork both manage one launchd workload,
+  give Clockwork the downstream's explicit label and use Clockwork as the sole
+  plist renderer. The web UI, installer, status, and controls must resolve that
+  same label or duplicate schedules can be loaded under different namespaces.
+- Preserve systemd-only semantics visibly: fixed login delay, jitter, and
+  network readiness belong in the reviewed downstream adapter, while direct
+  Clockwork rendering of `after`, `wants`, `on_boot_sec`, or randomized delay
+  remains fail-closed.
+- Launchd `StartInterval` is not a persistent interval timer for sleeping
+  laptops. Use a short truthful poll plus locked owner-only state: derive the
+  first due time from the actual boot time, keep failed work due behind a
+  bounded retry, and advance the real interval only after success. Apply
+  jitter and readiness gates only after the due decision.
+- Never reparse private environment files in a downstream shell adapter when
+  the shared renderer already owns a no-follow, owner-only data loader. When
+  that loader wraps `ProgramArguments`, scheduler controls must validate the
+  exact inner argv rather than rejecting or broadly trusting Python wrappers.
+- A multi-job activation must render and validate the complete candidate set
+  before unloading anything. Snapshot every managed artifact and scheduler
+  state first, then roll the whole transition back if the nth unload, install,
+  enable, or bootstrap fails.
+- Launchd's disabled override map has three observable states: absent, explicit
+  `false`, and explicit `true`. Do not collapse absent and `false` into one
+  boolean during a transaction. Avoid `launchctl enable` unless changing an
+  explicit `true`; rollback only that mutation and re-query the complete map so
+  exact restoration remains provable without an unsupported remove-override
+  operation.
+
 ### 2026-07-19 — macOS shell compatibility needs runtime tests, not syntax checks alone
 
 - Stock macOS `/bin/bash` is still Bash 3.2. A script can pass `bash -n` while
@@ -974,3 +1004,38 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   generator, not only string assertions. Keep full credential validation,
   host-key/`known_hosts` binding, and bounded storage capacity as explicit false
   manifest gates until an activation workflow can prove them transactionally.
+
+### 2026-08-11 — Cross-repo coordinators should stage inputs, not fork security renderers
+
+- Keep each security-sensitive renderer in its owning repository and invoke its
+  current public CLI unchanged. Copying renderer code into an orchestrator
+  creates an unaudited fork and makes later safety fixes inconsistent.
+- Probe the exact sibling CLI contract and record the worktree commit, dirty
+  state, and renderer-source hashes in every immutable generation. If the
+  expected flags or artifact shape change, fail closed instead of bypassing an
+  owning repo's path or validation boundary.
+- Stage machine-specific inputs and aggregate evidence in owner-only ignored
+  paths. Treat a failed generation as consumed, and keep live activation in a
+  separately reviewed workflow; render composition must not quietly become
+  service, firewall, credential, network, or failover mutation.
+- Prove the composition with an allowlisted, networkless, read-only container
+  that runs the real owning CLIs. Synthetic namespace-local interfaces and
+  credentials can exercise exact binding and Caddy validation, but the test
+  must state that it does not prove macOS service activation, a real tunnel, or
+  writer authority. Cover both successful and failed generation immutability,
+  not only the happy-path artifact text.
+
+### 2026-08-11 — Optional coordinator slices must gate the whole owned dependency path
+
+- A strict capability switch must gate its filesystem prerequisites, sibling
+  source/API probes, staged inputs, child invocation, logs, artifact checks,
+  and output immutability boundary together. Skipping only the child still
+  leaves a nominally disabled capability blocked by or coupled to host state.
+- Keep adjacent capabilities on separate booleans and test the asymmetric
+  case directly. For Snowbridge on Air, native SMB disabled plus web enabled
+  must omit every SMB/PF render artifact while retaining the reviewed
+  loopback `:8080` web edge.
+- Require the new boolean explicitly instead of supplying a parser fallback.
+  Record a disabled capability and its reason in immutable evidence; disabled
+  means “not audited or rendered,” never proof that the omitted host surface is
+  safe.

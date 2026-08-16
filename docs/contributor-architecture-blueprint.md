@@ -6,7 +6,9 @@ policy and continuity documentation. It now also provides an ignored private
 portfolio authority, a checkout materializer, a read-only lifecycle reviewer,
 an ignored-data sidecar, and a local bootstrap that composes the existing
 workload scripts into inactive or activated Linux and macOS schedules; it is
-still not a long-running application binary.
+still not a long-running application binary. It also has a narrowly scoped
+Air-primary render coordinator that composes sibling-owned native macOS
+renderers without activating them.
 
 ## High-Level Layers
 
@@ -58,7 +60,24 @@ still not a long-running application binary.
      does not implement repair, history, application-specific recovery, or
      automatic failover; those wait for a quorum-backed rqlite/Raft authority
      and later automation.
-3. Bootstrap profile layer (`scripts/install_traction_control_agents.sh`)
+3. Temporary Air-primary render layer (`scripts/render_air_primary.py`)
+   - An ignored owner-only local file pins the current Air `utun` allocation,
+     Air/mini/pro RFC 1918 `/32`s, exact sibling checkouts, and reviewed paths
+     and ports. The tracked example contains placeholders only.
+   - The coordinator probes the current Clockwork and wiring-harness CLI
+     contracts plus Snowbridge's SMB CLI when that native slice is explicitly
+     enabled, then stages private inputs in one immutable generation and
+     invokes the selected original sibling entry points unchanged.
+   - Clockwork stays on `127.0.0.1:5001` behind the Air-IP `:8443` mTLS edge.
+     The optional Snowbridge web role stays absent unless its exact loopback
+     `:8080` backend is explicitly enabled. Native SMB review-plan rendering is
+     controlled by a separate required boolean and, when enabled, remains below
+     Snowbridge's ignored artifact boundary. Disabling native SMB omits its
+     prerequisites and artifacts without changing the web role.
+   - Outputs remain render-only. No `sudo`, launchd activation, Caddy start,
+     SMB/PF mutation, key generation, WireGuard change, or writer failover is
+     implemented.
+4. Bootstrap profile layer (`scripts/install_traction_control_agents.sh`)
    - `config/traction-control-agents/repos.conf` defines the cumulative support
      repos for the light, moderate, and heavy profiles.
    - `config/traction-control-agents/jobs.conf` defines cumulative job
@@ -67,29 +86,36 @@ still not a long-running application binary.
    - The default flow clones missing support repos and renders inactive
      scheduler artifacts. `--dry-run` is the fully non-mutating preview, and
      `--activate` is the explicit live-scheduler boundary.
-4. Scheduler adapter layer
+5. Scheduler adapter layer
    - On Linux, the bootstrap delegates rendering to the repo's `clockwork`
      installers and activates user timers only when requested.
-   - On macOS, it renders native LaunchAgent plists and routes executions
-     through `scripts/run_traction_control_job.sh` for optional env loading,
-     startup delay, and jitter.
-   - Profile transitions disable or unload known unselected jobs during
-     activation and archive their managed artifacts; render-only transitions
-     reconcile only inactive output.
+   - On macOS, it delegates every plist render to Clockwork and routes
+     executions through `scripts/run_traction_control_job.sh` and its Python
+     adapter. Clockwork exclusively loads optional owner-only environment
+     files. Native calendar triggers remain direct; interval jobs request a
+     five-minute `RunAtLoad` poll whose locked 0700/0600 state applies the
+     boot-relative delay once, retries failures no faster than the poll, and
+     advances the original interval only after success. A wake after a missed
+     interval yields one catch-up execution. Jitter and bounded network
+     readiness are evaluated only after a due decision.
+   - Activation pre-renders every selected plist, snapshots all managed plist,
+     load, and disabled state, then transitions the profile. Any unload,
+     install, enable, or bootstrap failure restores the snapshot. Render-only
+     transitions reconcile only inactive output.
    - Activation refuses to replace a managed workload that is running or
      starting. The persistent bootstrap state directory owns backups and the
      Archility source-tree shim used by moderate/heavy jobs.
    - `scripts/install_refs_audit_agentic_systemd.sh` and
      `config/clockwork/refs-audit-agentic.toml.template` complete the Linux
      installer surface for the moderate REFS job.
-5. Portfolio-boundary layer (`../..`)
+6. Portfolio-boundary layer (`../..`)
    - This repo does not audit itself as the whole workspace.
    - Cross-repo work begins by scanning the portfolio root two levels up and
      then selecting the target repo from that inventory.
    - Profile repos are support dependencies, not workload targets or target
      allowlists. Discovery workloads apply their own depth, exclusion,
      clean-worktree, and eligibility filters below the portfolio root.
-6. Shared-utility reference layer (`../archility`, sibling utility repos)
+7. Shared-utility reference layer (`../archility`, sibling utility repos)
    - `archility` is the standard architecture toolchain home.
    - `clockwork` renders Linux scheduler units, while `tachometer` provides the
      resource signals consumed by disk-pressure remediation.
@@ -97,7 +123,7 @@ still not a long-running application binary.
      implementation homes for secrets, VPN switching, and external messaging.
    - The control plane advertises those repos so agents do not reimplement those
      capabilities ad hoc in other repos.
-7. Governance execution loop
+8. Governance execution loop
    - An agent reads the control-plane docs here first.
    - It then reads the target repo guidance, performs standards or repo-specific
      changes, runs verification, checks hosted workflows after pushes when
@@ -105,7 +131,7 @@ still not a long-running application binary.
    - Heavy installs CI repair as an on-demand service by default. The separate
      `--enable-autonomous-ci-repair` flag replaces read-only CI discovery with
      the scheduled repair workflow and therefore expands write authority.
-8. Self-validation layer (`.github/workflows/ci.yml`, `.pre-commit-config.yaml`)
+9. Self-validation layer (`.github/workflows/ci.yml`, `.pre-commit-config.yaml`)
    - This repo validates its own docs/config baseline with pre-commit.
    - `scripts/install_podman_runtime.sh` installs or verifies Podman and, on
      macOS, prepares a named rootless machine without changing the default
@@ -124,6 +150,13 @@ still not a long-running application binary.
    - Real-Git regression tests exercise catalog reconciliation, atomic
      materialization, fetch-only behavior, lifecycle dependency evidence,
      private-name disclosure checks, and fail-closed identity/path rules.
+   - `tests/test_air_primary_coordinator_podman.sh` stages only allowlisted
+     coordinator and sibling-renderer sources into a networkless, read-only
+     container. A namespace-local dummy `utun7` and synthetic credentials let
+     the unchanged Clockwork, Snowbridge, wiring-harness, and Caddy validation
+     paths prove successful rendering, immutable success, unsafe-inventory
+     refusal, immutable failed-generation evidence, and native-SMB-off/web-on
+     independence without host effects.
    - `tests/test_portfolio_sidecar_containers.sh` runs the synthetic sidecar
      suite in a networkless read-only Linux container. The opt-in
      `tests/test_portfolio_sidecar_real_podman.sh` creates one coordinator plus
@@ -153,14 +186,17 @@ still not a long-running application binary.
 - `docs/repository-visibility.md`
 - `docs/portfolio-lifecycle.md`
 - `docs/private-sidecar.md`
+- `docs/air-primary-render.md`
 - `scripts/repository_visibility.py`
 - `scripts/portfolio_materializer.py`
 - `scripts/portfolio_lifecycle_review.py`
 - `scripts/portfolio_sidecar.py`
 - `scripts/render_portfolio_sidecar_quadlets.py`
+- `scripts/render_air_primary.py`
 - `config/repository-visibility/*.example.json`
 - `config/portfolio/*.example.json`
 - `config/portfolio-sidecar/*.example.json`
+- `config/air-primary.example.toml`
 - `containers/portfolio-sidecar-sftp/Containerfile`
 - `scripts/check_portfolio_privacy.sh`
 - `tests/test_repository_visibility.py`
@@ -172,6 +208,7 @@ still not a long-running application binary.
 - `tests/test_portfolio_sidecar_quadlets.py`
 - `tests/test_portfolio_sidecar_quadlet_generator_podman.sh`
 - `tests/test_portfolio_sidecar_sftp_image_podman.sh`
+- `tests/test_air_primary_coordinator_podman.sh`
 - `tests/containers/Sidecar.Containerfile`
 - `tests/containers/SidecarRealCoordinator.Containerfile`
 - `tests/containers/SidecarRealSftp.Containerfile`
@@ -210,6 +247,9 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m archility render ../traction
   and treat reviewed visibility/archive/deletion as external saga effects.
 - Keep sidecar selectors explicit, secrets out of Git, and L3 failover fenced;
   Gitignore rules alone grant no backup or read authority.
+- Keep cross-repo renderers in their owning sibling repositories. A coordinator
+  may stage private inputs and record hashes, but must not copy a security
+  renderer or weaken its output boundary to make composition easier.
 - Keep profile support repos distinct from portfolio targets, and keep
   autonomous CI repair behind its separate explicit opt-in.
 - Update the blueprint and diagram sources together when the control-plane flow,

@@ -1,0 +1,51 @@
+# Render-only Air-primary coordinator template.
+#
+# Copy with:
+#   python3 scripts/render_air_primary.py init
+#
+# The resulting config/air-primary.local.toml is ignored by Git and mode 0600.
+# Replace every angle-bracket placeholder.  This coordinator renders inert
+# review artifacts only; it never activates launchd, Caddy, SMB, or PF.
+
+schema_version = 1
+mode = "render-only"
+generation = 1
+deployment_id = "air-primary"
+
+[network]
+wireguard_interface = "<utun-interface>"
+air_address = "<air-wireguard-ip>/32"
+mini_address = "<mini-wireguard-ip>/32"
+pro_address = "<pro-wireguard-ip>/32"
+
+[repositories]
+clockwork = "<portfolio-root>/util-repos/clockwork"
+snowbridge = "<portfolio-root>/util-repos/snowbridge"
+wiring_harness = "<portfolio-root>/util-repos/wiring-harness"
+
+[runtime]
+python = "<absolute-python-3.11-or-newer>"
+caddy_binary = "<absolute-caddy-binary>"
+
+[clockwork]
+python = "<portfolio-root>/util-repos/clockwork/.venv/bin/python"
+environment_file = "<home>/.config/clockwork/clockwork-web.env"
+backend_host = "127.0.0.1"
+backend_port = 5001
+edge_port = 8443
+
+[snowbridge]
+share_name = "snowbridge"
+share_path = "<home>/Snowbridge"
+expected_account = "<macos-account>"
+# Optional deterministic audit input.  Omit this key to audit the live host
+# through Snowbridge's read-only inventory collectors.
+# inventory_file = "<home>/.config/snowbridge/air-inventory.json"
+# Native SMB review-plan rendering and the optional web backend are independent.
+native_smb_enabled = true
+web_backend_8080_enabled = false
+web_backend_port = 8080
+web_edge_port = 8444
+
+[wiring_harness]
+certs_dir = "<home>/.config/wiring-harness/certs"

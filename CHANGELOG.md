@@ -4,6 +4,18 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Added an owner-only, render-only Air-primary coordinator. It validates exact
+  sibling worktrees and current CLI contracts, stages deterministic private
+  inputs, invokes the unchanged Clockwork launchd, Snowbridge macOS SMB-plan,
+  and wiring-harness mTLS edge renderers, and records immutable generation
+  manifests without activating launchd, Caddy, SMB, PF, or networking. A
+  networkless, read-only Podman proof runs all three real renderers plus Caddy
+  validation and covers successful and failed generation immutability plus an
+  unsafe wildcard-SMB inventory refusal. A required native-SMB boolean now
+  preserves that path by default while allowing an explicit local disable to
+  omit only SMB prerequisites, child rendering, logs, and artifacts; the
+  independent Snowbridge web role still renders when separately enabled, and
+  manifests record the disabled state and reason.
 - Added a three-level private-sidecar control plane: tracked public-safe code,
   explicitly selected hosted-encrypted ignored data, and strict-majority
   mesh-only ignored data with no hosted fallback. The standalone coordinator
@@ -39,6 +51,13 @@ All notable changes to `traction-control` are documented here.
   and heavy support-repo/job profiles, an inactive render default, a fully
   non-mutating dry run, explicit activation, provider/model configuration, and
   guarded opt-in autonomous CI repair.
+- Unified macOS job identity and plist rendering with Clockwork, moved private
+  environment loading into Clockwork's owner-only no-follow loader, and added
+  a stateful five-minute interval poll that preserves boot-relative startup,
+  bounded failure retry, successful-run intervals, and one sleep catch-up.
+  Launchd activation now validates all candidates before mutation and restores
+  the prior managed plist/load/disabled state on a later transition failure,
+  preserving absent versus explicit disabled-override entries exactly.
 - Added tracked repository and job profile data plus native macOS LaunchAgent
   rendering, launch delay/jitter adaptation, Linux `clockwork` integration, and
   a missing weekly REFS audit installer/template.
@@ -47,7 +66,7 @@ All notable changes to `traction-control` are documented here.
   schedules.
 - Added fail-closed profile reconciliation with recoverable scheduler-artifact
   archives, live-directory guards, exact Git checkout validation, and a
-  data-only private environment-file parser for the macOS runtime adapter.
+  secure Clockwork-owned private environment-file loader on macOS.
 - Initialized `traction-control` as the portfolio control-plane repository.
 - Migrated the portfolio-wide `AGENTS.md` and `CHATHISTORY.md` from the former workspace root into this repo.
 - Rolled out the portfolio baseline files across the other repositories, including governance docs, architecture blueprints, and repo-appropriate CI where needed.
