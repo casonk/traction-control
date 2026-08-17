@@ -93,9 +93,62 @@ web_edge_port = 8444
 certs_dir = {json.dumps(os.fspath(self.root / "certs"))}
 """
 
-    def _load(self, **changes: object) -> air.AirConfig:
+    def _load(self, *, repo_root: Path | None = None, **changes: object) -> air.AirConfig:
         self._owner_write(self.config_path, self._config_text(**changes))
-        return air.load_config(self.config_path, repo_root=REPOSITORY_ROOT)
+        return air.load_config(self.config_path, repo_root=repo_root or REPOSITORY_ROOT)
+
+    @staticmethod
+    def _git_fixture(repository: Path) -> None:
+        def git(*arguments: str) -> None:
+            subprocess.run(
+                ["git", "-C", os.fspath(repository), *arguments],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        git("init", "-q")
+        git("config", "user.name", "Air Primary Fixture")
+        git("config", "user.email", "air-primary-fixture@example.invalid")
+        git("add", "--all")
+        git("-c", "commit.gpgsign=false", "commit", "-q", "-m", "fixture")
+
+    def _fixture_portfolio(self) -> tuple[Path, Path]:
+        """Build a self-contained util-repos tree.
+
+        Preflight resolves the sibling renderers as `repo_root.parent/<name>`, so a
+        test that points at the real REPOSITORY_ROOT silently depends on the
+        developer's own checkouts being present. CI clones this repository alone,
+        where that assumption makes every preflight fail as a missing prerequisite.
+        """
+
+        renderer_sources = {
+            "clockwork": (
+                "src/clockwork/__init__.py",
+                "src/clockwork/__main__.py",
+                "src/clockwork/cli.py",
+                "src/clockwork/manifest.py",
+                "src/clockwork/model.py",
+                "src/clockwork/render.py",
+                "scripts/run_clockwork_web_macos.sh",
+            ),
+            "snowbridge": ("scripts/macos_smb_plan.py",),
+            "wiring-harness": (
+                "scripts/render_macos_private_edge.py",
+                "scripts/site_registry.py",
+            ),
+        }
+        util_root = self.root / "util-repos"
+        for name in ("traction-control", *renderer_sources):
+            repository = util_root / name
+            repository.mkdir(parents=True)
+            (repository / "README.md").write_text("fixture\n", encoding="utf-8")
+            for relative in renderer_sources.get(name, ()):
+                source = repository / relative
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text("# inert fixture\n", encoding="utf-8")
+            self._git_fixture(repository)
+        return util_root, util_root / "traction-control"
 
     def test_init_is_owner_only_and_never_overwrites(self) -> None:
         target = self.root / "nested" / "air-primary.local.toml"
@@ -296,9 +349,9 @@ certs_dir = {json.dumps(os.fspath(self.root / "certs"))}
     def test_preflight_classifies_missing_and_unsafe_prerequisites_differently(
         self,
     ) -> None:
-        util_root = REPOSITORY_ROOT.parent
-        config = self._load(util_root=util_root)
-        coordinator = air.AirPrimaryCoordinator(config, repo_root=REPOSITORY_ROOT)
+        util_root, traction = self._fixture_portfolio()
+        config = self._load(util_root=util_root, repo_root=traction)
+        coordinator = air.AirPrimaryCoordinator(config, repo_root=traction)
         with self.assertRaises(air.CoordinatorError) as missing:
             coordinator.validate()
         self.assertEqual(missing.exception.category, "missing_prerequisite")
