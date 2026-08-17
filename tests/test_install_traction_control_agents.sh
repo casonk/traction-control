@@ -87,6 +87,17 @@ assert_file_exists() {
   fi
 }
 
+assert_file_not_contains() {
+  local path="$1"
+  local unexpected="$2"
+  local label="$3"
+  if [[ -f "${path}" ]] && ! grep -Fq -- "${unexpected}" "${path}"; then
+    pass "${label}"
+  else
+    fail_test "${label}" "${path} unexpectedly contains: ${unexpected}"
+  fi
+}
+
 assert_no_logged_command() {
   local command_name="$1"
   local label="$2"
@@ -175,18 +186,52 @@ for arg in "$@"; do
 done
 printf '\n' >> "${TEST_COMMAND_LOG}"
 
+if [[ -n "${TEST_CLOCKWORK_CALL_COUNT_FILE:-}" ]]; then
+  printf 'call\n' >> "${TEST_CLOCKWORK_CALL_COUNT_FILE}"
+  call_count="$(wc -l < "${TEST_CLOCKWORK_CALL_COUNT_FILE}" | tr -d ' ')"
+  if [[ -n "${TEST_CLOCKWORK_FAIL_N:-}" && "${call_count}" == "${TEST_CLOCKWORK_FAIL_N}" ]]; then
+    exit 42
+  fi
+fi
+
 manifest=""
 unit_dir=""
+target=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --manifest) manifest="$2"; shift 2 ;;
     --unit-dir) unit_dir="$2"; shift 2 ;;
+    --target) target="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 
 job_name="$(sed -n 's/^name = "\([^"]*\)"/\1/p' "${manifest}" | head -n 1)"
 mkdir -p "${unit_dir}"
+if [[ "${target}" == "launchd-user" ]]; then
+  label="$(sed -n 's/^launchd_label = "\([^"]*\)"/\1/p' "${manifest}" | head -n 1)"
+  payload_label="${label}"
+  if [[ -n "${TEST_CLOCKWORK_MISLABEL_JOB:-}" && "${job_name}" == "${TEST_CLOCKWORK_MISLABEL_JOB}" ]]; then
+    payload_label="io.github.casonk.traction-control.wrong-${job_name}"
+  fi
+  interval="$(sed -n 's/^on_unit_active_sec = "\([0-9]*\)s"/\1/p' "${manifest}" | head -n 1)"
+  model="$(sed -n 's/^[A-Z][A-Z0-9_]*_MODEL = "\(.*\)"/\1/p' "${manifest}" | head -n 1)"
+  model="${model//&/\&amp;}"
+  {
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+    printf '%s\n' '<plist version="1.0"><dict>'
+    printf '<key>Label</key><string>%s</string>\n' "${payload_label}"
+    printf '%s\n' '<key>ProgramArguments</key><array><string>/bin/echo</string></array>'
+    if [[ -n "${interval}" ]]; then
+      printf '<key>StartInterval</key><integer>%s</integer>\n' "${interval}"
+    fi
+    if [[ -n "${model}" ]]; then
+      printf '<key>TEST_MODEL</key><string>%s</string>\n' "${model}"
+    fi
+    printf '%s\n' '</dict></plist>'
+  } > "${unit_dir}/${label}.plist"
+  exit 0
+fi
 cp "${manifest}" "${unit_dir}/${job_name}.service"
 if grep -Fq '[jobs.timer]' "${manifest}"; then
   printf '[Timer]\nUnit=%s.service\n' "${job_name}" > "${unit_dir}/${job_name}.timer"
@@ -215,10 +260,133 @@ STUB
 printf 'launchctl' >> "${TEST_COMMAND_LOG}"
 for arg in "$@"; do printf '\t%s' "${arg}" >> "${TEST_COMMAND_LOG}"; done
 printf '\n' >> "${TEST_COMMAND_LOG}"
-if [[ "${1:-}" == "bootout" && -n "${TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL:-}" ]] \
-  && [[ " $* " == *"${TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL}"* ]]; then
-  exit 1
-fi
+
+state_contains() {
+  [[ -n "${TEST_LAUNCHCTL_STATE_FILE:-}" && -f "${TEST_LAUNCHCTL_STATE_FILE}" ]] \
+    && grep -Fxq -- "$1" "${TEST_LAUNCHCTL_STATE_FILE}"
+}
+
+state_add() {
+  [[ -n "${TEST_LAUNCHCTL_STATE_FILE:-}" ]] || return 0
+  touch "${TEST_LAUNCHCTL_STATE_FILE}"
+  if ! grep -Fxq -- "$1" "${TEST_LAUNCHCTL_STATE_FILE}"; then
+    printf '%s\n' "$1" >> "${TEST_LAUNCHCTL_STATE_FILE}"
+  fi
+}
+
+state_remove() {
+  local temporary=""
+  [[ -n "${TEST_LAUNCHCTL_STATE_FILE:-}" ]] || return 0
+  touch "${TEST_LAUNCHCTL_STATE_FILE}"
+  temporary="${TEST_LAUNCHCTL_STATE_FILE}.tmp"
+  grep -Fxv -- "$1" "${TEST_LAUNCHCTL_STATE_FILE}" > "${temporary}" || true
+  mv "${temporary}" "${TEST_LAUNCHCTL_STATE_FILE}"
+}
+
+override_set() {
+  local label="$1"
+  local value="$2"
+  local temporary=""
+  [[ -n "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE:-}" ]] || return 0
+  touch "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}"
+  temporary="${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}.tmp"
+  grep -Fv -- "${label}=" "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}" > "${temporary}" || true
+  printf '%s=%s\n' "${label}" "${value}" >> "${temporary}"
+  mv "${temporary}" "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}"
+}
+
+case "${1:-}" in
+  print)
+    target="${2:-}"
+    case "${target}" in
+      gui/[0-9]*)
+        remainder="${target#*/}"
+        case "${remainder}" in
+          */*)
+            label="${target##*/}"
+            if [[ -n "${TEST_LAUNCHCTL_STATE_FILE:-}" ]]; then
+              if state_contains "${label}"; then
+                printf 'state = waiting\n'
+                exit 0
+              fi
+              exit 1
+            fi
+            case "|${TEST_LAUNCHCTL_LOADED_LABELS:-}|" in
+              *"|${label}|"*) printf 'state = waiting\n'; exit 0 ;;
+            esac
+            if [[ -f "${HOME}/Library/LaunchAgents/${label}.plist" ]]; then
+              printf 'state = waiting\n'
+              exit 0
+            fi
+            exit 1
+            ;;
+          *) exit 0 ;;
+        esac
+        ;;
+    esac
+    ;;
+  print-disabled)
+    if [[ -n "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE:-}" ]]; then
+      printf '%s\n' 'disabled services = {'
+      while IFS='=' read -r label value; do
+        [[ -n "${label}" ]] || continue
+        printf '    "%s" => %s\n' "${label}" "${value}"
+      done < "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}"
+      printf '%s\n' '}'
+    else
+      printf '%s\n' "${TEST_LAUNCHCTL_DISABLED_OUTPUT:-disabled services = {}}"
+    fi
+    exit 0
+    ;;
+  bootout)
+    label="${2##*/}"
+    if [[ -n "${TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE:-}" ]]; then
+      printf 'call\n' >> "${TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE}"
+      call_count="$(wc -l < "${TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE}" | tr -d ' ')"
+      if [[ -n "${TEST_LAUNCHCTL_BOOTOUT_FAIL_N:-}" ]] \
+        && [[ "${call_count}" == "${TEST_LAUNCHCTL_BOOTOUT_FAIL_N}" ]]; then
+        exit 44
+      fi
+    fi
+    if [[ -n "${TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL:-}" ]] \
+      && [[ " $* " == *"${TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL}"* ]]; then
+      exit 1
+    fi
+    state_remove "${label}"
+    ;;
+  bootstrap)
+    plist_path="${3:-}"
+    label="$(basename "${plist_path}" .plist)"
+    if [[ -n "${TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE:-}" ]]; then
+      printf 'call\n' >> "${TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE}"
+      call_count="$(wc -l < "${TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE}" | tr -d ' ')"
+      if [[ -n "${TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N:-}" ]] \
+        && [[ "${call_count}" == "${TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N}" ]]; then
+        if [[ "${TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL:-0}" == "1" ]]; then
+          state_add "${label}"
+        fi
+        exit 43
+      fi
+    fi
+    if [[ -n "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE:-}" ]] \
+      && grep -Fxq -- "${label}=true" "${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE}"; then
+      exit 45
+    fi
+    state_add "${label}"
+    ;;
+  enable)
+    label="${2##*/}"
+    override_set "${label}" false
+    ;;
+  disable)
+    label="${2##*/}"
+    if [[ -n "${TEST_LAUNCHCTL_DISABLE_FAIL_LABEL:-}" ]] \
+      && [[ "${label}" == "${TEST_LAUNCHCTL_DISABLE_FAIL_LABEL}" ]]; then
+      exit 46
+    fi
+    override_set "${label}" true
+    ;;
+esac
 exit 0
 STUB
 
@@ -251,10 +419,17 @@ STUB
   if ! command -v plutil >/dev/null 2>&1; then
     cat > "${FAKE_BIN}/plutil" <<'STUB'
 #!/usr/bin/env bash
-[[ "${1:-}" == "-lint" ]] || exit 2
-grep -Fq '<plist version="1.0">' "${2:-}" || exit 1
-grep -Fq '<key>ProgramArguments</key>' "${2:-}" || exit 1
-exit 0
+case "${1:-}" in
+  -lint)
+    grep -Fq '<plist version="1.0">' "${2:-}" || exit 1
+    grep -Fq '<key>ProgramArguments</key>' "${2:-}" || exit 1
+    ;;
+  -extract)
+    [[ "${2:-}" == "Label" && "${3:-}" == "raw" && "${4:-}" == "-o" ]] || exit 2
+    sed -n 's|.*<key>Label</key><string>\([^<]*\)</string>.*|\1|p' "${6:-}" | head -n 1
+    ;;
+  *) exit 2 ;;
+esac
 STUB
   fi
 
@@ -292,6 +467,19 @@ run_installer() {
     XDG_CONFIG_HOME="${case_root}/xdg-config" \
     XDG_DATA_HOME="${case_root}/xdg-data" \
     TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL="${TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL:-}" \
+    TEST_LAUNCHCTL_BOOTOUT_FAIL_N="${TEST_LAUNCHCTL_BOOTOUT_FAIL_N:-}" \
+    TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE="${TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE:-}" \
+    TEST_LAUNCHCTL_LOADED_LABELS="${TEST_LAUNCHCTL_LOADED_LABELS:-}" \
+    TEST_LAUNCHCTL_STATE_FILE="${TEST_LAUNCHCTL_STATE_FILE:-}" \
+    TEST_LAUNCHCTL_OVERRIDE_STATE_FILE="${TEST_LAUNCHCTL_OVERRIDE_STATE_FILE:-}" \
+    TEST_LAUNCHCTL_DISABLED_OUTPUT="${TEST_LAUNCHCTL_DISABLED_OUTPUT:-}" \
+    TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N="${TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N:-}" \
+    TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE="${TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE:-}" \
+    TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL="${TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL:-}" \
+    TEST_LAUNCHCTL_DISABLE_FAIL_LABEL="${TEST_LAUNCHCTL_DISABLE_FAIL_LABEL:-}" \
+    TEST_CLOCKWORK_FAIL_N="${TEST_CLOCKWORK_FAIL_N:-}" \
+    TEST_CLOCKWORK_CALL_COUNT_FILE="${TEST_CLOCKWORK_CALL_COUNT_FILE:-}" \
+    TEST_CLOCKWORK_MISLABEL_JOB="${TEST_CLOCKWORK_MISLABEL_JOB:-}" \
     TEST_SYSTEMCTL_DISABLE_FAIL_UNIT="${TEST_SYSTEMCTL_DISABLE_FAIL_UNIT:-}" \
     /bin/bash "${INSTALLER}" "$@"
 }
@@ -391,6 +579,8 @@ test_macos_tier() {
   local expected_names="${case_root}/expected.txt"
   local plist_path
   local lint_failed=0
+  local launchd_manifest=""
+  local clockwork_launchd_calls=0
 
   prepare_profile_portfolio "${portfolio_root}" "${tier}"
   mkdir -p "${plist_dir}"
@@ -462,13 +652,63 @@ EOF
     "macOS ${tier} uses a ProgramArguments array"
   assert_file_contains \
     "${plist_dir}/io.github.casonk.traction-control.bug-sweep-agentic.plist" \
-    '<integer>86400</integer>' \
-    "macOS ${tier} preserves the daily bug-sweep interval"
+    '<integer>300</integer>' \
+    "macOS ${tier} uses the bounded stateful interval poll"
   assert_file_contains \
     "${plist_dir}/io.github.casonk.traction-control.bug-sweep-agentic.plist" \
     'gpt test &amp; safe' \
     "macOS ${tier} XML-escapes the model value"
+  if [[ "${tier}" == "light" ]]; then
+    launchd_manifest="${case_root}/state/rendered/clockwork-launchd/bug-sweep-agentic.toml"
+    assert_file_contains \
+      "${launchd_manifest}" \
+      'launchd_label = "io.github.casonk.traction-control.bug-sweep-agentic"' \
+      "macOS tier manifest gives Clockwork the authoritative downstream label"
+    assert_file_contains \
+      "${launchd_manifest}" '--startup-delay-seconds' \
+      "macOS tier manifest keeps boot-relative delayed-start handling explicit"
+    assert_file_contains \
+      "${launchd_manifest}" '--interval-seconds' \
+      "macOS tier manifest gives the stateful adapter the original interval"
+    assert_file_contains \
+      "${launchd_manifest}" '--retry-seconds' \
+      "macOS tier manifest bounds failed due retries to the poll cadence"
+    assert_file_contains \
+      "${launchd_manifest}" '--jitter-seconds' \
+      "macOS tier manifest keeps randomized delay explicit in the adapter"
+    assert_file_contains \
+      "${launchd_manifest}" '--network-host' \
+      "macOS tier manifest keeps network ordering explicit in the adapter"
+    assert_file_contains \
+      "${launchd_manifest}" 'launchd_run_at_load = true' \
+      "macOS interval poll explicitly requests a login-time due check"
+    assert_file_contains \
+      "${launchd_manifest}" 'on_unit_active_sec = "300s"' \
+      "macOS interval adapter truthfully renders its five-minute poll"
+    assert_file_contains \
+      "${launchd_manifest}" 'environment_files = ["-' \
+      "macOS tier manifest delegates private environment loading to Clockwork"
+    assert_file_not_contains \
+      "${launchd_manifest}" '--env-file' \
+      "macOS tier manifest never asks bash to parse a private environment file"
+    assert_file_not_contains \
+      "${launchd_manifest}" 'on_boot_sec' \
+      "macOS adapter does not claim Clockwork mapped systemd OnBootSec"
+    assert_file_not_contains \
+      "${launchd_manifest}" 'randomized_delay_sec' \
+      "macOS adapter does not claim Clockwork mapped systemd randomized delay"
+    assert_file_not_contains \
+      "${launchd_manifest}" 'after =' \
+      "macOS adapter does not claim launchd has systemd ordering dependencies"
+  fi
   assert_file_contains "${plist_dir}/unrelated.plist" 'preserve me' "macOS ${tier} preserves unrelated LaunchAgents"
+  clockwork_launchd_calls="$(grep -c $'^clockwork\tinstall\t.*\t--target\tlaunchd-user\t' "${COMMAND_LOG}" || true)"
+  if [[ "${clockwork_launchd_calls}" == "${expected_count}" ]]; then
+    pass "macOS ${tier} delegates every selected plist render to Clockwork"
+  else
+    fail_test "macOS ${tier} delegates every selected plist render to Clockwork" \
+      "recorded ${clockwork_launchd_calls} Clockwork launchd renders"
+  fi
   assert_no_logged_command launchctl "macOS ${tier} render-only mode never calls launchctl"
 }
 
@@ -663,12 +903,17 @@ test_activation_with_stubs() {
   local mac_portfolio="${mac_case}/portfolio"
   local mac_launchd="${mac_case}/home/Library/LaunchAgents"
   local bootstrap_count
+  local first_bootout_line=""
+  local last_render_line=""
   local linux_case="${TEST_ROOT}/linux activation"
   local linux_portfolio="${linux_case}/portfolio"
   local linux_units="${linux_case}/xdg-config/systemd/user"
   local enable_count
 
   prepare_profile_portfolio "${mac_portfolio}" light
+  mkdir -p "${mac_launchd}"
+  printf 'stale heavy plist\n' \
+    > "${mac_launchd}/io.github.casonk.traction-control.tachometer-disk-pressure-agentic.plist"
   : > "${COMMAND_LOG}"
   run_installer "${mac_case}" \
     --tier light \
@@ -685,6 +930,19 @@ test_activation_with_stubs() {
     pass "macOS light activation bootstraps exactly three selected LaunchAgents"
   else
     fail_test "macOS light activation bootstraps exactly three selected LaunchAgents" "recorded ${bootstrap_count} bootstrap calls"
+  fi
+  if ! grep -Eq '^launchctl[[:space:]](enable|disable)[[:space:]]' "${COMMAND_LOG}"; then
+    pass "macOS activation preserves absent disabled-override entries"
+  else
+    fail_test "macOS activation preserves absent disabled-override entries"
+  fi
+  first_bootout_line="$(grep -n '^launchctl[[:space:]]bootout[[:space:]]' "${COMMAND_LOG}" | sed -n '1s/:.*//p')"
+  last_render_line="$(grep -n $'^clockwork\tinstall\t.*\t--target\tlaunchd-user\t' "${COMMAND_LOG}" | sed -n '$s/:.*//p')"
+  if [[ -n "${first_bootout_line}" && -n "${last_render_line}" ]] \
+    && (( last_render_line < first_bootout_line )); then
+    pass "macOS activation pre-renders every selected candidate before unloading"
+  else
+    fail_test "macOS activation pre-renders every selected candidate before unloading"
   fi
   if grep -Fq 'io.github.casonk.traction-control.tachometer-disk-pressure-agentic' "${COMMAND_LOG}" \
     && grep -q '^launchctl[[:space:]]bootout[[:space:]]' "${COMMAND_LOG}"; then
@@ -725,6 +983,9 @@ test_reconciliation_fail_closed() {
   local linux_portfolio="${linux_case}/portfolio"
 
   prepare_profile_portfolio "${mac_portfolio}" light
+  mkdir -p "${mac_case}/home/Library/LaunchAgents"
+  printf 'stale heavy plist\n' \
+    > "${mac_case}/home/Library/LaunchAgents/io.github.casonk.traction-control.tachometer-disk-pressure-agentic.plist"
   : > "${COMMAND_LOG}"
   TEST_LAUNCHCTL_BOOTOUT_FAIL_LABEL='io.github.casonk.traction-control.tachometer-disk-pressure-agentic'
   run_installer "${mac_case}" \
@@ -736,10 +997,11 @@ test_reconciliation_fail_closed() {
   else
     fail_test "macOS activation fails closed when an unselected job cannot be unloaded"
   fi
-  if ! grep -q '^launchctl[[:space:]]bootstrap[[:space:]]' "${COMMAND_LOG}" 2>/dev/null; then
-    pass "macOS reconciliation failure occurs before selected jobs are bootstrapped"
+  if ! grep -Eq '^launchctl[[:space:]]bootstrap[[:space:]].*io\.github\.casonk\.traction-control\.(portfolio-audit-daily|bug-sweep-agentic|ci-repair-agentic-discovery)\.plist' \
+    "${COMMAND_LOG}" 2>/dev/null; then
+    pass "macOS reconciliation failure occurs before selected candidates are bootstrapped"
   else
-    fail_test "macOS reconciliation failure occurs before selected jobs are bootstrapped"
+    fail_test "macOS reconciliation failure occurs before selected candidates are bootstrapped"
   fi
 
   prepare_profile_portfolio "${linux_portfolio}" light
@@ -758,6 +1020,304 @@ test_reconciliation_fail_closed() {
     pass "Linux reconciliation failure occurs before selected timers are enabled"
   else
     fail_test "Linux reconciliation failure occurs before selected timers are enabled"
+  fi
+}
+
+test_launchd_transaction_failures() {
+  local render_case="${TEST_ROOT}/macos nth render failure"
+  local render_portfolio="${render_case}/portfolio"
+  local render_launchd="${render_case}/home/Library/LaunchAgents"
+  local render_count_file="${render_case}/clockwork-calls"
+  local bootstrap_case="${TEST_ROOT}/macos nth bootstrap failure"
+  local bootstrap_portfolio="${bootstrap_case}/portfolio"
+  local bootstrap_launchd="${bootstrap_case}/home/Library/LaunchAgents"
+  local bootstrap_count_file="${bootstrap_case}/bootstrap-calls"
+  local bootstrap_state_file="${bootstrap_case}/loaded-labels"
+  local bootstrap_expected_state="${bootstrap_case}/expected-loaded-labels"
+  local mislabel_case="${TEST_ROOT}/macos candidate label mismatch"
+  local mislabel_portfolio="${mislabel_case}/portfolio"
+  local bootout_case="${TEST_ROOT}/macos nth bootout failure"
+  local bootout_portfolio="${bootout_case}/portfolio"
+  local bootout_launchd="${bootout_case}/home/Library/LaunchAgents"
+  local bootout_count_file="${bootout_case}/bootout-calls"
+  local bootout_state_file="${bootout_case}/loaded-labels"
+  local bootout_expected_state="${bootout_case}/expected-loaded-labels"
+  local override_case="${TEST_ROOT}/macos exact override rollback"
+  local override_portfolio="${override_case}/portfolio"
+  local override_launchd="${override_case}/home/Library/LaunchAgents"
+  local override_count_file="${override_case}/bootstrap-calls"
+  local override_loaded_file="${override_case}/loaded-labels"
+  local override_state_file="${override_case}/disabled-overrides"
+  local override_expected_state="${override_case}/expected-disabled-overrides"
+  local malformed_case="${TEST_ROOT}/macos malformed override snapshot"
+  local malformed_portfolio="${malformed_case}/portfolio"
+  local incomplete_case="${TEST_ROOT}/macos unverifiable override rollback"
+  local incomplete_portfolio="${incomplete_case}/portfolio"
+  local incomplete_launchd="${incomplete_case}/home/Library/LaunchAgents"
+  local incomplete_count_file="${incomplete_case}/bootstrap-calls"
+  local incomplete_loaded_file="${incomplete_case}/loaded-labels"
+  local incomplete_state_file="${incomplete_case}/disabled-overrides"
+  local label=""
+
+  prepare_profile_portfolio "${render_portfolio}" light
+  mkdir -p "${render_launchd}"
+  printf 'preserve before render failure\n' \
+    > "${render_launchd}/io.github.casonk.traction-control.tachometer-disk-pressure-agentic.plist"
+  : > "${render_count_file}"
+  : > "${COMMAND_LOG}"
+  TEST_CLOCKWORK_FAIL_N=2
+  TEST_CLOCKWORK_CALL_COUNT_FILE="${render_count_file}"
+  run_installer "${render_case}" \
+    --tier light --portfolio-root "${render_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${render_case}/state"
+  TEST_CLOCKWORK_FAIL_N=''
+  TEST_CLOCKWORK_CALL_COUNT_FILE=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation fails when the second candidate render fails"
+  else
+    fail_test "macOS activation fails when the second candidate render fails"
+  fi
+  assert_file_contains \
+    "${render_launchd}/io.github.casonk.traction-control.tachometer-disk-pressure-agentic.plist" \
+    'preserve before render failure' \
+    "nth-render failure preserves the prior unselected LaunchAgent"
+  if ! grep -Eq '^launchctl[[:space:]](bootout|enable|disable|bootstrap)[[:space:]]' "${COMMAND_LOG}"; then
+    pass "nth-render failure performs no launchd transition"
+  else
+    fail_test "nth-render failure performs no launchd transition"
+  fi
+
+  prepare_profile_portfolio "${mislabel_portfolio}" light
+  : > "${COMMAND_LOG}"
+  TEST_CLOCKWORK_MISLABEL_JOB='bug-sweep-agentic'
+  run_installer "${mislabel_case}" \
+    --tier light --portfolio-root "${mislabel_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${mislabel_case}/state"
+  TEST_CLOCKWORK_MISLABEL_JOB=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation rejects a candidate with a mismatched embedded Label"
+  else
+    fail_test "macOS activation rejects a candidate with a mismatched embedded Label"
+  fi
+  assert_output_contains 'pre-rendered LaunchAgent Label mismatch' \
+    "candidate mismatch reports the exact label invariant"
+  if ! grep -Eq '^launchctl[[:space:]](bootout|enable|disable|bootstrap)[[:space:]]' "${COMMAND_LOG}"; then
+    pass "candidate Label mismatch performs no launchd transition"
+  else
+    fail_test "candidate Label mismatch performs no launchd transition"
+  fi
+
+  prepare_profile_portfolio "${bootstrap_portfolio}" light
+  mkdir -p "${bootstrap_launchd}"
+  for label in \
+    portfolio-audit-daily \
+    bug-sweep-agentic \
+    ci-repair-agentic-discovery \
+    tachometer-disk-pressure-agentic; do
+    printf 'original %s\n' "${label}" \
+      > "${bootstrap_launchd}/io.github.casonk.traction-control.${label}.plist"
+  done
+  printf '%s\n' \
+    io.github.casonk.traction-control.portfolio-audit-daily \
+    io.github.casonk.traction-control.bug-sweep-agentic \
+    io.github.casonk.traction-control.ci-repair-agentic-discovery \
+    io.github.casonk.traction-control.tachometer-disk-pressure-agentic \
+    > "${bootstrap_state_file}"
+  sort "${bootstrap_state_file}" > "${bootstrap_expected_state}"
+  : > "${bootstrap_count_file}"
+  : > "${COMMAND_LOG}"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=2
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE="${bootstrap_count_file}"
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=1
+  TEST_LAUNCHCTL_STATE_FILE="${bootstrap_state_file}"
+  run_installer "${bootstrap_case}" \
+    --tier light --portfolio-root "${bootstrap_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${bootstrap_case}/state"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=''
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE=''
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=''
+  TEST_LAUNCHCTL_STATE_FILE=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation fails when the second bootstrap fails"
+  else
+    fail_test "macOS activation fails when the second bootstrap fails"
+  fi
+  for label in \
+    portfolio-audit-daily \
+    bug-sweep-agentic \
+    ci-repair-agentic-discovery \
+    tachometer-disk-pressure-agentic; do
+    assert_file_contains \
+      "${bootstrap_launchd}/io.github.casonk.traction-control.${label}.plist" \
+      "original ${label}" \
+      "nth-bootstrap rollback restores ${label}"
+  done
+  if grep -Fq $'launchctl\tbootstrap\tgui/' "${COMMAND_LOG}" \
+    && grep -Fq $'launchctl\tbootout\tgui/' "${COMMAND_LOG}"; then
+    pass "nth-bootstrap failure attempts scheduler rollback"
+  else
+    fail_test "nth-bootstrap failure attempts scheduler rollback"
+  fi
+  sort "${bootstrap_state_file}" > "${bootstrap_state_file}.sorted"
+  if cmp -s "${bootstrap_expected_state}" "${bootstrap_state_file}.sorted"; then
+    pass "nth-bootstrap rollback restores the exact original loaded-label set"
+  else
+    fail_test "nth-bootstrap rollback restores the exact original loaded-label set"
+  fi
+
+  prepare_profile_portfolio "${bootout_portfolio}" light
+  mkdir -p "${bootout_launchd}"
+  for label in portfolio-audit-daily bug-sweep-agentic; do
+    printf 'original %s\n' "${label}" \
+      > "${bootout_launchd}/io.github.casonk.traction-control.${label}.plist"
+    printf 'io.github.casonk.traction-control.%s\n' "${label}" \
+      >> "${bootout_state_file}"
+  done
+  sort "${bootout_state_file}" > "${bootout_expected_state}"
+  : > "${bootout_count_file}"
+  : > "${COMMAND_LOG}"
+  TEST_LAUNCHCTL_BOOTOUT_FAIL_N=2
+  TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE="${bootout_count_file}"
+  TEST_LAUNCHCTL_STATE_FILE="${bootout_state_file}"
+  run_installer "${bootout_case}" \
+    --tier light --portfolio-root "${bootout_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${bootout_case}/state"
+  TEST_LAUNCHCTL_BOOTOUT_FAIL_N=''
+  TEST_LAUNCHCTL_BOOTOUT_COUNT_FILE=''
+  TEST_LAUNCHCTL_STATE_FILE=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation fails when the second managed bootout fails"
+  else
+    fail_test "macOS activation fails when the second managed bootout fails"
+  fi
+  sort "${bootout_state_file}" > "${bootout_state_file}.sorted"
+  if cmp -s "${bootout_expected_state}" "${bootout_state_file}.sorted"; then
+    pass "nth-bootout rollback restores the exact original loaded-label set"
+  else
+    fail_test "nth-bootout rollback restores the exact original loaded-label set"
+  fi
+  if [[ "$(grep -c '^launchctl[[:space:]]bootstrap[[:space:]]' "${COMMAND_LOG}" || true)" == "1" ]]; then
+    pass "nth-bootout rollback reloads only the label already removed"
+  else
+    fail_test "nth-bootout rollback reloads only the label already removed"
+  fi
+
+  prepare_profile_portfolio "${override_portfolio}" light
+  mkdir -p "${override_launchd}"
+  for label in portfolio-audit-daily bug-sweep-agentic ci-repair-agentic-discovery; do
+    printf 'original %s\n' "${label}" \
+      > "${override_launchd}/io.github.casonk.traction-control.${label}.plist"
+    printf 'io.github.casonk.traction-control.%s\n' "${label}" \
+      >> "${override_loaded_file}"
+  done
+  printf '%s\n' \
+    'io.github.casonk.traction-control.bug-sweep-agentic=false' \
+    'io.github.casonk.traction-control.ci-repair-agentic-discovery=true' \
+    > "${override_state_file}"
+  sort "${override_state_file}" > "${override_expected_state}"
+  : > "${override_count_file}"
+  : > "${COMMAND_LOG}"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=3
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE="${override_count_file}"
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=1
+  TEST_LAUNCHCTL_STATE_FILE="${override_loaded_file}"
+  TEST_LAUNCHCTL_OVERRIDE_STATE_FILE="${override_state_file}"
+  run_installer "${override_case}" \
+    --tier light --portfolio-root "${override_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${override_case}/state"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=''
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE=''
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=''
+  TEST_LAUNCHCTL_STATE_FILE=''
+  TEST_LAUNCHCTL_OVERRIDE_STATE_FILE=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation fails after mutating an explicit disabled override"
+  else
+    fail_test "macOS activation fails after mutating an explicit disabled override"
+  fi
+  sort "${override_state_file}" > "${override_state_file}.sorted"
+  if cmp -s "${override_expected_state}" "${override_state_file}.sorted"; then
+    pass "launchd rollback restores absent, explicit enabled, and explicit disabled overrides exactly"
+  else
+    fail_test "launchd rollback restores absent, explicit enabled, and explicit disabled overrides exactly"
+  fi
+  if [[ "$(grep -c '^launchctl[[:space:]]enable[[:space:]]' "${COMMAND_LOG}" || true)" == "2" ]] \
+    && [[ "$(grep -c '^launchctl[[:space:]]disable[[:space:]]' "${COMMAND_LOG}" || true)" == "1" ]] \
+    && [[ "$(grep -Ec '^launchctl[[:space:]]enable[[:space:]]gui/[0-9]+/io\.github\.casonk\.traction-control\.ci-repair-agentic-discovery$' "${COMMAND_LOG}" || true)" == "2" ]] \
+    && [[ "$(grep -Ec '^launchctl[[:space:]]disable[[:space:]]gui/[0-9]+/io\.github\.casonk\.traction-control\.ci-repair-agentic-discovery$' "${COMMAND_LOG}" || true)" == "1" ]]; then
+    pass "activation mutates and rolls back only the originally disabled override"
+  else
+    fail_test "activation mutates and rolls back only the originally disabled override"
+  fi
+
+  prepare_profile_portfolio "${malformed_portfolio}" light
+  : > "${COMMAND_LOG}"
+  TEST_LAUNCHCTL_DISABLED_OUTPUT=$'disabled services = {\n    "io.github.casonk.traction-control.portfolio-audit-daily" => unknown\n}'
+  run_installer "${malformed_case}" \
+    --tier light --portfolio-root "${malformed_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${malformed_case}/state"
+  TEST_LAUNCHCTL_DISABLED_OUTPUT=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "macOS activation rejects an ambiguous disabled-override snapshot"
+  else
+    fail_test "macOS activation rejects an ambiguous disabled-override snapshot"
+  fi
+  assert_output_contains 'cannot safely parse launchd disabled override' \
+    "ambiguous disabled-override failure explains the invariant"
+  if ! grep -Eq '^launchctl[[:space:]](bootout|enable|disable|bootstrap)[[:space:]]' "${COMMAND_LOG}"; then
+    pass "ambiguous disabled-override snapshot fails before launchd mutation"
+  else
+    fail_test "ambiguous disabled-override snapshot fails before launchd mutation"
+  fi
+
+  # A rollback that cannot put every mutated override back must never look like a
+  # clean rollback. Fail the restoring `launchctl disable` so the override map is
+  # left differing from the pre-transaction snapshot, and require the installer to
+  # report that difference explicitly instead of exiting quietly.
+  prepare_profile_portfolio "${incomplete_portfolio}" light
+  mkdir -p "${incomplete_launchd}"
+  : > "${incomplete_loaded_file}"
+  for label in portfolio-audit-daily bug-sweep-agentic ci-repair-agentic-discovery; do
+    printf 'original %s\n' "${label}" \
+      > "${incomplete_launchd}/io.github.casonk.traction-control.${label}.plist"
+    printf 'io.github.casonk.traction-control.%s\n' "${label}" \
+      >> "${incomplete_loaded_file}"
+  done
+  printf '%s\n' \
+    'io.github.casonk.traction-control.bug-sweep-agentic=false' \
+    'io.github.casonk.traction-control.ci-repair-agentic-discovery=true' \
+    > "${incomplete_state_file}"
+  : > "${incomplete_count_file}"
+  : > "${COMMAND_LOG}"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=3
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE="${incomplete_count_file}"
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=1
+  TEST_LAUNCHCTL_STATE_FILE="${incomplete_loaded_file}"
+  TEST_LAUNCHCTL_OVERRIDE_STATE_FILE="${incomplete_state_file}"
+  TEST_LAUNCHCTL_DISABLE_FAIL_LABEL='io.github.casonk.traction-control.ci-repair-agentic-discovery'
+  run_installer "${incomplete_case}" \
+    --tier light --portfolio-root "${incomplete_portfolio}" --platform macos \
+    --provider codex --no-clone --activate --state-dir "${incomplete_case}/state"
+  TEST_LAUNCHCTL_BOOTSTRAP_FAIL_N=''
+  TEST_LAUNCHCTL_BOOTSTRAP_COUNT_FILE=''
+  TEST_LAUNCHCTL_BOOTSTRAP_PARTIAL_FAIL=''
+  TEST_LAUNCHCTL_STATE_FILE=''
+  TEST_LAUNCHCTL_OVERRIDE_STATE_FILE=''
+  TEST_LAUNCHCTL_DISABLE_FAIL_LABEL=''
+  if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
+    pass "unverifiable launchd rollback still fails the activation"
+  else
+    fail_test "unverifiable launchd rollback still fails the activation"
+  fi
+  assert_output_contains 'launchd rollback could not verify the exact disabled-override map' \
+    "unrestorable override map is reported, not silently accepted"
+  assert_output_contains 'rollback was incomplete' \
+    "activation failure distinguishes an incomplete rollback from a clean one"
+  if grep -Fxq 'io.github.casonk.traction-control.ci-repair-agentic-discovery=false' \
+    "${incomplete_state_file}"; then
+    pass "incomplete rollback is detected while the override is still unrestored"
+  else
+    fail_test "incomplete rollback is detected while the override is still unrestored"
   fi
 }
 
@@ -811,46 +1371,41 @@ EOF
 
 test_launchd_runner() {
   local case_root="${TEST_ROOT}/launchd runner"
-  local env_file="${case_root}/job.env"
-  local reserved_env_file="${case_root}/reserved.env"
   local runner="${REPO_ROOT}/scripts/run_traction_control_job.sh"
 
   mkdir -p "${case_root}"
-  cat > "${env_file}" <<'EOF'
-JOB_FIXTURE_VALUE="value with spaces & symbols"
-export JOB_FIXTURE_SECOND=second-value
-EOF
-  chmod 0600 "${env_file}"
-  run_command /bin/bash "${runner}" \
-    --job runner-test --env-file "${env_file}" --delay-seconds 0 --jitter-seconds 0 -- \
+  run_command env \
+    'JOB_FIXTURE_VALUE=value with spaces & symbols' \
+    JOB_FIXTURE_SECOND=second-value \
+    /bin/bash "${runner}" \
+    --job runner-test --schedule-kind none --jitter-seconds 0 -- \
     /bin/bash -c 'printf "%s|%s|%s\n" "${JOB_FIXTURE_VALUE}" "${JOB_FIXTURE_SECOND}" "$1"' \
     runner-command 'argument with spaces'
-  assert_status 0 "launchd runner loads a private data-only environment file"
+  assert_status 0 "launchd runner executes with the environment supplied by Clockwork"
   assert_output_contains 'value with spaces & symbols|second-value|argument with spaces' "launchd runner preserves environment values and spaced argv"
 
-  chmod 0666 "${env_file}"
   run_command /bin/bash "${runner}" \
-    --job runner-test --env-file "${env_file}" -- \
+    --job runner-test --schedule-kind none --env-file "${case_root}/obsolete.env" -- \
     /usr/bin/true
   if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
-    pass "launchd runner rejects group/world-writable environment files"
+    pass "launchd runner rejects the removed shell environment-file path"
   else
-    fail_test "launchd runner rejects group/world-writable environment files"
+    fail_test "launchd runner rejects the removed shell environment-file path"
   fi
+  assert_output_contains '--env-file was removed' "launchd runner points environment loading at Clockwork"
 
-  printf 'DELAY_SECONDS=900\n' > "${reserved_env_file}"
-  chmod 0600 "${reserved_env_file}"
   run_command /bin/bash "${runner}" \
-    --job runner-test --env-file "${reserved_env_file}" -- \
+    --job runner-test --schedule-kind none --delay-seconds 900 -- \
     /usr/bin/true
   if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
-    pass "launchd runner rejects environment keys reserved for runner control"
+    pass "launchd runner rejects the old per-firing fixed-delay path"
   else
-    fail_test "launchd runner rejects environment keys reserved for runner control"
+    fail_test "launchd runner rejects the old per-firing fixed-delay path"
   fi
+  assert_output_contains '--delay-seconds was removed' "launchd runner requires the boot-relative delay adapter"
 
   run_command /bin/bash "${runner}" \
-    --job runner-test --jitter-seconds invalid -- \
+    --job runner-test --schedule-kind none --jitter-seconds invalid -- \
     /usr/bin/true
   if [[ "${COMMAND_STATUS}" -ne 0 ]]; then
     pass "launchd runner rejects invalid jitter before command execution"
@@ -992,6 +1547,11 @@ write_command_stubs
 
 run_command /bin/bash -n "${INSTALLER}"
 assert_status 0 "tiered installer parses under /bin/bash"
+if [[ -x "${REPO_ROOT}/scripts/run_traction_control_job.sh" ]]; then
+  pass "launchd runtime entry point is executable"
+else
+  fail_test "launchd runtime entry point is executable"
+fi
 run_command /bin/bash -n "${BASH_SOURCE[0]}"
 assert_status 0 "integration test parses under /bin/bash"
 run_command /bin/bash -n "${REPO_ROOT}/tests/test_install_traction_control_agents_containers.sh"
@@ -1021,6 +1581,7 @@ test_repository_safety
 test_linux_render
 test_activation_with_stubs
 test_reconciliation_fail_closed
+test_launchd_transaction_failures
 test_launchd_runner
 test_bash32_wrapper_smokes
 

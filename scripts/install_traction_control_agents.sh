@@ -26,8 +26,10 @@ JOB_CONFIG="${JOB_CONFIG_DEFAULT}"
 STATE_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/traction-control/bootstrap"
 SYSTEMD_UNIT_DIR=""
 LAUNCHD_DIR=""
-LAUNCHD_LOG_DIR=""
 CONFIG_HOME_VALUE="${XDG_CONFIG_HOME:-${HOME}/.config}"
+LAUNCHD_RUNTIME_STATE_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/traction-control/launchd-scheduler"
+LAUNCHD_POLL_SECONDS=300
+LAUNCHD_CANDIDATE_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -235,7 +237,8 @@ validate_job_record() {
   local minute="$4"
   local startup_delay="$5"
   local jitter="$6"
-  local activation_kind="$7"
+  local launchd_network_host="$7"
+  local activation_kind="$8"
 
   [[ "${job_name}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || fail "invalid job name: ${job_name}"
   validate_relative_repo_path "${command_rel}"
@@ -281,6 +284,16 @@ validate_job_record() {
   esac
   [[ "${startup_delay}" =~ ^[0-9]+$ ]] || fail "invalid startup delay for ${job_name}: ${startup_delay}"
   [[ "${jitter}" =~ ^[0-9]+$ ]] || fail "invalid jitter for ${job_name}: ${jitter}"
+  if [[ "${schedule_kind}" != "interval" && "${startup_delay}" != "0" ]]; then
+    fail "startup delay requires the stateful interval adapter for ${job_name}"
+  fi
+  if [[ "${schedule_kind}" == "none" && "${jitter}" != "0" ]]; then
+    fail "on-demand job ${job_name} cannot request scheduler jitter"
+  fi
+  if [[ "${launchd_network_host}" != "-" ]]; then
+    [[ "${launchd_network_host}" =~ ^[A-Za-z0-9][A-Za-z0-9.-]{0,252}[A-Za-z0-9]$ ]] \
+      || fail "invalid launchd network host for ${job_name}: ${launchd_network_host}"
+  fi
 }
 
 normalize_github_slug() {
@@ -509,16 +522,10 @@ if [[ -z "${LAUNCHD_DIR}" ]]; then
   fi
 fi
 
-if (( ACTIVATE == 1 )); then
-  LAUNCHD_LOG_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/traction-control/launchd"
-else
-  LAUNCHD_LOG_DIR="${STATE_DIR}/logs/launchd"
-fi
-
 STATE_DIR="$(canonicalize_output_directory "state directory" "${STATE_DIR}")"
 SYSTEMD_UNIT_DIR="$(canonicalize_output_directory "systemd unit directory" "${SYSTEMD_UNIT_DIR}")"
 LAUNCHD_DIR="$(canonicalize_output_directory "LaunchAgent directory" "${LAUNCHD_DIR}")"
-LAUNCHD_LOG_DIR="$(canonicalize_output_directory "LaunchAgent log directory" "${LAUNCHD_LOG_DIR}")"
+LAUNCHD_RUNTIME_STATE_DIR="$(canonicalize_output_directory "launchd runtime state directory" "${LAUNCHD_RUNTIME_STATE_DIR}")"
 LIVE_SYSTEMD_UNIT_DIR="$(canonicalize_output_directory "live systemd unit directory" "${CONFIG_HOME_VALUE}/systemd/user")"
 LIVE_LAUNCHD_DIR="$(canonicalize_output_directory "live LaunchAgent directory" "${HOME}/Library/LaunchAgents")"
 LAUNCHD_PATH_VALUE="$(build_launchd_path)"
@@ -634,7 +641,7 @@ NEEDS_CLOCKWORK=0
 SELECTED_JOB_KEY='|'
 seen_managed_job_names='|'
 
-while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installer installer_kind provider_env model_env env_slug schedule_kind interval_seconds weekdays hour minute startup_delay jitter activation_kind; do
+while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installer installer_kind provider_env model_env env_slug schedule_kind interval_seconds weekdays hour minute startup_delay jitter launchd_network_host activation_kind; do
   [[ -n "${profiles}" ]] || continue
   case "${profiles}" in \#*) continue ;; esac
 
@@ -643,7 +650,7 @@ while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installe
     "${installer_kind}" "${provider_env}" "${model_env}" "${env_slug}" \
     "${schedule_kind}" "${interval_seconds}" \
     "${weekdays}" "${hour}" "${minute}" "${startup_delay}" "${jitter}" \
-    "${activation_kind}"
+    "${launchd_network_host}" "${activation_kind}"
   case "${seen_managed_job_names}" in
     *"|${job_name}|"*) fail "duplicate managed job: ${job_name}" ;;
   esac
@@ -933,6 +940,63 @@ reconcile_unselected_jobs() {
   fi
 }
 
+toml_string() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  printf '"%s"' "${value}"
+}
+
+clockwork_install_launchd() {
+  local manifest_path="$1"
+  local output_dir="$2"
+  if [[ -d "${CLOCKWORK_REPO}/src/clockwork" ]]; then
+    PYTHONPATH="${CLOCKWORK_REPO}/src${PYTHONPATH:+:${PYTHONPATH}}" \
+      python3 -m clockwork install \
+      --manifest "${manifest_path}" --target launchd-user --unit-dir "${output_dir}"
+  elif command -v clockwork >/dev/null 2>&1; then
+    clockwork install \
+      --manifest "${manifest_path}" --target launchd-user --unit-dir "${output_dir}"
+  else
+    fail "Clockwork launchd renderer is unavailable"
+  fi
+}
+
+launchd_calendar_expression() {
+  local weekdays="$1"
+  local hour="$2"
+  local minute="$3"
+  local old_ifs="${IFS}"
+  local weekday_value=""
+  local weekday_name=""
+  local weekday_names=""
+  local weekday_values=()
+
+  if [[ "${weekdays}" == "-" ]]; then
+    printf '*-*-* %02d:%02d:00' "${hour}" "${minute}"
+    return
+  fi
+  IFS=','
+  read -r -a weekday_values <<< "${weekdays}"
+  IFS="${old_ifs}"
+  for weekday_value in "${weekday_values[@]}"; do
+    case "${weekday_value}" in
+      0) weekday_name="Sun" ;;
+      1) weekday_name="Mon" ;;
+      2) weekday_name="Tue" ;;
+      3) weekday_name="Wed" ;;
+      4) weekday_name="Thu" ;;
+      5) weekday_name="Fri" ;;
+      6) weekday_name="Sat" ;;
+      *) fail "invalid launchd weekday: ${weekday_value}" ;;
+    esac
+    weekday_names="${weekday_names}${weekday_names:+,}${weekday_name}"
+  done
+  printf '%s *-*-* %02d:%02d:00' "${weekday_names}" "${hour}" "${minute}"
+}
+
 render_launchd_job() {
   local job_name="$1"
   local command_rel="$2"
@@ -949,27 +1013,43 @@ render_launchd_job() {
   local minute="$3"
   local startup_delay="$4"
   local jitter="$5"
+  local launchd_network_host="$6"
   local label="io.github.casonk.traction-control.${job_name}"
   local plist_path="${LAUNCHD_DIR}/${label}.plist"
   local command_path="${REPO_ROOT}/${command_rel}"
   local runner_path="${REPO_ROOT}/scripts/run_traction_control_job.sh"
   local env_file=""
-  local logs_dir="${LAUNCHD_LOG_DIR}"
-  local plist_tmp=""
-  local backup_path=""
-  local current_was_loaded=0
-  local path_value="${LAUNCHD_PATH_VALUE}"
+  local manifest_dir="${STATE_DIR}/rendered/clockwork-launchd"
+  local manifest_path="${manifest_dir}/${job_name}.toml"
+  local manifest_tmp=""
+  local render_dir="${LAUNCHD_DIR}"
+  local rendered_plist=""
   local raw_arg=""
   local expanded_arg=""
-  local launch_args=(/bin/bash "${runner_path}" --job "${job_name}")
+  local command_line=""
+  local calendar_expression=""
+  local launch_arg=""
+  local launch_args=(/bin/bash "${runner_path}" --job "${job_name}" --schedule-kind "${schedule_kind}")
+  local configured_args=()
 
   [[ -f "${command_path}" ]] || fail "missing workload for ${job_name}: ${command_path}"
 
   if [[ "${env_slug}" != "-" ]]; then
     env_file="${CONFIG_HOME_VALUE}/traction-control/${env_slug}.env"
-    launch_args+=(--env-file "${env_file}")
   fi
-  launch_args+=(--delay-seconds "${startup_delay}" --jitter-seconds "${jitter}" -- "${command_path}")
+  if [[ "${schedule_kind}" == "interval" ]]; then
+    launch_args+=(
+      --interval-seconds "${interval_seconds}"
+      --retry-seconds "${LAUNCHD_POLL_SECONDS}"
+      --startup-delay-seconds "${startup_delay}"
+      --state-dir "${LAUNCHD_RUNTIME_STATE_DIR}"
+    )
+  fi
+  launch_args+=(--jitter-seconds "${jitter}")
+  if [[ "${launchd_network_host}" != "-" ]]; then
+    launch_args+=(--network-host "${launchd_network_host}" --network-wait-seconds 300)
+  fi
+  launch_args+=(-- "${command_path}")
 
   if [[ "${arguments_csv}" != "-" ]]; then
     old_ifs="${IFS}"
@@ -981,140 +1061,392 @@ render_launchd_job() {
       launch_args+=("${expanded_arg}")
     done
   fi
+  for launch_arg in "${launch_args[@]}"; do
+    command_line="${command_line}${command_line:+ }$(shell_single_quote "${launch_arg}")"
+  done
 
   if (( DRY_RUN == 1 )); then
-    plan "render launchd job ${job_name} into ${plist_path}"
+    plan "render launchd job ${job_name} through Clockwork into ${plist_path}"
     return
   fi
 
-  mkdir -p "${LAUNCHD_DIR}" "${logs_dir}"
-  plist_tmp="$(mktemp "${LAUNCHD_DIR}/.${label}.XXXXXX")"
+  mkdir -p "${manifest_dir}"
+  chmod 0700 "${manifest_dir}"
+  manifest_tmp="$(mktemp "${manifest_dir}/.${job_name}.XXXXXX")"
   {
-    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
-    printf '%s\n' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
-    printf '%s\n' '<plist version="1.0">'
-    printf '%s\n' '<dict>'
-    printf '%s\n' '  <key>Label</key>'
-    plist_string '  ' "${label}"
-    printf '%s\n' '  <key>ProgramArguments</key>'
-    printf '%s\n' '  <array>'
-    for launch_arg in "${launch_args[@]}"; do
-      plist_string '    ' "${launch_arg}"
-    done
-    printf '%s\n' '  </array>'
-    printf '%s\n' '  <key>WorkingDirectory</key>'
-    plist_string '  ' "${REPO_ROOT}"
-    printf '%s\n' '  <key>EnvironmentVariables</key>'
-    printf '%s\n' '  <dict>'
-    printf '%s\n' '    <key>PATH</key>'
-    plist_string '    ' "${path_value}"
-    printf '%s\n' '    <key>PORTFOLIO_ROOT</key>'
-    plist_string '    ' "${PORTFOLIO_ROOT}"
+    printf '%s\n' '# Generated by traction-control for Clockwork launchd rendering.'
+    printf '%s\n' '# Stateful interval due/catch-up, jitter, and network readiness remain explicit runner arguments.'
+    printf '%s\n' '[[jobs]]'
+    printf 'name = '; toml_string "${job_name}"; printf '\n'
+    printf 'launchd_label = '; toml_string "${label}"; printf '\n'
+    printf 'description = '; toml_string "Traction Control agent job: ${job_name}"; printf '\n'
+    printf '%s\n' 'scope = "user"'
+    printf '%s\n' 'service_type = "oneshot"'
+    printf 'working_directory = '; toml_string "${REPO_ROOT}"; printf '\n'
+    printf 'exec_start = '; toml_string "${command_line}"; printf '\n'
+    if [[ -n "${env_file}" ]]; then
+      printf 'environment_files = ['; toml_string "-${env_file}"; printf ']\n'
+    fi
+    if [[ "${schedule_kind}" == "interval" ]]; then
+      printf '%s\n' 'launchd_run_at_load = true'
+    else
+      printf '%s\n' 'launchd_run_at_load = false'
+    fi
+    printf '%s\n' '' '[jobs.environment]'
+    printf 'PATH = '; toml_string "${LAUNCHD_PATH_VALUE}"; printf '\n'
+    printf 'PORTFOLIO_ROOT = '; toml_string "${PORTFOLIO_ROOT}"; printf '\n'
     if [[ "${provider_env}" != "-" ]]; then
-      printf '    <key>%s</key>\n' "$(xml_escape "${provider_env}")"
-      plist_string '    ' "${PROVIDER}"
-      printf '    <key>%s</key>\n' "$(xml_escape "${model_env}")"
-      plist_string '    ' "${MODEL}"
+      printf '%s = ' "${provider_env}"; toml_string "${PROVIDER}"; printf '\n'
+      printf '%s = ' "${model_env}"; toml_string "${MODEL}"; printf '\n'
     fi
     if [[ "${installer_kind}" == "archility" ]]; then
-      printf '%s\n' '    <key>ARCHILITY_CMD</key>'
-      plist_string '    ' "${ARCHILITY_SHIM}"
+      printf 'ARCHILITY_CMD = '; toml_string "${ARCHILITY_SHIM}"; printf '\n'
     fi
-    printf '%s\n' '  </dict>'
-    printf '%s\n' '  <key>StandardOutPath</key>'
-    plist_string '  ' "${logs_dir}/${job_name}.stdout.log"
-    printf '%s\n' '  <key>StandardErrorPath</key>'
-    plist_string '  ' "${logs_dir}/${job_name}.stderr.log"
-    printf '%s\n' '  <key>ProcessType</key>'
-    plist_string '  ' 'Background'
-    printf '%s\n' '  <key>ThrottleInterval</key>'
-    printf '%s\n' '  <integer>60</integer>'
-
     case "${schedule_kind}" in
       interval)
-        printf '%s\n' '  <key>StartInterval</key>'
-        printf '  <integer>%s</integer>\n' "${interval_seconds}"
-        printf '%s\n' '  <key>RunAtLoad</key>'
-        printf '%s\n' '  <true/>'
+        printf '%s\n' '' '[jobs.timer]' 'kind = "interval"'
+        printf 'on_unit_active_sec = "%ss"\n' "${LAUNCHD_POLL_SECONDS}"
         ;;
       calendar)
-        printf '%s\n' '  <key>StartCalendarInterval</key>'
-        if [[ "${weekdays}" == "-" ]]; then
-          printf '%s\n' '  <dict>'
-          printf '%s\n' '    <key>Hour</key>'
-          printf '    <integer>%s</integer>\n' "${hour}"
-          printf '%s\n' '    <key>Minute</key>'
-          printf '    <integer>%s</integer>\n' "${minute}"
-          printf '%s\n' '  </dict>'
-        else
-          printf '%s\n' '  <array>'
-          old_ifs="${IFS}"
-          IFS=','
-          read -r -a weekday_values <<< "${weekdays}"
-          IFS="${old_ifs}"
-          for weekday_value in "${weekday_values[@]}"; do
-            printf '%s\n' '    <dict>'
-            printf '%s\n' '      <key>Weekday</key>'
-            printf '      <integer>%s</integer>\n' "${weekday_value}"
-            printf '%s\n' '      <key>Hour</key>'
-            printf '      <integer>%s</integer>\n' "${hour}"
-            printf '%s\n' '      <key>Minute</key>'
-            printf '      <integer>%s</integer>\n' "${minute}"
-            printf '%s\n' '    </dict>'
-          done
-          printf '%s\n' '  </array>'
-        fi
+        calendar_expression="$(launchd_calendar_expression "${weekdays}" "${hour}" "${minute}")"
+        printf '%s\n' '' '[jobs.timer]' 'kind = "calendar"'
+        printf 'on_calendar = '; toml_string "${calendar_expression}"; printf '\n'
         ;;
       none) ;;
       *) fail "unsupported launchd schedule for ${job_name}: ${schedule_kind}" ;;
     esac
-
-    printf '%s\n' '</dict>'
-    printf '%s\n' '</plist>'
-  } > "${plist_tmp}"
-
-  if ! plutil -lint "${plist_tmp}" >/dev/null; then
-    rm -f "${plist_tmp}"
-    fail "generated LaunchAgent is invalid: ${label}"
-  fi
+  } > "${manifest_tmp}"
+  chmod 0600 "${manifest_tmp}"
+  mv "${manifest_tmp}" "${manifest_path}"
 
   if (( ACTIVATE == 1 )); then
-    launch_domain="gui/$(id -u)"
-    if launchctl print "${launch_domain}/${label}" 2>/dev/null | grep -q 'state = running'; then
-      rm -f "${plist_tmp}"
-      fail "refusing to replace running LaunchAgent ${label}; stop it and rerun"
-    fi
-    if launchctl print "${launch_domain}/${label}" >/dev/null 2>&1; then
-      current_was_loaded=1
-      if ! launchctl bootout "${launch_domain}/${label}"; then
-        rm -f "${plist_tmp}"
-        fail "failed to unload existing LaunchAgent ${label}"
-      fi
-    fi
-    if [[ -f "${plist_path}" ]]; then
-      mkdir -p "${STATE_DIR}/backups/launchd"
-      backup_path="${STATE_DIR}/backups/launchd/${label}.$(date +%Y%m%d-%H%M%S).${RANDOM}.plist"
-      cp -p "${plist_path}" "${backup_path}"
-    fi
-    mv "${plist_tmp}" "${plist_path}"
-    if ! launchctl enable "${launch_domain}/${label}" \
-      || ! launchctl bootstrap "${launch_domain}" "${plist_path}"; then
-      if [[ -n "${backup_path}" ]]; then
-        cp -p "${backup_path}" "${plist_path}"
-        if (( current_was_loaded == 1 )); then
-          launchctl bootstrap "${launch_domain}" "${plist_path}" >/dev/null 2>&1 || true
-        fi
-      else
-        rm -f "${plist_path}"
-      fi
-      fail "failed to activate LaunchAgent ${label}"
-    fi
-  else
-    mv "${plist_tmp}" "${plist_path}"
+    render_dir="${LAUNCHD_CANDIDATE_DIR}"
   fi
+  mkdir -p "${render_dir}"
+  clockwork_install_launchd "${manifest_path}" "${render_dir}"
+  rendered_plist="${render_dir}/${label}.plist"
+  [[ -f "${rendered_plist}" ]] \
+    || fail "Clockwork did not render the expected LaunchAgent: ${rendered_plist}"
+  plutil -lint "${rendered_plist}" >/dev/null \
+    || fail "Clockwork generated an invalid LaunchAgent: ${label}"
+
+  return
 }
 
-reconcile_unselected_jobs
+TXN_LABELS=()
+TXN_ORIGINAL_EXISTED=()
+TXN_WAS_LOADED=()
+TXN_ORIGINAL_OVERRIDE_STATE=()
+TXN_ATTEMPTED_LABELS=()
+TXN_MUTATED_OVERRIDE_LABELS=()
+TXN_DIR=""
+TXN_LAUNCH_DOMAIN=""
+
+cleanup_launchd_transaction_dir() {
+  local artifact=""
+  [[ -n "${TXN_DIR}" && -d "${TXN_DIR}" ]] || return 0
+  for artifact in "${TXN_DIR}"/original-*.plist; do
+    [[ -e "${artifact}" ]] || continue
+    rm -f "${artifact}"
+  done
+  rmdir "${TXN_DIR}" 2>/dev/null || true
+}
+
+launchd_override_state_from_snapshot() {
+  local snapshot="$1"
+  local label="$2"
+  local line=""
+  local normalized=""
+  local found_state=""
+
+  while IFS= read -r line; do
+    case "${line}" in
+      *"\"${label}\""*)
+        [[ -z "${found_state}" ]] || return 1
+        normalized="$(printf '%s' "${line}" | tr -d '[:space:]')"
+        case "${normalized}" in
+          "\"${label}\"=>true"|"\"${label}\"=>true,") found_state="disabled" ;;
+          "\"${label}\"=>false"|"\"${label}\"=>false,") found_state="enabled" ;;
+          *) return 1 ;;
+        esac
+        ;;
+    esac
+  done <<< "${snapshot}"
+
+  printf '%s\n' "${found_state:-absent}"
+}
+
+transaction_override_state_for_label() {
+  local wanted_label="$1"
+  local index=0
+
+  while (( index < ${#TXN_LABELS[@]} )); do
+    if [[ "${TXN_LABELS[$index]}" == "${wanted_label}" ]]; then
+      printf '%s\n' "${TXN_ORIGINAL_OVERRIDE_STATE[$index]}"
+      return 0
+    fi
+    index=$(( index + 1 ))
+  done
+  return 1
+}
+
+verify_launchd_override_snapshot() {
+  local disabled_state=""
+  local actual_state=""
+  local index=0
+
+  disabled_state="$(launchctl print-disabled "${TXN_LAUNCH_DOMAIN}")" || return 1
+  while (( index < ${#TXN_LABELS[@]} )); do
+    actual_state="$(
+      launchd_override_state_from_snapshot "${disabled_state}" "${TXN_LABELS[$index]}"
+    )" || return 1
+    [[ "${actual_state}" == "${TXN_ORIGINAL_OVERRIDE_STATE[$index]}" ]] || return 1
+    index=$(( index + 1 ))
+  done
+}
+
+rollback_launchd_transaction() {
+  local index=0
+  local label=""
+  local plist_path=""
+  local original_path=""
+  local rollback_failed=0
+
+  index=0
+  while (( index < ${#TXN_ATTEMPTED_LABELS[@]} )); do
+    label="${TXN_ATTEMPTED_LABELS[$index]}"
+    launchctl bootout "${TXN_LAUNCH_DOMAIN}/${label}" >/dev/null 2>&1 || true
+    index=$(( index + 1 ))
+  done
+
+  index=0
+  while (( index < ${#TXN_LABELS[@]} )); do
+    label="${TXN_LABELS[$index]}"
+    plist_path="${LAUNCHD_DIR}/${label}.plist"
+    original_path="${TXN_DIR}/original-${index}.plist"
+    rm -f "${plist_path}"
+    if [[ "${TXN_ORIGINAL_EXISTED[$index]}" == "1" ]]; then
+      cp -p "${original_path}" "${plist_path}" || rollback_failed=1
+    fi
+    index=$(( index + 1 ))
+  done
+
+  # A job can be loaded while carrying a persistent disabled override. Keep
+  # every override that this transaction changed temporarily enabled until its
+  # original loaded state has been restored, then put the explicit true entry
+  # back. This also handles an `enable` command that failed after taking effect.
+  index=0
+  while (( index < ${#TXN_MUTATED_OVERRIDE_LABELS[@]} )); do
+    label="${TXN_MUTATED_OVERRIDE_LABELS[$index]}"
+    launchctl enable "${TXN_LAUNCH_DOMAIN}/${label}" >/dev/null 2>&1 \
+      || rollback_failed=1
+    index=$(( index + 1 ))
+  done
+
+  index=0
+  while (( index < ${#TXN_LABELS[@]} )); do
+    if [[ "${TXN_WAS_LOADED[$index]}" == "1" ]]; then
+      label="${TXN_LABELS[$index]}"
+      plist_path="${LAUNCHD_DIR}/${label}.plist"
+      if ! launchctl print "${TXN_LAUNCH_DOMAIN}/${label}" >/dev/null 2>&1; then
+        launchctl bootstrap "${TXN_LAUNCH_DOMAIN}" "${plist_path}" >/dev/null 2>&1 \
+          || rollback_failed=1
+      fi
+    fi
+    index=$(( index + 1 ))
+  done
+  index=0
+  while (( index < ${#TXN_MUTATED_OVERRIDE_LABELS[@]} )); do
+    label="${TXN_MUTATED_OVERRIDE_LABELS[$index]}"
+    launchctl disable "${TXN_LAUNCH_DOMAIN}/${label}" >/dev/null 2>&1 \
+      || rollback_failed=1
+    index=$(( index + 1 ))
+  done
+  if ! verify_launchd_override_snapshot; then
+    warn "launchd rollback could not verify the exact disabled-override map"
+    rollback_failed=1
+  fi
+  return "${rollback_failed}"
+}
+
+activate_launchd_profile() {
+  local disabled_state=""
+  local index=0
+  local label=""
+  local job_name=""
+  local plist_path=""
+  local candidate_path=""
+  local candidate_label=""
+  local original_path=""
+  local backup_dir=""
+  local backup_path=""
+  local archive_messages=()
+  local install_tmp=""
+  local override_state=""
+  local rollback_message=""
+
+  TXN_LAUNCH_DOMAIN="gui/$(id -u)"
+
+  index=0
+  while (( index < ${#SELECTED_JOB_NAMES[@]} )); do
+    job_name="${SELECTED_JOB_NAMES[$index]}"
+    label="io.github.casonk.traction-control.${job_name}"
+    candidate_path="${LAUNCHD_CANDIDATE_DIR}/${label}.plist"
+    [[ -f "${candidate_path}" && ! -L "${candidate_path}" ]] \
+      || fail "missing regular pre-rendered LaunchAgent candidate: ${candidate_path}"
+    plutil -lint "${candidate_path}" >/dev/null \
+      || fail "pre-rendered LaunchAgent candidate is invalid: ${label}"
+    candidate_label="$(plutil -extract Label raw -o - "${candidate_path}" 2>/dev/null)" \
+      || fail "cannot read Label from pre-rendered LaunchAgent candidate: ${candidate_path}"
+    [[ "${candidate_label}" == "${label}" ]] \
+      || fail "pre-rendered LaunchAgent Label mismatch: expected ${label}, found ${candidate_label}"
+    index=$(( index + 1 ))
+  done
+
+  disabled_state="$(launchctl print-disabled "${TXN_LAUNCH_DOMAIN}")" \
+    || fail "cannot inspect launchd disabled overrides for ${TXN_LAUNCH_DOMAIN}"
+  mkdir -p "${STATE_DIR}/backups"
+  TXN_DIR="$(mktemp -d "${STATE_DIR}/backups/.launchd-transaction.XXXXXX")"
+  chmod 0700 "${TXN_DIR}"
+  TXN_LABELS=()
+  TXN_ORIGINAL_EXISTED=()
+  TXN_WAS_LOADED=()
+  TXN_ORIGINAL_OVERRIDE_STATE=()
+  TXN_ATTEMPTED_LABELS=()
+  TXN_MUTATED_OVERRIDE_LABELS=()
+
+  index=0
+  while (( index < ${#MANAGED_JOB_NAMES[@]} )); do
+    job_name="${MANAGED_JOB_NAMES[$index]}"
+    label="io.github.casonk.traction-control.${job_name}"
+    plist_path="${LAUNCHD_DIR}/${label}.plist"
+    original_path="${TXN_DIR}/original-${index}.plist"
+    TXN_LABELS+=("${label}")
+    if [[ -L "${plist_path}" ]]; then
+      cleanup_launchd_transaction_dir
+      fail "refusing managed LaunchAgent symlink: ${plist_path}"
+    fi
+    if [[ -f "${plist_path}" ]]; then
+      TXN_ORIGINAL_EXISTED+=(1)
+      cp -p "${plist_path}" "${original_path}" \
+        || { cleanup_launchd_transaction_dir; fail "cannot snapshot LaunchAgent ${label}"; }
+    elif [[ -e "${plist_path}" ]]; then
+      cleanup_launchd_transaction_dir
+      fail "managed LaunchAgent path is not a regular file: ${plist_path}"
+    else
+      TXN_ORIGINAL_EXISTED+=(0)
+    fi
+    if launchctl print "${TXN_LAUNCH_DOMAIN}/${label}" 2>/dev/null \
+      | grep -q 'state = running'; then
+      cleanup_launchd_transaction_dir
+      fail "refusing to reconcile running LaunchAgent ${label}; stop it and rerun"
+    fi
+    if launchctl print "${TXN_LAUNCH_DOMAIN}/${label}" >/dev/null 2>&1; then
+      TXN_WAS_LOADED+=(1)
+      if [[ "${TXN_ORIGINAL_EXISTED[$index]}" != "1" ]]; then
+        cleanup_launchd_transaction_dir
+        fail "cannot safely roll back loaded LaunchAgent without its plist: ${label}"
+      fi
+    else
+      TXN_WAS_LOADED+=(0)
+    fi
+    override_state="$(launchd_override_state_from_snapshot "${disabled_state}" "${label}")" \
+      || { cleanup_launchd_transaction_dir; fail "cannot safely parse launchd disabled override for ${label}"; }
+    TXN_ORIGINAL_OVERRIDE_STATE+=("${override_state}")
+    index=$(( index + 1 ))
+  done
+
+  mkdir -p "${STATE_DIR}/backups/launchd" "${STATE_DIR}/backups/launchd-stale"
+  index=0
+  while (( index < ${#TXN_LABELS[@]} )); do
+    if [[ "${TXN_ORIGINAL_EXISTED[$index]}" == "1" ]]; then
+      label="${TXN_LABELS[$index]}"
+      job_name="${label##*.}"
+      if selected_job_contains "${job_name}"; then
+        backup_dir="${STATE_DIR}/backups/launchd"
+      else
+        backup_dir="${STATE_DIR}/backups/launchd-stale"
+      fi
+      backup_path="${backup_dir}/${label}.$(date +%Y%m%d-%H%M%S).${RANDOM}.plist"
+      cp -p "${TXN_DIR}/original-${index}.plist" "${backup_path}" \
+        || { cleanup_launchd_transaction_dir; fail "cannot preserve LaunchAgent backup ${label}"; }
+      if ! selected_job_contains "${job_name}"; then
+        archive_messages+=("${backup_path}")
+      fi
+    fi
+    index=$(( index + 1 ))
+  done
+
+  index=0
+  while (( index < ${#TXN_LABELS[@]} )); do
+    if [[ "${TXN_WAS_LOADED[$index]}" == "1" ]]; then
+      label="${TXN_LABELS[$index]}"
+      if ! launchctl bootout "${TXN_LAUNCH_DOMAIN}/${label}"; then
+        rollback_message="failed to unload existing LaunchAgent ${label}"
+        rollback_launchd_transaction || rollback_message="${rollback_message}; rollback was incomplete"
+        cleanup_launchd_transaction_dir
+        fail "${rollback_message}"
+      fi
+    fi
+    index=$(( index + 1 ))
+  done
+
+  mkdir -p "${LAUNCHD_DIR}" "${HOME}/Library/Logs/Clockwork"
+  chmod 0700 "${HOME}/Library/Logs/Clockwork"
+  index=0
+  while (( index < ${#TXN_LABELS[@]} )); do
+    label="${TXN_LABELS[$index]}"
+    plist_path="${LAUNCHD_DIR}/${label}.plist"
+    rm -f "${plist_path}"
+    if selected_job_contains "${label##*.}"; then
+      candidate_path="${LAUNCHD_CANDIDATE_DIR}/${label}.plist"
+      install_tmp="$(mktemp "${LAUNCHD_DIR}/.${label}.XXXXXX")"
+      if ! cp -p "${candidate_path}" "${install_tmp}" \
+        || ! mv "${install_tmp}" "${plist_path}"; then
+        rm -f "${install_tmp}"
+        rollback_message="failed to install LaunchAgent candidate ${label}"
+        rollback_launchd_transaction || rollback_message="${rollback_message}; rollback was incomplete"
+        cleanup_launchd_transaction_dir
+        fail "${rollback_message}"
+      fi
+    fi
+    index=$(( index + 1 ))
+  done
+
+  index=0
+  while (( index < ${#SELECTED_JOB_NAMES[@]} )); do
+    job_name="${SELECTED_JOB_NAMES[$index]}"
+    label="io.github.casonk.traction-control.${job_name}"
+    plist_path="${LAUNCHD_DIR}/${label}.plist"
+    TXN_ATTEMPTED_LABELS+=("${label}")
+    override_state="$(transaction_override_state_for_label "${label}")" \
+      || { rollback_message="missing launchd override snapshot for ${label}"; rollback_launchd_transaction || rollback_message="${rollback_message}; rollback was incomplete"; cleanup_launchd_transaction_dir; fail "${rollback_message}"; }
+    if [[ "${override_state}" == "disabled" ]]; then
+      TXN_MUTATED_OVERRIDE_LABELS+=("${label}")
+      if ! launchctl enable "${TXN_LAUNCH_DOMAIN}/${label}"; then
+        rollback_message="failed to enable LaunchAgent ${label}"
+        rollback_launchd_transaction || rollback_message="${rollback_message}; rollback was incomplete"
+        cleanup_launchd_transaction_dir
+        fail "${rollback_message}"
+      fi
+    fi
+    if ! launchctl bootstrap "${TXN_LAUNCH_DOMAIN}" "${plist_path}"; then
+      rollback_message="failed to activate LaunchAgent ${label}"
+      rollback_launchd_transaction || rollback_message="${rollback_message}; rollback was incomplete"
+      cleanup_launchd_transaction_dir
+      fail "${rollback_message}"
+    fi
+    index=$(( index + 1 ))
+  done
+
+  index=0
+  while (( index < ${#archive_messages[@]} )); do
+    backup_path="${archive_messages[$index]}"
+    info "archived unselected LaunchAgent: ${backup_path}"
+    index=$(( index + 1 ))
+  done
+  cleanup_launchd_transaction_dir
+}
 
 if (( NEEDS_ARCHILITY == 1 )); then
   create_archility_shim
@@ -1123,10 +1455,18 @@ fi
 if (( DRY_RUN == 0 )); then
   if [[ "${PLATFORM}" == "linux" ]]; then
     mkdir -p "${SYSTEMD_UNIT_DIR}"
+  elif (( ACTIVATE == 1 )); then
+    mkdir -p "${STATE_DIR}/rendered"
+    LAUNCHD_CANDIDATE_DIR="$(mktemp -d "${STATE_DIR}/rendered/.launchd-candidates.XXXXXX")"
+    chmod 0700 "${LAUNCHD_CANDIDATE_DIR}"
   fi
 fi
 
-while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installer installer_kind provider_env model_env env_slug schedule_kind interval_seconds weekdays hour minute startup_delay jitter activation_kind; do
+if [[ "${PLATFORM}" == "linux" ]] || (( DRY_RUN == 1 )); then
+  reconcile_unselected_jobs
+fi
+
+while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installer installer_kind provider_env model_env env_slug schedule_kind interval_seconds weekdays hour minute startup_delay jitter launchd_network_host activation_kind; do
   [[ -n "${profiles}" ]] || continue
   case "${profiles}" in \#*) continue ;; esac
   job_is_selected "${profiles}" "${job_name}" || continue
@@ -1138,9 +1478,17 @@ while IFS='|' read -r profiles job_name command_rel arguments_csv linux_installe
       "${job_name}" "${command_rel}" "${arguments_csv}" "${installer_kind}" \
       "${provider_env}" "${model_env}" "${env_slug}" "${schedule_kind}" \
       "${interval_seconds}" "${weekdays}" "${hour}" "${minute}" \
-      "${startup_delay}" "${jitter}"
+      "${startup_delay}" "${jitter}" "${launchd_network_host}"
   fi
 done < "${JOB_CONFIG}"
+
+if [[ "${PLATFORM}" == "macos" ]] && (( DRY_RUN == 0 )); then
+  if (( ACTIVATE == 1 )); then
+    activate_launchd_profile
+  else
+    reconcile_unselected_jobs
+  fi
+fi
 
 if [[ "${PLATFORM}" == "linux" ]] && (( ACTIVATE == 1 && DRY_RUN == 0 )); then
   systemctl --user daemon-reload
