@@ -24,7 +24,8 @@ tracked_operational="$(
     'config/portfolio-sidecar/credentials/**' \
     'config/portfolio-sidecar/spool/**' \
     'config/portfolio-sidecar/state/**' \
-    'config/secret-scan/*.local.txt'
+    'config/secret-scan/*.local.txt' \
+    'config/air-primary.local.toml'
 )"
 if [[ -n "${tracked_operational}" ]]; then
   printf 'ERROR: operational private metadata is staged or tracked:\n%s\n' \

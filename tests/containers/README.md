@@ -57,6 +57,24 @@ They never mount the host portfolio, credentials, service manager, container
 socket, or scheduler directories. The test intentionally does not run any
 agent workload or activate timers.
 
+The temporary Air service bundle has a separate real-renderer proof:
+
+```bash
+bash tests/test_air_primary_coordinator_podman.sh
+```
+
+It stages only the current coordinator and required sibling renderer files,
+then runs the unchanged Clockwork, Snowbridge, and wiring-harness CLIs plus
+real Caddy validation in a networkless, read-only container. The only retained
+capability is `NET_ADMIN` for an isolated dummy `utun7`; all identities,
+certificates, inventory, share data, and Git histories are synthetic. Four
+cases cover successful rendering, immutable rerender refusal, unsafe wildcard
+SMB inventory rejection before wiring, and immutable failed-generation
+evidence. A fifth case disables native SMB while retaining the independent
+Snowbridge web edge and proves that no SMB child input, invocation, log, or
+artifact is produced. No host directory, container socket, service manager,
+tunnel, or credential enters the container, and no service is activated.
+
 The ignored-state sidecar has a separate, narrow Linux regression image:
 
 ```bash

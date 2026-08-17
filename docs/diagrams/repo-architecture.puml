@@ -10,7 +10,7 @@ actor "Operator /\nCross-repo Agent" as operator
 package "Tiered Bootstrap" #F8FAFC {
   component "scripts/install_traction_control_agents.sh\nprofile resolution + provider/model + platform dispatch" as bootstrap #DBEAFE
   rectangle "Safe defaults\nrender inactive unless --activate\n--dry-run: no writes, network, or services" as defaults #FEF3C7
-  component "scripts/run_traction_control_job.sh\noptional env + fixed delay + jitter + exec" as launchd_runner #EDE9FE
+  component "launchd runtime adapter\nClockwork env loader + 300s due poll\n0700/0600 state + lock + success interval" as launchd_runner #EDE9FE
 }
 
 package "Tier / Job Manifests" #F8FAFC {
@@ -33,6 +33,14 @@ package "Containerized Installer Validation (test-only)" #F8FAFC {
   rectangle "Offline assertions\nexact support downloads + unit sets\nuser-scope verify: private runtime, no bus\nidempotent rerun + --activate refusal\nno workloads or timers run" as container_checks #F0FDFA
 }
 
+package "Temporary Air-Primary Render (inactive)" #F8FAFC {
+  file "ignored owner-only air-primary.local.toml\nutun + Air/mini/pro /32s + paths/ports\nindependent native-SMB + web switches" as air_config #FCE7F3
+  component "scripts/render_air_primary.py\nstrict preflight + API probes + private staging" as air_coordinator #DBEAFE
+  component "Original enabled sibling CLIs\nClockwork launchd | optional Snowbridge SMB plan\nwiring-harness IP-literal mTLS edge" as air_siblings #CCFBF1
+  artifact "Immutable owner-only generations\naggregate hashes + inert child outputs" as air_outputs #FEF3C7
+  rectangle "Blocked live effects\nno sudo / launchctl / Caddy start\nno SMB / PF / WireGuard / writer mutation" as air_blocked #FEE2E2
+}
+
 package "Platform Scheduler Outputs" #F8FAFC {
   rectangle "--platform auto\nLinux or macOS" as platform #FCE7F3
 
@@ -42,7 +50,7 @@ package "Platform Scheduler Outputs" #F8FAFC {
 
   rectangle "macOS renderer\nabsolute argv, env, schedule, and log paths" as mac_render #EDE9FE
   artifact "LaunchAgent artifacts\nio.github.casonk.traction-control.*.plist" as launchd_artifacts #EDE9FE
-  rectangle "optional --activate\nplutil validation + launchctl\nbootout / enable / bootstrap" as launchd_activate #EDE9FE
+  rectangle "optional --activate\npre-render all + snapshot\ntransition + rollback" as launchd_activate #EDE9FE
 }
 
 package "Portfolio Workloads" #F8FAFC {
@@ -78,6 +86,12 @@ bootstrap ..> container_runner : validation-only source
 container_runner --> container_image : narrow staged context
 container_image --> tier_containers : one fresh container / tier
 tier_containers --> container_checks
+
+operator --> air_config : private declaration
+air_config --> air_coordinator
+air_coordinator --> air_siblings : unchanged CLI contracts
+air_siblings --> air_outputs
+air_blocked ..> air_coordinator : enforced boundary
 
 bootstrap --> platform
 platform --> linux_render : Linux
