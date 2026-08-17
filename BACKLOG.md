@@ -87,10 +87,11 @@ Mark items `[x]` when complete and move them to Done.
   ttyd endpoint so a single IP cannot open more than ~10 connections per minute.
 
 - [ ] [manual:2026-06-26] **Router DoS protection settings audit** — Review the Aterm
-  WG1200CR's SPI firewall and DoS-mitigation knobs via `private-repository/show.py`. If the
-  router exposes configurable SYN-flood or port-scan detection settings (check
-  `DEVICE.ADVMENU` and `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add
-  the patches to `private-repository/harden.py` so they survive PSK rotations.
+  WG1200CR's SPI firewall and DoS-mitigation knobs through the private
+  router-automation checkout's `show.py`. If the router exposes configurable
+  SYN-flood or port-scan detection settings (check `DEVICE.ADVMENU` and
+  `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add the patches
+  to that checkout's `harden.py` so they survive PSK rotations.
 
 - [ ] [manual:2026-06-17] **Private local-only repositories** — Review each
   ignored-catalog local checkout, create a private remote only through the

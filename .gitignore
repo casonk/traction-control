@@ -27,5 +27,9 @@ CLAUDE.md
 # KeePass-snowbridge local config (contains host/path details, no passwords)
 config/keepass-snowbridge.env.local
 
+# Air-primary render orchestration (machine paths, interface allocation, and
+# private service locations; the tracked example is intentionally synthetic).
+config/air-primary.local.toml
+
 # Agent-local state: machine-specific settings and scratch worktrees.
 .claude/

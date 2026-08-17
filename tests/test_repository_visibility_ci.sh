@@ -25,6 +25,18 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
   -s tests \
   -p 'test_portfolio_*.py' \
   -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s tests \
+  -p 'test_render_air_primary.py' \
+  -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s tests \
+  -p 'test_clockwork_launchd_contract.py' \
+  -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s tests \
+  -p 'test_run_traction_control_job.py' \
+  -v
 bash tests/test_create_private_github_repo.sh
 
 git check-ignore --quiet --no-index \
@@ -67,6 +79,8 @@ git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/portfolio-sidecar/quadlets.local.d/target.container"
 git check-ignore --quiet --no-index \
   "${REPO_ROOT}/config/secret-scan/repositories.local.txt"
+git check-ignore --quiet --no-index \
+  "${REPO_ROOT}/config/air-primary.local.toml"
 
 TRACKED_OPERATIONAL_FILES="$(
   git ls-files -- \
@@ -82,7 +96,8 @@ TRACKED_OPERATIONAL_FILES="$(
     'config/portfolio-sidecar/credentials/**' \
     'config/portfolio-sidecar/spool/**' \
     'config/portfolio-sidecar/state/**' \
-    'config/secret-scan/*.local.txt'
+    'config/secret-scan/*.local.txt' \
+    'config/air-primary.local.toml'
 )"
 if [[ -n "${TRACKED_OPERATIONAL_FILES}" ]]; then
   printf 'operational registry files must not be tracked:\n%s\n' \
