@@ -97,6 +97,35 @@ Two repositories ship a `.gitleaks.toml` and baseline with no workflow and no
 pre-commit config to run them, so they read as scanned while nothing scans
 them.
 
+## Disclosure Sweep
+
+The disclosure audit previously ran against this repository alone, because
+`check_portfolio_privacy.sh` passes a single `--root`. Every other public
+repository was unaudited. `portfolio-audit.sh` now sweeps all of them, and the
+first run found **42 tracked files across 10 public repositories** naming a
+private repository — including whole tracked directories named after private
+repositories under `examples/`. These predate this audit; nothing had ever
+looked.
+
+Two rules the sweep encodes:
+
+- A private repository naming *itself* is not a disclosure. Only a private name
+  inside a **public** repository's tracked files counts, so the sweep resolves
+  each repository's visibility and skips private ones.
+- Unregistered repositories are skipped rather than assumed public.
+  Fail-closed means unknown visibility is not treated as public.
+
+Registry completeness is a precondition rather than a detail: a repository
+absent from the visibility registry cannot be protected by the disclosure
+audit, because the audit has no basis to know its name is private. Reconcile
+with `repository_visibility.py audit` before trusting a clean result. One
+repository was found unregistered during this work and has been recorded; that
+command now passes for every repository.
+
+Clearing the 42 is filed to `BACKLOG.md` rather than done here — renaming a
+tracked example directory breaks anything that references it, so it wants
+sequencing per repository, not a sweep.
+
 ## Default Community Health Files
 
 Repositories missing `.github/ISSUE_TEMPLATE/` and
