@@ -10,30 +10,41 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
-- [ ] [manual:2026-08-23] **Supply default community health files from
-  `casonk/.github`** — Six repos are missing `.github/ISSUE_TEMPLATE/` and
-  `.github/PULL_REQUEST_TEMPLATE.md`. GitHub can serve those, plus
-  `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, and `SECURITY.md`, as account-wide
-  defaults from the `.github` repo, closing the column in one place instead of
-  six. **Verify the visibility interaction first**: defaults are documented to
-  propagate from a public `.github` repo to public repos, and this portfolio is
-  private-first — confirm the private-repo behavior before relying on it.
-  See `docs/portfolio-convention-audit-2026-08-23.md`.
+- [ ] [manual:2026-08-24] **Clear the 42 pre-existing private-name disclosures
+  in public repositories** — The new disclosure sweep in `portfolio-audit.sh`
+  found private repository names in tracked files across 10 public
+  repositories, including whole tracked directories named after private repos
+  under `examples/`. These predate the 2026-08-23 incident and were never
+  detected because the audit only ever ran against this repository. Renaming a
+  tracked example directory is a breaking change for anything referencing it,
+  so sequence it per repo rather than sweeping. Per-repo detail is in the
+  ignored local report. Note that scrubbing the working tree leaves the names
+  in each repository's public history, same as below.
 
-- [ ] [manual:2026-08-23] **Bring `private-repository` into the portfolio
-  baseline** — It sits at `~/dev/private-repository`, outside `util-repos/` and
-  `sec-repos/`, so every sweep that enumerates those two directories misses it.
-  It has 18 Tier-1 gaps including no `AGENTS.md`, `SECURITY.md`,
-  `LESSONSLEARNED.md`, `BACKLOG.md`, `LICENSE`, or `.pre-commit-config.yaml`.
-  Either seed the baseline there or record an explicit exemption; the current
-  state is neither.
+- [ ] [manual:2026-08-23] **Audit git history for the private repository names
+  disclosed on 2026-08-23** — The convention-audit commit added private repo
+  names to four tracked files in this public repository. The working tree is
+  scrubbed and the gate that should have caught it is fixed, but the names
+  remain reachable in this repository's public history. Decide whether that
+  warrants a history rewrite. Note the constraints already recorded below:
+  rewriting invalidates every gitleaks baseline fingerprint, and force-pushing
+  a branch with an open PR closes it irreversibly. Detail is in the ignored
+  local report, not here.
+
+- [ ] [manual:2026-08-23] **Decide whether a repository outside
+  `util-repos/`/`sec-repos/` is in or out of the baseline** — One portfolio
+  repository is checked out directly under the portfolio root, so every sweep
+  that enumerates those two directories misses it; it carries 18 Tier-1 gaps
+  and is absent from the visibility registry and portfolio catalog. Either seed
+  the baseline and register it, or record an explicit exemption. The current
+  state is neither. Identify it from the ignored registry, not from here.
 
 - [ ] [manual:2026-08-23] **Decide whether `.gitleaks.toml` without
-  `secret-scan.yml` is acceptable** — `private-repository` and `private-repository` each ship a
-  gitleaks config and baseline that nothing ever runs. Either add the
-  `secret-scan.yml` workflow (template in `docs/templates/secret-scan.yml`) or
-  remove the dead config, and add a portfolio-audit check for the mismatch so
-  it cannot recur silently.
+  `secret-scan.yml` is acceptable** — Two repositories each ship a gitleaks
+  config and baseline that nothing ever runs, so they read as scanned while
+  nothing scans them. Either add the `secret-scan.yml` workflow (template in
+  `docs/templates/secret-scan.yml`) or remove the dead config, and add a
+  portfolio-audit check for the mismatch so it cannot recur silently.
 
 - [ ] [manual:2026-07-19] **Add a disposable live-systemd activation test** —
   Extend the container/VM harness with a dedicated non-root user manager,
