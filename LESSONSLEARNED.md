@@ -12,6 +12,49 @@
 
 ## Lessons
 
+### 2026-08-24 — A gate that resolves gitignored state relative to the repo root fails open inside a worktree
+
+- `check_portfolio_privacy.sh` resolved the visibility registry as
+  `${REPO_ROOT}/config/repository-visibility/*.local.json`. The registry is
+  gitignored, so it exists only in the main checkout — never in a linked
+  worktree. Running from a worktree found no registry, skipped the disclosure
+  audit, and printed `operational-path index gate passed`. That is a pass for a
+  check that never ran, and private repository names reached tracked files of a
+  public repo behind it.
+- This generalizes past this one script. Any gate whose inputs are gitignored —
+  registries, allowlists, baselines, policy files — silently loses those inputs
+  in a worktree, a fresh clone, and CI. Resolve them from the main checkout
+  with `git rev-parse --path-format=absolute --git-common-dir` (its parent is
+  the main checkout) rather than from the script's own location.
+- Never let a skipped check print like a passed one. Where the check genuinely
+  cannot run — CI and fresh clones legitimately have no registry, so it cannot
+  fail closed unconditionally — say SKIPPED on stderr and state that the run
+  proves nothing. Offer an env var that forces fail-closed for callers that
+  want it.
+- Verify a security gate from the main checkout before trusting a clean result,
+  and prefer running it against the index rather than the working tree: this
+  audit scans the Git index, so unstaged fixes look like failures and unstaged
+  mistakes look like successes.
+
+### 2026-08-24 — Audit every public repository for private names, not just the control plane
+
+- The disclosure audit ran against the control plane alone, because
+  `check_portfolio_privacy.sh` passed one `--root`. Every other public
+  repository was unaudited, and the sweep that closed that gap found 42 tracked
+  files across 10 public repos naming a private repository — including whole
+  tracked directories named after private repos under `examples/`.
+- A private repository naming itself is not a disclosure. The rule is a private
+  name inside a **public** repository's tracked files, so the sweep must know
+  each repo's visibility and skip private ones. Skip unregistered repos too:
+  fail-closed means unknown visibility is not treated as public.
+- Registry completeness is a precondition, not a detail. A repository absent
+  from the visibility registry cannot be protected by the disclosure audit,
+  because the audit has no basis to know its name is private. Reconcile the
+  registry against GitHub with `repository_visibility.py audit` before trusting
+  any disclosure result.
+- Repository names that are ordinary English words produce noisy matches.
+  Confirm a hit by looking at the reference before treating it as a leak.
+
 ### 2026-08-23 — Governance lint must be concept-based; exact-string markers manufacture false positives
 
 - `portfolio-audit.sh` checked the AGENTS.md sudo boundary with a literal

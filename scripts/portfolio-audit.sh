@@ -218,16 +218,89 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
 done
 
 log ""
+
+# ── private-name disclosure sweep ─────────────────────────────────────────────
+# A private repository naming itself is not a disclosure; a private name inside
+# a PUBLIC repository's tracked files is. Until now the disclosure audit ran
+# against the control plane alone (`check_portfolio_privacy.sh` passes a single
+# --root), so every other public repository was unaudited — which is how tracked
+# directories named after private repositories went unnoticed in public repos.
+DISCLOSURE_COUNT=0
+
+# The registry is gitignored, so it exists only in the main checkout. Resolving
+# it relative to this script would find nothing inside a linked worktree and
+# skip the sweep — the same fail-open that let a disclosure through on
+# 2026-08-23. Resolve the main checkout explicitly.
+CONTROL_PLANE="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cp_common_dir="$(git -C "${CONTROL_PLANE}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [[ -n "${cp_common_dir}" ]]; then
+    cp_main="$(dirname "${cp_common_dir}")"
+    if [[ "${cp_main}" != "${CONTROL_PLANE}" && -d "${cp_main}/config/repository-visibility" ]]; then
+        CONTROL_PLANE="${cp_main}"
+    fi
+fi
+VIS_DIR="${CONTROL_PLANE}/config/repository-visibility"
+PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/private.local.json}"
+PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${VIS_DIR}/public.local.json}"
+LOCAL_PRIVATE_REGISTRY="${TRACTION_CONTROL_LOCAL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/local-private.local.json}"
+
+if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
+    log "=== private-name disclosure sweep (public repos only) ==="
+    for repo in "${REPO_DIRS[@]}"; do
+        rel="${repo#${PORTFOLIO_ROOT}/}"
+        slug_url="$(git -C "${repo}" remote get-url origin 2>/dev/null || true)"
+        [[ -n "${slug_url}" ]] || continue
+        slug="${slug_url##*github.com[:/]}"
+        slug="${slug%.git}"
+        # Only audit repositories the public registry vouches for. Unregistered
+        # or private repositories are skipped: fail-closed means we do not treat
+        # unknown visibility as public and start reporting on it.
+        grep -q "\"${slug}\"" "${PUBLIC_REGISTRY}" 2>/dev/null || continue
+
+        set +e
+        disclosure_output="$(
+            PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/repository_visibility.py" \
+                audit-private-disclosures \
+                --private "${PRIVATE_REGISTRY}" \
+                --public "${PUBLIC_REGISTRY}" \
+                ${LOCAL_PRIVATE_REGISTRY:+--local-private "${LOCAL_PRIVATE_REGISTRY}"} \
+                --root "${repo}" 2>&1
+        )"
+        disclosure_status=$?
+        set -e
+
+        if (( disclosure_status != 0 )); then
+            hits="$(grep -c '^error:' <<< "${disclosure_output}" || true)"
+            warn "${rel}: ${hits} tracked file(s) name a private repository"
+            while IFS= read -r line; do
+                [[ "${line}" == error:* ]] && warn "  ${line#error: }"
+            done <<< "${disclosure_output}"
+            DISCLOSURE_COUNT=$(( DISCLOSURE_COUNT + hits ))
+        fi
+    done
+    if (( DISCLOSURE_COUNT == 0 )); then
+        log "no private repository names in public repositories"
+    fi
+else
+    warn "disclosure sweep SKIPPED: visibility registry not found at ${PRIVATE_REGISTRY}"
+    warn "  this run proves nothing about private-name disclosure in public repos"
+fi
+
+log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
 log "total gaps     : ${GAP_COUNT}"
+log "disclosures    : ${DISCLOSURE_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
 ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 
-if (( GAP_COUNT > 0 )); then
-    log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes in traction-control"
+if (( DISCLOSURE_COUNT > 0 )); then
+    log "ACTION REQUIRED: ${DISCLOSURE_COUNT} tracked file(s) in public repositories name a private repository"
+fi
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 )); then
+    log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
 exit 0

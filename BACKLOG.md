@@ -10,6 +10,17 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
+- [ ] [manual:2026-08-24] **Clear the 42 pre-existing private-name disclosures
+  in public repositories** — The new disclosure sweep in `portfolio-audit.sh`
+  found private repository names in tracked files across 10 public
+  repositories, including whole tracked directories named after private repos
+  under `examples/`. These predate the 2026-08-23 incident and were never
+  detected because the audit only ever ran against this repository. Renaming a
+  tracked example directory is a breaking change for anything referencing it,
+  so sequence it per repo rather than sweeping. Per-repo detail is in the
+  ignored local report. Note that scrubbing the working tree leaves the names
+  in each repository's public history, same as below.
+
 - [ ] [manual:2026-08-23] **Audit git history for the private repository names
   disclosed on 2026-08-23** — The convention-audit commit added private repo
   names to four tracked files in this public repository. The working tree is
