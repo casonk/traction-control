@@ -26,9 +26,13 @@ BOUNDARY_HEADING_RE = re.compile(
     (
         r"^##+\s+("
         r"scope|operational boundaries|sensitive data notice|sensitive content|"
-        r"handling rules|safe documentation practices|safe development practices|"
+        r"handling rules|safe documentation(?: practices)?|safe development practices|"
         r"safe operating practices|what not to report publicly|hard rules|"
-        r"hard rules \u2014 what must never be committed|supported versions"
+        r"hard rules \u2014 what must never be committed|supported versions|"
+        # Repo-specific boundary headings already in portfolio use. A repo that
+        # states its trust boundary or its own boundaries has met the intent of
+        # this check just as well as one that titles the section "Scope".
+        r"trust boundary|repo-specific boundaries|delete safety"
         r")\b"
     ),
     re.IGNORECASE | re.MULTILINE,

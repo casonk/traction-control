@@ -12,6 +12,189 @@
 
 ## Lessons
 
+### 2026-08-23 — Governance lint must be concept-based; exact-string markers manufacture false positives
+
+- `portfolio-audit.sh` checked the AGENTS.md sudo boundary with a literal
+  `grep -qF` for one repo's exact sentence. Three repos — `glovebox`,
+  `service-manual`, and `differential` — each carried a correct, complete Sudo
+  Boundary section in different words and were reported as gaps every run.
+- A governance audit that cries wolf is worse than no audit: the standing
+  warnings train the reader to skim the output, and the two repos that
+  genuinely had no sudo boundary (`dot-github`, `auto-router-api`) sat in the
+  same list as the three false positives.
+- `check_security_md.py` had already been written concept-based for exactly
+  this reason. The lesson did not transfer to the AGENTS.md check because it
+  lived in that one script's docstring rather than here. Applying it produced
+  `check_agents_md.py`.
+- Check the *rule*, not the *sentence*. For the sudo boundary that means
+  requiring both halves — a denial of `sudo` to the agent and a handoff of the
+  exact command to the user — in any wording, since a heading alone and a bare
+  mention of `sudo` both pass a naive test.
+- Scope a check to the repos it can apply to. Local CI verification is only
+  meaningful where CI exists, so `check_agents_md.py` gates that check on the
+  presence of a workflow rather than holding docs-only repos to it.
+
+### 2026-08-23 — A lesson duplicated verbatim in two repos belongs in the control plane
+
+- Cross-repo duplication is the cheapest available signal that a lesson is
+  portfolio-general rather than repo-specific. When the same rule is written
+  out in two sibling `LESSONSLEARNED.md` files, neither repo owns it and both
+  copies drift independently.
+- Detect it mechanically rather than by memory: normalize every repo lesson
+  (strip the bullet marker, collapse whitespace, truncate to a stable prefix)
+  and look for texts appearing in more than one repo. Ignore the shared
+  template header bullets, which are duplicated by design.
+- Up-integrate the rule here, then leave the repo-level copy only when the
+  repo genuinely narrows it. Do not delete a repo lesson that carries
+  repo-specific detail the general form drops.
+- `scripts/find_duplicate_lessons.py` runs this detection across the portfolio.
+  Restrict it to real repositories: rendered tier overlays copy a repo's
+  lessons verbatim and otherwise register as duplicates of their own source.
+
+### 2026-08-23 — Merging to `main` in `casonk/.github` is a portfolio-wide deploy
+
+- Calling repos reference the shared workflows as `@main`, not a semver tag,
+  so a merge there takes effect on every downstream repo's next run with no
+  further action. Treat those merges as a deploy with portfolio blast radius,
+  not as a local change to one repository.
+- The same `@main` pinning is why Dependabot does not raise `github-actions`
+  PRs in calling repos: they pin no action versions of their own. The single
+  Dependabot PR in `casonk/.github` is the only update needed, and every
+  caller inherits it.
+- After merging a reusable-workflow change, check a downstream repo's next run
+  before considering the work done. A workflow that is syntactically valid can
+  still break callers that pass inputs the new version no longer accepts.
+- Up-integrated from `dot-github`.
+
+### 2026-08-23 — Suppressing stderr without validating the result turns a hard failure into silent wrong output
+
+- `cmd 2>/dev/null` discards the message that explains why a command produced
+  nothing. Combined with a substitution like `x=$(cmd 2>/dev/null)`, an
+  invalid flag, a missing field, or an auth failure all look identical to a
+  legitimately empty result.
+- This has now caused real portfolio incidents in both directions: an
+  `auto-pass` lookup that returned an empty secret without saying why, and a
+  `gh pr list --json <invalid-field>` call in a portfolio sweep that reported
+  zero open PRs while an open PR existed.
+- Either drop the redirect, or keep it and validate the result explicitly —
+  check the exit status and assert the value is non-empty and well-formed
+  before acting on it. Never let `2>/dev/null` be the only error handling.
+- Up-integrated from `auto-pass`.
+
+### 2026-08-23 — `stat -f` / `stat -c` fallbacks are not portability
+
+- Writing `stat -f ... || stat -c ...` looks like a BSD/GNU fallback but is
+  not one. GNU `stat -f` is valid — it queries the *filesystem*, not the file
+  — so on Linux the first branch succeeds and returns the wrong data, and the
+  fallback never runs. The failure is silent and platform-specific.
+- Detect the platform explicitly (`uname -s`, or a capability probe whose
+  failure mode is unambiguous) instead of relying on one form erroring out.
+- The general rule: a `||` fallback is only safe when the left side *fails*
+  on the other platform. If it succeeds with different semantics, the fallback
+  is a correctness bug that testing on one OS cannot catch.
+- Up-integrated from `glovebox`; related to the existing macOS shell
+  compatibility lesson below.
+
+### 2026-08-23 — Secret scanners must be told that ciphertext is not a leak, and guards must match key shape
+
+- Encrypted payloads tracked on purpose (`payloads/*.age`, packaged bundles,
+  sealed exports) trip entropy rules. Allowlist them explicitly in
+  `.gitleaks.toml` rather than accepting a permanently red scan or baselining
+  each new file as it appears.
+- A guard that matches a key's *name* rather than its *shape* is close to
+  useless: it fires on prose that mentions the key and misses the value when
+  it appears under a different label. Write rules against the literal shape of
+  the material (prefix, alphabet, length), not the identifier next to it.
+- Allowlisting ciphertext is safe only because the plaintext boundary is
+  enforced elsewhere. Keep both halves — never record a plaintext digest
+  beside an encrypted payload, since the digest re-leaks what the encryption
+  protects.
+- Up-integrated from `glovebox`.
+
+### 2026-08-23 — Auto-fixing pre-commit hooks exit 1 on their first run; re-run before concluding
+
+- `ruff`, `ruff-format`, `trailing-whitespace`, and `end-of-file-fixer` modify
+  files and exit non-zero on the run that made the change. That first failure
+  is the hooks working, not a lint error. Re-run immediately, confirm exit 0,
+  then stage what the formatter rewrote.
+- Treating the first exit 1 as the verdict is how formatting reaches CI. Run
+  `pre-commit run --all-files && pytest -q` before every commit, including
+  docs-only ones — formatting violations turn up in `.py` files touched
+  incidentally.
+- Hook versions must match the versions CI pins, exactly. A stale local pin
+  passes on rules the newer CI version rejects; `ruff` v0.4.4 accepted an
+  import order that v0.15.9 failed, because the older pin lacked src-layout
+  auto-detection. Keep `.pre-commit-config.yaml` revs in sync with
+  `.github/workflows/ci.yml`.
+- Where a repo must diverge from the shared config, record why in the config
+  itself. `auto-router-api` drops the `black` hook because black 26.x requires
+  Python >= 3.10 and that repo's floor is 3.9; the comment is what keeps the
+  divergence from reading as drift.
+- Up-integrated from `crew-chief` and `dyno-lab`.
+
+### 2026-08-23 — Shell entrypoints need `shellcheck` in CI, not just successful local execution
+
+- A shell script that runs correctly on the author's machine can still carry
+  unquoted expansions, stale locals, and word-splitting bugs that only fire on
+  unusual input. Permissive local execution proves nothing about those paths.
+- Repos with shell entrypoints should run `shellcheck` in CI and validate new
+  wrappers against it before pushing, rather than discovering the failure as a
+  blocked push.
+- zsh in particular does not word-split unquoted variables the way bash does,
+  so a loop like `for r in $REPOS` silently iterates once over the whole
+  string. Use an explicit array. This has recurred repeatedly in portfolio
+  sweep scripts.
+- Up-integrated from `shock-relay`.
+
+### 2026-08-23 — AI assistant session transcripts are secret-bearing; never use real ones as fixtures
+
+- Claude and Codex session files can contain copied logs, credentials,
+  personal data, and private absolute paths. They are operational memory, not
+  test data.
+- Tests that exercise transcript parsing must use minimized synthetic
+  fixtures. Do not copy a real session file into `tests/`, even after a
+  manual skim — the risk is what the skim misses, and the file is then
+  permanent in Git history.
+- The same boundary applies to what such tooling exposes: local JSONL can
+  reveal token counts, model, cache, and service-tier metadata. Sanitize
+  before caching or rendering, and label anything the file cannot actually
+  prove as unavailable rather than estimating it.
+- Up-integrated from `session-control`; this is the tracked-file counterpart
+  of the `CHATHISTORY.md` local-only rule.
+
+### 2026-08-23 — Setup-script placeholder validation must reject realistic-looking sample values
+
+- Checking for angle-bracket placeholders is not enough. An example that ships
+  a syntactically valid but unusable value — a well-formed key that is not the
+  real key, a routable-looking address that is not the real address — passes
+  generic placeholder detection and then fails at runtime with a confusing
+  error far from its cause.
+- Validate against the *pair*, not the field. When two values must correspond
+  (a private key and its matching public key), detecting that both are still
+  the shipped sample is the check that matters; either one alone is
+  ambiguous.
+- Scan active configuration statements, not comment prose. Sample configs
+  legitimately mention placeholder tokens in comments, and validating the
+  whole file produces false positives that train operators to ignore it.
+- Where a safe mechanical fallback exists, apply it and say so, rather than
+  failing with a message the operator must interpret.
+- Up-integrated from `short-circuit` and `snowbridge`, which carried this rule
+  in duplicate.
+
+### 2026-08-23 — Caddy caches TLS certificates in memory at startup
+
+- `systemctl reload` does not re-read certificate files from disk. After
+  rotating or replacing a certificate, restart Caddy — a reload leaves the
+  previous certificate serving and the change appears not to have taken.
+- With Caddy's admin API disabled, a correct file on disk does not prove what
+  the live process is serving. Verify from a client against the real endpoint,
+  not by inspecting the file.
+- Rotating an mTLS leaf does not revoke its predecessor when the ingress
+  trusts the issuing CA. Rotation and revocation are separate operations, and
+  only the second one removes access.
+- Up-integrated from `clockwork` and `wiring-harness`, which carried the
+  caching rule in duplicate.
+
 ### 2026-08-10 — Gitleaks baselines are pinned to commit SHAs and do not survive a history rewrite
 
 - A `.gitleaks-baseline.json` entry suppresses a finding by *fingerprint*, and
