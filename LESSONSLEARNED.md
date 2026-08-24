@@ -15,13 +15,13 @@
 ### 2026-08-23 — Governance lint must be concept-based; exact-string markers manufacture false positives
 
 - `portfolio-audit.sh` checked the AGENTS.md sudo boundary with a literal
-  `grep -qF` for one repo's exact sentence. Three repos — `glovebox`,
-  `service-manual`, and `differential` — each carried a correct, complete Sudo
-  Boundary section in different words and were reported as gaps every run.
+  `grep -qF` for one repo's exact sentence. Three repos each carried a correct,
+  complete Sudo Boundary section in different words and were reported as gaps
+  every run.
 - A governance audit that cries wolf is worse than no audit: the standing
   warnings train the reader to skim the output, and the two repos that
-  genuinely had no sudo boundary (`dot-github`, `auto-router-api`) sat in the
-  same list as the three false positives.
+  genuinely had no sudo boundary sat in the same list as the three false
+  positives.
 - `check_security_md.py` had already been written concept-based for exactly
   this reason. The lesson did not transfer to the AGENTS.md check because it
   lived in that one script's docstring rather than here. Applying it produced
@@ -92,8 +92,8 @@
 - The general rule: a `||` fallback is only safe when the left side *fails*
   on the other platform. If it succeeds with different semantics, the fallback
   is a correctness bug that testing on one OS cannot catch.
-- Up-integrated from `glovebox`; related to the existing macOS shell
-  compatibility lesson below.
+- Up-integrated from a private encrypted-store repo; related to the existing
+  macOS shell compatibility lesson below.
 
 ### 2026-08-23 — Secret scanners must be told that ciphertext is not a leak, and guards must match key shape
 
@@ -109,7 +109,7 @@
   enforced elsewhere. Keep both halves — never record a plaintext digest
   beside an encrypted payload, since the digest re-leaks what the encryption
   protects.
-- Up-integrated from `glovebox`.
+- Up-integrated from a private encrypted-store repo.
 
 ### 2026-08-23 — Auto-fixing pre-commit hooks exit 1 on their first run; re-run before concluding
 
@@ -127,9 +127,9 @@
   auto-detection. Keep `.pre-commit-config.yaml` revs in sync with
   `.github/workflows/ci.yml`.
 - Where a repo must diverge from the shared config, record why in the config
-  itself. `auto-router-api` drops the `black` hook because black 26.x requires
-  Python >= 3.10 and that repo's floor is 3.9; the comment is what keeps the
-  divergence from reading as drift.
+  itself. The portfolio's one repo still on a Python 3.9 floor drops the
+  `black` hook because black 26.x requires >= 3.10; the comment is what keeps
+  the divergence from reading as drift.
 - Up-integrated from `crew-chief` and `dyno-lab`.
 
 ### 2026-08-23 — Shell entrypoints need `shellcheck` in CI, not just successful local execution

@@ -5,8 +5,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${REPO_ROOT}/config/repository-visibility/private.local.json}"
-PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${REPO_ROOT}/config/repository-visibility/public.local.json}"
+
+# The registry is gitignored, so it exists only in the main checkout — never in
+# a linked worktree. Resolving it relative to REPO_ROOT alone meant every run
+# inside a worktree found no registry, skipped the disclosure audit, and
+# reported a pass it had not performed. Resolve the main checkout explicitly so
+# a worktree audits against the same registry the main checkout would.
+REGISTRY_ROOT="${REPO_ROOT}"
+git_common_dir="$(git -C "${REPO_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [[ -n "${git_common_dir}" ]]; then
+  main_checkout="$(dirname "${git_common_dir}")"
+  if [[ "${main_checkout}" != "${REPO_ROOT}" && -d "${main_checkout}/config/repository-visibility" ]]; then
+    REGISTRY_ROOT="${main_checkout}"
+  fi
+fi
+
+PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${REGISTRY_ROOT}/config/repository-visibility/private.local.json}"
+PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${REGISTRY_ROOT}/config/repository-visibility/public.local.json}"
 
 cd "${REPO_ROOT}"
 
@@ -43,6 +58,16 @@ if [[ -e "${PRIVATE_REGISTRY}" || -e "${PUBLIC_REGISTRY}" ]]; then
     --private "${PRIVATE_REGISTRY}" \
     --public "${PUBLIC_REGISTRY}" \
     --root "${REPO_ROOT}"
+elif [[ "${TRACTION_CONTROL_REQUIRE_PRIVACY_AUDIT:-0}" == "1" ]]; then
+  printf 'ERROR: private registry unavailable and TRACTION_CONTROL_REQUIRE_PRIVACY_AUDIT=1; refusing to skip the disclosure audit\n' >&2
+  printf '  looked for: %s\n' "${PRIVATE_REGISTRY}" >&2
+  exit 1
 else
-  printf 'private registry unavailable; operational-path index gate passed\n'
+  # Fresh clones and CI legitimately have no registry, so this cannot fail
+  # closed unconditionally. Say plainly that the audit was SKIPPED — the
+  # previous wording ("gate passed") described a check that never ran, which
+  # is how private repository names reached a tracked file unnoticed.
+  printf 'WARNING: private registry unavailable at %s\n' "${PRIVATE_REGISTRY}" >&2
+  printf 'WARNING: disclosure audit SKIPPED — this run proves nothing about private-name disclosure\n' >&2
+  printf 'WARNING: re-run from the main checkout, or set TRACTION_CONTROL_PRIVATE_REPOS_CONFIG/_PUBLIC_REPOS_CONFIG, before trusting a clean result\n' >&2
 fi

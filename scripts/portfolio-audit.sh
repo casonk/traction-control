@@ -47,10 +47,42 @@ TIER1_FILES=(
     docs/contributor-architecture-blueprint.md
     docs/diagrams/repo-architecture.puml
     docs/diagrams/repo-architecture.drawio
+)
+
+# GitHub serves these from the account-level `.github` repository to any repo
+# that lacks its own, private repos included (verified against a private repo
+# carrying neither file). A repo without a local copy is therefore already
+# covered, so requiring one here would report gaps that are closed — the same
+# cry-wolf failure the concept-based AGENTS.md rewrite was meant to end.
+INHERITABLE_FILES=(
     .github/PULL_REQUEST_TEMPLATE.md
     .github/ISSUE_TEMPLATE/bug_report.md
     .github/ISSUE_TEMPLATE/feature_request.md
 )
+
+# Locate the account `.github` checkout by its remote rather than by path, so
+# this keeps working if the directory is renamed or moved.
+DEFAULTS_REPO=""
+while IFS= read -r candidate; do
+    remote="$(git -C "${candidate}" remote get-url origin 2>/dev/null || true)"
+    case "${remote}" in
+        */.github|*/.github.git) DEFAULTS_REPO="${candidate}"; break ;;
+    esac
+done < <(
+    find "${PORTFOLIO_ROOT}" -maxdepth 4 -type d -name .git \
+        ! -path "*/archive-repos/*" 2>/dev/null | sed 's|/.git$||' | sort
+)
+
+# Present in the defaults repo at any of the three locations GitHub accepts.
+defaults_provide() {  # <relative-path>
+    local rel="$1"
+    [[ -n "${DEFAULTS_REPO}" ]] || return 1
+    local bare="${rel#.github/}"
+    [[ -e "${DEFAULTS_REPO}/${rel}" ]] && return 0
+    [[ -e "${DEFAULTS_REPO}/${bare}" ]] && return 0
+    [[ -e "${DEFAULTS_REPO}/docs/${bare}" ]] && return 0
+    return 1
+}
 
 log "=== portfolio-audit daily run ==="
 log "portfolio root : ${PORTFOLIO_ROOT}"
@@ -73,6 +105,11 @@ done < <(
 )
 
 log "found ${#REPO_DIRS[@]} repositories"
+if [[ -n "${DEFAULTS_REPO}" ]]; then
+    log "account defaults : ${DEFAULTS_REPO#${PORTFOLIO_ROOT}/}"
+else
+    warn "account defaults : none found — community-health files will be required per repo"
+fi
 log ""
 
 # ── audit ─────────────────────────────────────────────────────────────────────
@@ -87,6 +124,14 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
     # Tier-1 baseline files
     for f in "${TIER1_FILES[@]}"; do
         [[ ! -f "${repo}/${f}" ]] && missing+=("$f")
+    done
+
+    # Tier-1 files that may instead be inherited from the account `.github`
+    # repository. Only a gap when neither the repo nor the defaults repo has it.
+    for f in "${INHERITABLE_FILES[@]}"; do
+        if [[ ! -f "${repo}/${f}" ]] && ! defaults_provide "${f}"; then
+            missing+=("$f (and no account-level default provides it)")
+        fi
     done
 
     # AGENTS.md shared-convention checks (sudo boundary, portfolio standards
