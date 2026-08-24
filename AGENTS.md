@@ -152,6 +152,7 @@ Re-scan before making claims based on exact counts. This layer should stay accur
 - Read repo `LESSONSLEARNED.md`, `BACKLOG.md`, and `CHATHISTORY.md` after repo `AGENTS.md` when resuming work in a specific repository.
 - Portfolio-wide cross-repo work uses `traction-control/CHATHISTORY.md`.
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
+- A lesson that applies beyond its repo belongs in `traction-control/LESSONSLEARNED.md`. If the same rule is already written into two sibling repos, neither owns it and the copies drift — up-integrate it here and leave the repo-level copy only where the repo genuinely narrows it. `scripts/find_duplicate_lessons.py` surfaces these candidates.
 
 ## Reusable Workflow Strategy
 
@@ -242,7 +243,7 @@ Every new repository should start with:
 - `README.md`
 - `LICENSE`
 - `.gitignore`
-- `AGENTS.md`
+- `AGENTS.md` seeded from `./util-repos/traction-control/docs/templates/AGENTS.md`
 - `LESSONSLEARNED.md` seeded from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md`
 - `BACKLOG.md` seeded from `./util-repos/traction-control/docs/templates/BACKLOG.md`
 - `.editorconfig`
@@ -261,6 +262,7 @@ Repo-level `AGENTS.md` files should include the standard "Sudo Boundary" section
 Repo-level `AGENTS.md` files should mention only public shared utilities by
 name. Private shared utilities and their paths belong in ignored local
 guidance derived from the visibility registry and portfolio catalog.
+New repos should initialize `AGENTS.md` from `./util-repos/traction-control/docs/templates/AGENTS.md`, which carries the four conventions `scripts/check_agents_md.py` verifies: the sudo boundary, the portfolio standards backlink, the `CHATHISTORY.md` / `LESSONSLEARNED.md` session-memory boundary, and Local CI Verification. That checker is concept-based, so rewording a section is fine as long as the rule survives; it runs as part of `scripts/portfolio-audit.sh`.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
 New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
