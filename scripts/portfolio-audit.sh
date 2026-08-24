@@ -47,10 +47,42 @@ TIER1_FILES=(
     docs/contributor-architecture-blueprint.md
     docs/diagrams/repo-architecture.puml
     docs/diagrams/repo-architecture.drawio
+)
+
+# GitHub serves these from the account-level `.github` repository to any repo
+# that lacks its own, private repos included (verified against a private repo
+# carrying neither file). A repo without a local copy is therefore already
+# covered, so requiring one here would report gaps that are closed — the same
+# cry-wolf failure the concept-based AGENTS.md rewrite was meant to end.
+INHERITABLE_FILES=(
     .github/PULL_REQUEST_TEMPLATE.md
     .github/ISSUE_TEMPLATE/bug_report.md
     .github/ISSUE_TEMPLATE/feature_request.md
 )
+
+# Locate the account `.github` checkout by its remote rather than by path, so
+# this keeps working if the directory is renamed or moved.
+DEFAULTS_REPO=""
+while IFS= read -r candidate; do
+    remote="$(git -C "${candidate}" remote get-url origin 2>/dev/null || true)"
+    case "${remote}" in
+        */.github|*/.github.git) DEFAULTS_REPO="${candidate}"; break ;;
+    esac
+done < <(
+    find "${PORTFOLIO_ROOT}" -maxdepth 4 -type d -name .git \
+        ! -path "*/archive-repos/*" 2>/dev/null | sed 's|/.git$||' | sort
+)
+
+# Present in the defaults repo at any of the three locations GitHub accepts.
+defaults_provide() {  # <relative-path>
+    local rel="$1"
+    [[ -n "${DEFAULTS_REPO}" ]] || return 1
+    local bare="${rel#.github/}"
+    [[ -e "${DEFAULTS_REPO}/${rel}" ]] && return 0
+    [[ -e "${DEFAULTS_REPO}/${bare}" ]] && return 0
+    [[ -e "${DEFAULTS_REPO}/docs/${bare}" ]] && return 0
+    return 1
+}
 
 log "=== portfolio-audit daily run ==="
 log "portfolio root : ${PORTFOLIO_ROOT}"
@@ -73,6 +105,11 @@ done < <(
 )
 
 log "found ${#REPO_DIRS[@]} repositories"
+if [[ -n "${DEFAULTS_REPO}" ]]; then
+    log "account defaults : ${DEFAULTS_REPO#${PORTFOLIO_ROOT}/}"
+else
+    warn "account defaults : none found — community-health files will be required per repo"
+fi
 log ""
 
 # ── audit ─────────────────────────────────────────────────────────────────────
@@ -87,6 +124,14 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
     # Tier-1 baseline files
     for f in "${TIER1_FILES[@]}"; do
         [[ ! -f "${repo}/${f}" ]] && missing+=("$f")
+    done
+
+    # Tier-1 files that may instead be inherited from the account `.github`
+    # repository. Only a gap when neither the repo nor the defaults repo has it.
+    for f in "${INHERITABLE_FILES[@]}"; do
+        if [[ ! -f "${repo}/${f}" ]] && ! defaults_provide "${f}"; then
+            missing+=("$f (and no account-level default provides it)")
+        fi
     done
 
     # AGENTS.md shared-convention checks (sudo boundary, portfolio standards
@@ -173,16 +218,89 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
 done
 
 log ""
+
+# ── private-name disclosure sweep ─────────────────────────────────────────────
+# A private repository naming itself is not a disclosure; a private name inside
+# a PUBLIC repository's tracked files is. Until now the disclosure audit ran
+# against the control plane alone (`check_portfolio_privacy.sh` passes a single
+# --root), so every other public repository was unaudited — which is how tracked
+# directories named after private repositories went unnoticed in public repos.
+DISCLOSURE_COUNT=0
+
+# The registry is gitignored, so it exists only in the main checkout. Resolving
+# it relative to this script would find nothing inside a linked worktree and
+# skip the sweep — the same fail-open that let a disclosure through on
+# 2026-08-23. Resolve the main checkout explicitly.
+CONTROL_PLANE="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cp_common_dir="$(git -C "${CONTROL_PLANE}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [[ -n "${cp_common_dir}" ]]; then
+    cp_main="$(dirname "${cp_common_dir}")"
+    if [[ "${cp_main}" != "${CONTROL_PLANE}" && -d "${cp_main}/config/repository-visibility" ]]; then
+        CONTROL_PLANE="${cp_main}"
+    fi
+fi
+VIS_DIR="${CONTROL_PLANE}/config/repository-visibility"
+PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/private.local.json}"
+PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${VIS_DIR}/public.local.json}"
+LOCAL_PRIVATE_REGISTRY="${TRACTION_CONTROL_LOCAL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/local-private.local.json}"
+
+if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
+    log "=== private-name disclosure sweep (public repos only) ==="
+    for repo in "${REPO_DIRS[@]}"; do
+        rel="${repo#${PORTFOLIO_ROOT}/}"
+        slug_url="$(git -C "${repo}" remote get-url origin 2>/dev/null || true)"
+        [[ -n "${slug_url}" ]] || continue
+        slug="${slug_url##*github.com[:/]}"
+        slug="${slug%.git}"
+        # Only audit repositories the public registry vouches for. Unregistered
+        # or private repositories are skipped: fail-closed means we do not treat
+        # unknown visibility as public and start reporting on it.
+        grep -q "\"${slug}\"" "${PUBLIC_REGISTRY}" 2>/dev/null || continue
+
+        set +e
+        disclosure_output="$(
+            PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/repository_visibility.py" \
+                audit-private-disclosures \
+                --private "${PRIVATE_REGISTRY}" \
+                --public "${PUBLIC_REGISTRY}" \
+                ${LOCAL_PRIVATE_REGISTRY:+--local-private "${LOCAL_PRIVATE_REGISTRY}"} \
+                --root "${repo}" 2>&1
+        )"
+        disclosure_status=$?
+        set -e
+
+        if (( disclosure_status != 0 )); then
+            hits="$(grep -c '^error:' <<< "${disclosure_output}" || true)"
+            warn "${rel}: ${hits} tracked file(s) name a private repository"
+            while IFS= read -r line; do
+                [[ "${line}" == error:* ]] && warn "  ${line#error: }"
+            done <<< "${disclosure_output}"
+            DISCLOSURE_COUNT=$(( DISCLOSURE_COUNT + hits ))
+        fi
+    done
+    if (( DISCLOSURE_COUNT == 0 )); then
+        log "no private repository names in public repositories"
+    fi
+else
+    warn "disclosure sweep SKIPPED: visibility registry not found at ${PRIVATE_REGISTRY}"
+    warn "  this run proves nothing about private-name disclosure in public repos"
+fi
+
+log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
 log "total gaps     : ${GAP_COUNT}"
+log "disclosures    : ${DISCLOSURE_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
 ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 
-if (( GAP_COUNT > 0 )); then
-    log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes in traction-control"
+if (( DISCLOSURE_COUNT > 0 )); then
+    log "ACTION REQUIRED: ${DISCLOSURE_COUNT} tracked file(s) in public repositories name a private repository"
+fi
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 )); then
+    log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
 exit 0
