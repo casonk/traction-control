@@ -4,8 +4,10 @@
 # Scans every git repository under PORTFOLIO_ROOT and reports:
 #   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, BACKLOG.md, etc.)
 #   - missing CHATHISTORY.md entry in .gitignore
-#   - missing AGENTS.md sudo-boundary guidance
 #   - missing .pre-commit-config.yaml in non-doc code repos
+#   - AGENTS.md files that exist but miss the shared agent conventions
+#     (sudo boundary, portfolio standards backlink, session-memory boundary,
+#     local CI verification) — see check_agents_md.py
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
@@ -75,7 +77,6 @@ log ""
 
 # ── audit ─────────────────────────────────────────────────────────────────────
 GAP_COUNT=0
-AGENTS_SUDO_MARKER='Agents will never be able to run `sudo` commands'
 
 repo_index=0
 while (( repo_index < ${#REPO_DIRS[@]} )); do
@@ -88,9 +89,37 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
         [[ ! -f "${repo}/${f}" ]] && missing+=("$f")
     done
 
-    # AGENTS.md must include the standard sudo handoff boundary.
-    if [[ -f "${repo}/AGENTS.md" ]] && ! grep -qF "${AGENTS_SUDO_MARKER}" "${repo}/AGENTS.md"; then
-        missing+=("AGENTS.md missing sudo boundary")
+    # AGENTS.md shared-convention checks (sudo boundary, portfolio standards
+    # backlink, session-memory boundary, local CI verification). Concept-based,
+    # not template-exact: the previous exact-string marker flagged three repos
+    # that each carried a correct but differently-worded Sudo Boundary section.
+    if [[ -f "${repo}/AGENTS.md" ]]; then
+        agents_status=0
+        set +e
+        agents_output="$(
+            python3 "${SCRIPT_DIR}/check_agents_md.py" \
+                --repo "${repo}" \
+                --repo-rel "${rel}" 2>&1
+        )"
+        agents_status=$?
+        set -e
+
+        case "${agents_status}" in
+            0)
+                ;;
+            1)
+                while IFS= read -r line; do
+                    [[ -n "${line}" ]] && missing+=("AGENTS.md conventions: ${line}")
+                done <<< "${agents_output}"
+                ;;
+            *)
+                warn "${rel}: AGENTS.md checker error"
+                while IFS= read -r line; do
+                    [[ -n "${line}" ]] && warn "  checker: ${line}"
+                done <<< "${agents_output}"
+                exit 2
+                ;;
+        esac
     fi
 
     # CHATHISTORY.md must be gitignored
