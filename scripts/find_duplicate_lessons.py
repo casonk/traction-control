@@ -63,9 +63,9 @@ def collect(portfolio_root: Path, exclude: str) -> dict[str, set[str]]:
         repo = lessons.parent.name
         if repo == exclude:
             continue
-        # Only real repositories. Rendered tier overlays (for example
-        # private-repository's preview bundles) copy a repo's lessons verbatim and
-        # would otherwise register as duplicates of their own source.
+        # Only real repositories. Rendered tier-overlay preview bundles copy a
+        # repo's lessons verbatim and would otherwise register as duplicates of
+        # their own source.
         if not (lessons.parent / ".git").exists():
             continue
         try:
