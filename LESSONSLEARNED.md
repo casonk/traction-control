@@ -31,6 +31,14 @@
   the private name inside it. `portfolio-git-workspace-path` is
   `/mnt/[…]/git/` — dropping the repo name but keeping `/mnt/…/git/` still
   fails; changing `/git/` to `/data/` clears it.
+- Renaming a directory referenced by a `.gitleaks.toml` allowlist path breaks
+  suppression of the *historical* location. When `license/` became
+  `license-server/`, the allowlist path `license-server/keys\.example\.json$`
+  no longer matched the pre-rename commits, so the synthetic sample key was
+  flagged by the full-history scan. Allowlist by filename, not directory —
+  `(^|/)keys\.example\.json$` matches the old and new paths both. Same root
+  cause as the machine-path point: a full-history scan sees every past
+  location, so allowlists must cover the old one too.
 
 ### 2026-08-24 — A gate that resolves gitignored state relative to the repo root fails open inside a worktree
 
