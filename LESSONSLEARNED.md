@@ -12,6 +12,26 @@
 
 ## Lessons
 
+### 2026-08-28 — A full-history secret scan fails on intermediate branch commits, not just HEAD
+
+- Scrubbing a flagged string from the working tree is not enough when CI runs
+  `gitleaks ... --log-opts=--all`. The scan walks every commit on the branch,
+  so an intermediate commit that still contains the offending content fails the
+  run even though HEAD is clean and the finding no longer exists there.
+- This bit a two-commit scrub: commit 1 removed a private repo name but left
+  `/mnt/4tb-m2/git/…`, which trips `portfolio-git-workspace-path`; commit 2
+  fixed the path. HEAD was clean, but `--all` still found the bad path in
+  commit 1, and the baseline only suppresses the *original main* commit's
+  fingerprint, never a new branch commit's.
+- Fix: squash the branch to a single commit so no intermediate state carries
+  the flagged content. `git reset --soft <merge-base>` then one commit, and
+  `push --force-with-lease` (safe on your own unmerged branch; force-pushing a
+  branch with an open PR updates the PR, it does not close it).
+- When you scrub a machine path, remove the pattern the rule matches, not just
+  the private name inside it. `portfolio-git-workspace-path` is
+  `/mnt/[…]/git/` — dropping the repo name but keeping `/mnt/…/git/` still
+  fails; changing `/git/` to `/data/` clears it.
+
 ### 2026-08-24 — A gate that resolves gitignored state relative to the repo root fails open inside a worktree
 
 - `check_portfolio_privacy.sh` resolved the visibility registry as
