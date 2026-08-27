@@ -41,20 +41,31 @@ TIER1_FILES=(
     BACKLOG.md
     .editorconfig
     SECURITY.md
-    CODE_OF_CONDUCT.md
     CHANGELOG.md
-    CONTRIBUTING.md
     docs/contributor-architecture-blueprint.md
     docs/diagrams/repo-architecture.puml
     docs/diagrams/repo-architecture.drawio
 )
 
 # GitHub serves these from the account-level `.github` repository to any repo
-# that lacks its own, private repos included (verified against a private repo
+# that lacks its own, private repos included (verified against private repos
 # carrying neither file). A repo without a local copy is therefore already
 # covered, so requiring one here would report gaps that are closed — the same
 # cry-wolf failure the concept-based AGENTS.md rewrite was meant to end.
+#
+# CODE_OF_CONDUCT.md and CONTRIBUTING.md belong here for the same reason and
+# were missed when this list was introduced, producing eight false positives
+# across the four repos that carry neither. Seeding local copies instead would
+# duplicate centrally-managed files and let them drift; inheritance satisfies
+# the baseline rather than exempting a repo from it.
+#
+# SECURITY.md is deliberately NOT here. The account default would satisfy
+# GitHub, but the repos that lack one are credential- and network-adjacent and
+# need boundaries a generic policy cannot state, and check_security_md.py reads
+# the local file.
 INHERITABLE_FILES=(
+    CODE_OF_CONDUCT.md
+    CONTRIBUTING.md
     .github/PULL_REQUEST_TEMPLATE.md
     .github/ISSUE_TEMPLATE/bug_report.md
     .github/ISSUE_TEMPLATE/feature_request.md
