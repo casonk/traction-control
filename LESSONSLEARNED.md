@@ -12,6 +12,42 @@
 
 ## Lessons
 
+### 2026-08-28 — "Is this branch merged?" needs PR status + `git merge-tree`, never `git cherry` or a file diff
+
+- Two obvious tests both give false "unmerged" verdicts and inflate the
+  apparent backlog of branches needing PRs:
+  - `git cherry origin/main <branch>` marks every commit of a **squash-merged**
+    branch as unmerged, because the squash rewrites patch-ids. A one-commit
+    branch survives (its patch-id is preserved), but any multi-commit
+    squash-merged branch reads as fully unmerged.
+  - Comparing `<branch>:file` against `origin/main:file` marks a
+    **merged-then-superseded** branch as unmerged, because `main` advanced the
+    file *after* the merge. The files differ, but that is main being newer, not
+    the branch having pending work.
+- In this sweep those two errors turned ~0 real PR candidates into an apparent
+  "24 unmerged branches." Every one, on inspection, was already merged, closed
+  on purpose, already had a PR, superseded, or throwaway scratch.
+- The reliable classification uses two signals:
+  1. **PR status is authoritative** where it exists. A merged PR means merged;
+     an open PR means already tracked; a *closed-unmerged* PR means someone
+     decided not to land it — reopening is a decision, not a cleanup.
+  2. **`git merge-tree --write-tree origin/main <branch>`** (git >= 2.38) does a
+     real three-way merge with no working tree. Exit 0 with the merged tree
+     equal to `origin/main^{tree}` means merging changes nothing — the content
+     is already in main (squash leftover or behind-main), i.e. redundant. A
+     non-zero exit means the merge conflicts — the branch has diverged from
+     main, typically superseded work, and is not a clean PR. Only a clean,
+     non-empty merge tree with no existing PR is a branch that genuinely
+     warrants a new PR.
+- `git merge-tree` is safe to run against a repo another session is using: it
+  writes objects to the object database but never touches refs or the working
+  tree.
+- Tooling: `scripts/branch_inventory.py` implements this and reports clean
+  counts (`needs-pr`, `diverged`, `redundant`, `open-pr`, `closed-pr`,
+  `merged`). Trust its `needs-pr` count, not a raw ahead-of-main tally. Only
+  `needs-pr` should ever be auto-PR'd; `redundant` is safe to delete;
+  `diverged` and `closed-pr` need a human.
+
 ### 2026-08-28 — A full-history secret scan fails on intermediate branch commits, not just HEAD
 
 - Scrubbing a flagged string from the working tree is not enough when CI runs
