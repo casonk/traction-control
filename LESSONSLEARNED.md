@@ -1350,3 +1350,13 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   Record a disabled capability and its reason in immutable evidence; disabled
   means “not audited or rendered,” never proof that the omitted host surface is
   safe.
+
+### 2026-08-29 — Regenerate accepted-secret baselines after a history rewrite
+
+- Gitleaks fingerprints bind findings to commit IDs, so any filter-repo rewrite
+  invalidates the matching baseline even when a finding's content is unchanged.
+  Regenerate the baseline from the rewritten full history, then validate a second
+  full-history scan with that new baseline before publishing it.
+- A baseline file may be scanned by a custom rule itself. Preserve and validate
+  those resulting accepted fingerprints rather than hand-editing the baseline or
+  disabling the rule; the post-regeneration scan is the stability check.
