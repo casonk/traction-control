@@ -12,6 +12,17 @@
 
 ## Lessons
 
+### 2026-08-29 — Portfolio rollups must preserve the canonical-backlog boundary
+
+- Treat each repository's tracked `BACKLOG.md` as the source of work-item text.
+  A portfolio view should derive only stable opaque identifiers and safe
+  metadata from it; copying raw titles creates a second source of truth and can
+  disclose private topology, repository names, or credentials.
+- Resolve repository paths and visibility only through the ignored catalog and
+  paired registry. A local rollup may display a public slug for a reviewed
+  public entry, but private entries must remain immutable IDs. Put any
+  operator-reviewed readable summaries in an ignored owner-only map.
+
 ### 2026-08-28 — "Is this branch merged?" needs PR status + `git merge-tree`, never `git cherry` or a file diff
 
 - Two obvious tests both give false "unmerged" verdicts and inflate the

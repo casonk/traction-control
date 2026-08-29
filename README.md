@@ -106,6 +106,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
+- `scripts/render_portfolio_backlog.py`: render an ignored local, privacy-safe portfolio rollup from canonical repository backlogs
 - `scripts/portfolio_sidecar.py`: standalone, fail-closed local-config bootstrap, metadata-only candidate inventory, portable-manifest backup, and exact restore-drill coordinator for explicitly selected ignored data
 - `scripts/render_portfolio_sidecar_quadlets.py`: owner-only generation-zero bootstrap and render-only, one-node-at-a-time Linux Quadlet builder for mesh SFTP targets
 - `scripts/render_air_primary.py`: render-only Air coordinator that stages private inputs, independently gates native Snowbridge SMB, and invokes the unchanged enabled sibling macOS renderers
@@ -148,6 +149,27 @@ bash tests/test_create_private_github_repo.sh
 7. Before the final response, run the lesson-capture gate in
    `docs/lesson-capture-framework.md` and report either the lesson file updated
    or why no durable lesson was added.
+
+## Portfolio Backlog Index
+
+Each repository's tracked `BACKLOG.md` is the canonical work-item source.
+Traction Control can render a local portfolio index without duplicating that
+wording or disclosing private repository information:
+
+```bash
+python3 scripts/render_portfolio_backlog.py \
+  --private-registry config/repository-visibility/private.local.json \
+  --public-registry config/repository-visibility/public.local.json \
+  --catalog config/portfolio/portfolio.local.json \
+  --output reports/portfolio-backlog.md \
+  --title-map config/portfolio/backlog-index.local.json
+```
+
+The report and optional title map are ignored and owner-only. It uses public
+repository slugs only for registry-public entries and opaque repository IDs for
+private entries. It never copies canonical item text; an operator can add a
+reviewed, safe title keyed by the report's opaque item ID using
+`config/portfolio/backlog-index.example.json`.
 
 ## Shared Utility Repos
 

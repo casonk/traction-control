@@ -33,3 +33,8 @@ config/air-primary.local.toml
 
 # Agent-local state: machine-specific settings and scratch worktrees.
 .claude/
+
+# Local portfolio backlog rollup and its optional reviewed-title map.  The
+# canonical work items remain in each repository's tracked BACKLOG.md.
+/config/portfolio/backlog-index.local.json
+/reports/portfolio-backlog.md
