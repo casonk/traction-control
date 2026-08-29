@@ -12,6 +12,16 @@
 
 ## Lessons
 
+### 2026-08-29 — Completion must reconcile every canonical backlog it satisfies
+
+- A cross-repository implementation can complete an item owned by a different
+  repository's canonical `BACKLOG.md`. Before reporting the work complete,
+  update that originating backlog and its local handoff; otherwise a portfolio
+  rollup reintroduces already-landed work as a new priority.
+- Re-render the local portfolio index after merged work and registry changes.
+  Its fail-closed generation check exposes stale owner-local catalog state
+  before a misleading aggregate view is used for triage.
+
 ### 2026-08-29 — Portfolio rollups must preserve the canonical-backlog boundary
 
 - Treat each repository's tracked `BACKLOG.md` as the source of work-item text.
