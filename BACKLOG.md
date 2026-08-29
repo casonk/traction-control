@@ -10,16 +10,6 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
-- [ ] [manual:2026-08-23] **Audit git history for the private repository names
-  disclosed on 2026-08-23** — The convention-audit commit added private repo
-  names to four tracked files in this public repository. The working tree is
-  scrubbed and the gate that should have caught it is fixed, but the names
-  remain reachable in this repository's public history. Decide whether that
-  warrants a history rewrite. Note the constraints already recorded below:
-  rewriting invalidates every gitleaks baseline fingerprint, and force-pushing
-  a branch with an open PR closes it irreversibly. Detail is in the ignored
-  local report, not here.
-
 - [ ] [manual:2026-07-19] **Add a disposable live-systemd activation test** —
   Extend the container/VM harness with a dedicated non-root user manager,
   writable test-only user unit directory, and runtime-masked managed services.
@@ -59,10 +49,6 @@ Mark items `[x]` when complete and move them to Done.
 - [ ] [manual:2026-06-17] **Publish workflow migration** — Migrate `python-publish.yml` inline
   workflows to `casonk/.github/.github/workflows/python-publish.yml@main` for repos that have them:
   crew-chief, archility, auto-pass, clockwork, dyno-lab, nordility, tachometer, sonetsim.
-
-- [ ] [manual:2026-06-17] **Secret-scan workflow migration** — Migrate `secret-scan.yml` inline
-  workflows to `casonk/.github/.github/workflows/secret-scan.yml@main` across the portfolio
-  after confirming each repo has `.gitleaks.toml` and `.gitleaks-baseline.json` in place.
 
 - [ ] [manual:2026-06-21] **Repair SSH/Git host config permissions** — Investigate and fix
   the host-level SSH configuration issue causing Git pushes to fail with
@@ -136,6 +122,16 @@ Mark items `[x]` when complete and move them to Done.
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-08-29] **Audit public history for private-name disclosures.**
+  Rewrote and verified every affected public branch and tag, then regenerated
+  the affected Gitleaks baselines. GitHub pull-request refs remain a hosted
+  retention limitation outside ordinary branch/tag rewriting.
+
+- [x] [manual:2026-08-29] **Secret-scan workflow migration.** All locally
+  present repositories with Gitleaks configuration now use the shared
+  full-history Secret Scan caller; the reusable-workflow host and templates are
+  intentionally excluded from that caller check.
 
 - [x] [manual:2026-08-29] **Place the previously root-level harness under
   `util-repos/` and maintain its portfolio registration** — Moved the active

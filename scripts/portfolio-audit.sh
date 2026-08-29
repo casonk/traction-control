@@ -257,7 +257,10 @@ LOCAL_PRIVATE_REGISTRY="${TRACTION_CONTROL_LOCAL_PRIVATE_REPOS_CONFIG:-${VIS_DIR
 
 if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
     log "=== private-name disclosure sweep (public repos only) ==="
-    for repo in "${REPO_DIRS[@]}"; do
+    # Under Bash 3 with nounset, expanding an empty array directly in a for
+    # list raises an unbound-variable error. The conditional expansion keeps an
+    # empty portfolio a valid no-op audit rather than a failed run.
+    for repo in "${REPO_DIRS[@]+"${REPO_DIRS[@]}"}"; do
         rel="${repo#${PORTFOLIO_ROOT}/}"
         slug_url="$(git -C "${repo}" remote get-url origin 2>/dev/null || true)"
         [[ -n "${slug_url}" ]] || continue
