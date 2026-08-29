@@ -10,17 +10,6 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
-- [ ] [manual:2026-08-24] **Clear the 42 pre-existing private-name disclosures
-  in public repositories** — The new disclosure sweep in `portfolio-audit.sh`
-  found private repository names in tracked files across 10 public
-  repositories, including whole tracked directories named after private repos
-  under `examples/`. These predate the 2026-08-23 incident and were never
-  detected because the audit only ever ran against this repository. Renaming a
-  tracked example directory is a breaking change for anything referencing it,
-  so sequence it per repo rather than sweeping. Per-repo detail is in the
-  ignored local report. Note that scrubbing the working tree leaves the names
-  in each repository's public history, same as below.
-
 - [ ] [manual:2026-08-23] **Audit git history for the private repository names
   disclosed on 2026-08-23** — The convention-audit commit added private repo
   names to four tracked files in this public repository. The working tree is
@@ -31,32 +20,11 @@ Mark items `[x]` when complete and move them to Done.
   a branch with an open PR closes it irreversibly. Detail is in the ignored
   local report, not here.
 
-- [ ] [manual:2026-08-23] **Decide whether a repository outside
-  `util-repos/`/`sec-repos/` is in or out of the baseline** — One portfolio
-  repository is checked out directly under the portfolio root, so every sweep
-  that enumerates those two directories misses it; it carries 18 Tier-1 gaps
-  and is absent from the visibility registry and portfolio catalog. Either seed
-  the baseline and register it, or record an explicit exemption. The current
-  state is neither. Identify it from the ignored registry, not from here.
-
-- [ ] [manual:2026-08-23] **Decide whether `.gitleaks.toml` without
-  `secret-scan.yml` is acceptable** — Two repositories each ship a gitleaks
-  config and baseline that nothing ever runs, so they read as scanned while
-  nothing scans them. Either add the `secret-scan.yml` workflow (template in
-  `docs/templates/secret-scan.yml`) or remove the dead config, and add a
-  portfolio-audit check for the mismatch so it cannot recur silently.
-
 - [ ] [manual:2026-07-19] **Add a disposable live-systemd activation test** —
   Extend the container/VM harness with a dedicated non-root user manager,
   writable test-only user unit directory, and runtime-masked managed services.
   Verify exact enabled/active timer sets and heavy-to-light plus normal-to-
   autonomous reconciliation without allowing any workload to execute.
-
-- [ ] [manual:2026-07-19] **Add a first-class launchd backend to Clockwork** —
-  Extend Clockwork's manifest schema and renderer to produce validated macOS
-  LaunchAgents, including calendar/interval schedules, environment values,
-  log paths, and activation lifecycle. Then replace traction-control's direct
-  plist renderer while retaining its tier manifests and delay/jitter adapter.
 
 ### Reusable Workflow Migration
 
@@ -168,6 +136,30 @@ Mark items `[x]` when complete and move them to Done.
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-08-29] **Place the previously root-level harness under
+  `util-repos/` and maintain its portfolio registration** — Moved the active
+  checkout under the standard utility-repository group, updated its VM staging
+  path, and reconciled the ignored portfolio catalog. The registry-backed
+  catalog validates and the portfolio audit discovers it at its new path.
+
+- [x] [manual:2026-08-29] **Verify active secret scanning wherever gitleaks is
+  configured** — Every present repository-level `.gitleaks.toml` now has the
+  shared `secret-scan.yml` caller. No duplicate workflow additions are needed.
+
+- [x] [manual:2026-08-29] **Add a first-class launchd backend to Clockwork** —
+  Clockwork already provides deterministic validated user LaunchAgent rendering,
+  installation guidance, strict unsupported-field rejection, and launchctl web
+  controls. Traction Control delegates its explicit-label tier manifests to
+  that backend while preserving its reviewed adapter for delay, jitter, and
+  readiness behavior.
+
+- [x] [manual:2026-08-29] **Clear the pre-existing private-name disclosures in
+  public repository source** — Re-ran the registry-backed public-source audit
+  after the prior remediation work; it reports zero tracked private-name
+  disclosures across every registered public checkout. This closes current
+  source exposure only. The separate public-history rewrite decision remains
+  pending because old commits are still reachable.
 
 - [x] [manual:2026-08-29] **Add a privacy-safe portfolio backlog index** — Added an ignored, owner-only renderer that combines the existing visibility registry and portfolio catalog with canonical repository backlogs. It emits opaque item IDs, state, priority, and generic blocker classes, never canonical wording; optional reviewed safe titles remain local.
 
