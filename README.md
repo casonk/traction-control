@@ -161,8 +161,7 @@ python3 scripts/render_portfolio_backlog.py \
   --private-registry config/repository-visibility/private.local.json \
   --public-registry config/repository-visibility/public.local.json \
   --catalog config/portfolio/portfolio.local.json \
-  --output reports/portfolio-backlog.md \
-  --title-map config/portfolio/backlog-index.local.json
+  --output reports/portfolio-backlog.md
 ```
 
 The report and optional title map are ignored and owner-only. It uses public
