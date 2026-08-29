@@ -169,6 +169,8 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Done
 
+- [x] [manual:2026-08-29] **Add a privacy-safe portfolio backlog index** — Added an ignored, owner-only renderer that combines the existing visibility registry and portfolio catalog with canonical repository backlogs. It emits opaque item IDs, state, priority, and generic blocker classes, never canonical wording; optional reviewed safe titles remain local.
+
 - [x] [manual:2026-06-26] **KeePass-via-snowbridge macOS integration** — Mount the
   snowbridge SMB share on the Mac and access server KeePass vaults through it.
   Added `config/keepass-snowbridge.example.env` (host/path config, no passwords),
