@@ -1360,3 +1360,10 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - A baseline file may be scanned by a custom rule itself. Preserve and validate
   those resulting accepted fingerprints rather than hand-editing the baseline or
   disabling the rule; the post-regeneration scan is the stability check.
+
+### 2026-08-29 — Empty Bash-3 arrays need guarded iteration under nounset
+
+- Bash 3 treats direct expansion of an empty array in a `for` list as unset
+  when `set -u` is active, even though its length can be read safely. Use a
+  conditional array expansion or a length guard for no-op inventory paths, and
+  retain an empty-inventory regression test for every scheduled audit wrapper.
