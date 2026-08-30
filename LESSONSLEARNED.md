@@ -12,6 +12,18 @@
 
 ## Lessons
 
+### 2026-08-30 — Runtime masks must outrank rendered user units in live activation tests
+
+- `systemctl --user mask --runtime` places a mask below a unit subsequently
+  rendered into `~/.config/systemd/user`, so it does not reliably block the
+  test workload. For a disposable user-manager test, place the `/dev/null`
+  mask in `${XDG_RUNTIME_DIR}/systemd/user.control/` after activation, then
+  reload the manager and assert the service remains runtime-masked.
+- A masked service prevents its timer from being started. Use timers with a
+  safely delayed first firing, activate and verify the exact timer set, then
+  apply the higher-precedence runtime-control masks before any further test
+  action or assertion.
+
 ### 2026-08-29 — Completion must reconcile every canonical backlog it satisfies
 
 - A cross-repository implementation can complete an item owned by a different
