@@ -437,6 +437,13 @@ bash scripts/install_podman_runtime.sh
 bash tests/test_install_traction_control_agents_containers.sh
 ```
 
+For the opt-in full-system activation proof (uses the disposable Ubuntu
+Vagrant VM rather than the host user manager):
+
+```bash
+bash tests/test_install_traction_control_agents_vagrant.sh
+```
+
 On macOS, the automated bootstrap uses Homebrew, creates a named rootless
 Podman machine only when it is missing, and leaves the default Podman
 connection unchanged. If you prefer Podman's upstream signed installer,
