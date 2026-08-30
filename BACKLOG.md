@@ -10,12 +10,6 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
-- [ ] [manual:2026-07-19] **Add a disposable live-systemd activation test** —
-  Extend the container/VM harness with a dedicated non-root user manager,
-  writable test-only user unit directory, and runtime-masked managed services.
-  Verify exact enabled/active timer sets and heavy-to-light plus normal-to-
-  autonomous reconciliation without allowing any workload to execute.
-
 ### Reusable Workflow Migration
 
 - [x] [manual:2026-06-17] **Tier 1** — Migrate the reviewed public repositories
@@ -122,6 +116,13 @@ Mark items `[x]` when complete and move them to Done.
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-08-30] **Add a disposable live-systemd activation test.**
+  The opt-in Ubuntu Vagrant harness runs the real installer under its
+  unprivileged user manager, uses an isolated fixture profile, verifies exact
+  timer enabled/active sets across normal-to-autonomous and heavy-to-light
+  reconciliation, and applies runtime-control masks before assertion so no
+  synthetic workload can run.
 
 - [x] [manual:2026-08-29] **Audit public history for private-name disclosures.**
   Rewrote and verified every affected public branch and tag, then regenerated
