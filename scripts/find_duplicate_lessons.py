@@ -20,9 +20,13 @@ from collections import defaultdict
 from pathlib import Path
 
 
-# Bullets every repo inherits from docs/templates/LESSONSLEARNED.md. These are
-# duplicated on purpose and are not up-integration candidates.
+# Bullets every repo inherits from docs/templates/LESSONSLEARNED.md, plus the
+# backlink pointer a repo leaves behind after a lesson is up-integrated into the
+# control plane. Both are duplicated across repos on purpose — the backlink is
+# the intended end state of promotion, not a new up-integration candidate — so
+# they are excluded rather than reported every run.
 TEMPLATE_BULLET_PREFIXES = (
+    "portfolio-general",
     "read this file",
     "read after",
     "add lessons that generalize",
