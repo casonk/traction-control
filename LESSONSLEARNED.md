@@ -12,6 +12,57 @@
 
 ## Lessons
 
+### 2026-09-02 — WireGuard/VPN installer and example conventions (portfolio-general)
+
+Up-integrated from `short-circuit` and `snowbridge`, which maintained these
+rules in parallel. Repo-specific phrasing (iPhone/SMB detail in snowbridge, the
+generic client in short-circuit) stays in those repos; the general rule lives
+here so agents read it once.
+
+- WireGuard peer templates should generate missing key pairs coherently. The
+  server private key pairs with the client public key, and the client private
+  key with the server public key. When both placeholders for a pair are still
+  present, the setup script should generate and write a coherent pair
+  automatically instead of failing on a key it is already positioned to create.
+- Treat checked-in sample values as incomplete config. Generic placeholder
+  detection is not enough when an example uses a realistic sample such as
+  `vpn.example.com:51820`. A syntactically valid but unusable config should fail
+  with a targeted message rather than quietly proceeding or exporting a
+  misleading client artifact. Where a safe mechanical fallback exists —
+  substituting the current public IP for a still-sample endpoint — the script
+  may apply it automatically but should still warn that a stable endpoint is the
+  better final state.
+- VPN profile names should describe routing scope, not just transport. A single
+  generic WireGuard example blurs two materially different setups: host-only
+  access and wider home-LAN routing. Prefer explicit profiles (host-only vs
+  wider-LAN) so the intended `AllowedIPs`, forwarding requirements, and firewall
+  expectations are visible at the template and installer level.
+- Multiple local profiles need distinct local filenames. If two profiles share
+  the same ignored local config paths, initializing the second silently
+  overwrites the first profile's local state. Default local filenames should be
+  profile-specific so users can keep both variants ready at once.
+- If a VPN profile advertises DNS, the installer must actually provide a
+  resolver on that tunnel address — advertising a DNS IP in the client profile
+  is not enough on its own. Prefer a small split-DNS helper over teaching
+  clients to browse the raw tunnel IP, and make that helper ignore any
+  desktop-only `/etc/hosts` override for the same private name, or it will hand
+  VPN clients a bogus `127.0.0.1` answer alongside the real tunnel IP.
+- A VPN interface needs an explicit firewalld zone assignment. On firewalld-based
+  systems the interface itself must be placed in a zone; otherwise some services
+  silently fail because the default zone does not allow them (SMB may work while
+  HTTPS and DNS do not). An installer that manages firewalld at all should manage
+  both pieces: public ingress on the configured `ListenPort` and the
+  interface-to-zone mapping for post-handshake traffic.
+
+### 2026-09-02 — Caddy caches TLS certs in memory; reload does not re-read them (portfolio-general)
+
+Up-integrated from `clockwork` and `wiring-harness`.
+
+- Caddy reads TLS certificate files into memory on startup. `systemctl reload`
+  (or `reload-or-restart`) sends SIGHUP, which does a graceful *config* reload
+  but does NOT re-read cert files from disk. After rotating or replacing certs,
+  always `systemctl restart caddy`.
+
 ### 2026-08-30 — Runtime masks must outrank rendered user units in live activation tests
 
 - `systemctl --user mask --runtime` places a mask below a unit subsequently
