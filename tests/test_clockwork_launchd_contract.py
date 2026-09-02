@@ -6,6 +6,7 @@ import json
 import os
 import plistlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -163,6 +164,25 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
                 "PYTHONDONTWRITEBYTECODE": "1",
             }
         )
+        if shutil.which("plutil", path=environment.get("PATH")) is None:
+            fake_bin = root / "fake-bin"
+            fake_bin.mkdir(exist_ok=True)
+            fake_plutil = fake_bin / "plutil"
+            fake_plutil.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "if [[ \"${1:-}\" == \"-lint\" ]]; then\n"
+                "  shift\n"
+                "  for path in \"$@\"; do\n"
+                "    [[ -f \"$path\" ]] || exit 1\n"
+                "  done\n"
+                "  exit 0\n"
+                "fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            fake_plutil.chmod(0o755)
+            environment["PATH"] = f"{fake_bin}{os.pathsep}{environment['PATH']}"
         result = subprocess.run(
             command,
             cwd=REPO_ROOT,
