@@ -67,6 +67,10 @@ All notable changes to `traction-control` are documented here.
 - Added fail-closed profile reconciliation with recoverable scheduler-artifact
   archives, live-directory guards, exact Git checkout validation, and a
   secure Clockwork-owned private environment-file loader on macOS.
+- Added a reversible firewalld hardening workflow that removes blanket
+  high-port allowances while preserving explicit WireGuard ingress.
+- Added a reversible firewalld service-zone workflow that replaces unrestricted
+  trusted-zone VPN access with an explicit private-service allowlist.
 - Initialized `traction-control` as the portfolio control-plane repository.
 - Migrated the portfolio-wide `AGENTS.md` and `CHATHISTORY.md` from the former workspace root into this repo.
 - Rolled out the portfolio baseline files across the other repositories, including governance docs, architecture blueprints, and repo-appropriate CI where needed.

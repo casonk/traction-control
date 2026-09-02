@@ -19,4 +19,5 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
 - Keep local-only, private, reference-only, or generated boundaries explicit so published or runtime behavior is not confused with offline material or non-committable inputs.
 - Keep tracked examples, fixtures, and `.example` templates scrubbed of real paths, usernames, hostnames, account identifiers, or other instance-specific values; real operator data belongs only in gitignored local config.
 - If the repo exposes a dashboard or admin surface, keep loopback-safe defaults in the app itself and treat wider network exposure as an explicit trust-boundary decision rather than a documentation assumption.
+- For Python repos with optional dependency groups, make CI install the dev/test extra such as `pip install -e ".[dev]"` instead of a bare editable install, so optional-backend tests do not pass locally but fail in clean CI with missing modules.
 - Re-run repo-appropriate validation after changing generated artifacts, diagrams, workflows, or other CI-facing files so formatting and compatibility issues are caught before push.
