@@ -21,6 +21,10 @@ tokens, private keys, personal data, or other private environment details.
   pull-request snippets as public documentation. Use synthetic placeholders and
   redacted examples instead of real usernames, hostnames, account identifiers,
   secrets, or private operational data.
+- Treat generated exports, reports, datasets, browser/debug artifacts, and
+  snapshot bundles as potentially sensitive until reviewed. Keep them
+  gitignored unless the publication plan is explicit and the contents are safe
+  to disclose.
 - Prefer `localhost` or loopback-only defaults for local dashboards and admin
   utilities unless a wider network bind is explicitly required by the design.
 - If the repo exposes a dashboard or admin surface with state-changing actions,
