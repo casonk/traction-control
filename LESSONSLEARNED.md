@@ -12,6 +12,28 @@
 
 ## Lessons
 
+### 2026-09-02 — Remote-access firewall hardening needs an out-of-band recovery path
+
+- Treat firewall, WireGuard, router, SSH, and reverse-proxy hardening as
+  remote-access critical. Do not apply or publish automation that can change the
+  only management path without a confirmed in-person, console, or alternate VPN
+  recovery route.
+- Before narrowing firewall zones or port ranges, capture the current live
+  reachability matrix: SSH, WireGuard handshake, VPN DNS, HTTPS/Caddy, SMB, and
+  any active WebTerm path. Re-check the same matrix after each discrete change
+  instead of applying a whole hardening bundle at once.
+- Rollback must be tested before the risky apply path is considered complete.
+  A rollback script that depends on current interface or zone detection can
+  fail after the very drift it is meant to recover from; load saved state first,
+  then inspect live state.
+
+### 2026-09-02 — Launchd renderer tests need a Linux `plutil` fallback
+
+- Tests that render macOS launchd plists on Linux should provide a narrow
+  `plutil -lint` test double when the real tool is unavailable.
+- Keep the fallback inside the test harness and limit it to file-existence
+  linting; do not make production renderers silently skip plist validation.
+
 ### 2026-09-02 — WireGuard/VPN installer and example conventions (portfolio-general)
 
 Up-integrated from `short-circuit` and `snowbridge`, which maintained these
@@ -585,6 +607,60 @@ Up-integrated from `clockwork` and `wiring-harness`.
   Assigning a filesystem path to a loop variable named `path` can replace
   command lookup and make subsequent commands fail with `command not found`.
 - Use names such as `target_path` in zsh verification and cleanup scripts.
+
+### 2026-06-25 — Ephemeral ports are not a DoS boundary
+
+- Moving a listening service to a randomized high port does not materially
+  reduce denial-of-service risk once the service is discoverable or its ingress
+  proxy remains on a stable port.
+- Classify exposure by bind address, interface, firewall zone, and reverse
+  proxy path before changing port numbers. Loopback-only backends behind Caddy
+  gain no security from port rotation.
+- Do not assume high ports are filtered. Audit active firewalld zones for broad
+  ranges such as `1025-65535/tcp` and `1025-65535/udp`; those ranges make
+  ephemeral listeners reachable on the associated interface.
+- Prefer loopback or Unix sockets for proxy backends, VPN-interface binds for
+  direct private services, narrow per-service firewall rules, and rate or
+  connection limits at the stable ingress.
+- When converting a broad firewalld range into explicit exceptions, do not use
+  `--query-port` to decide whether the explicit rule exists: firewalld can
+  report a port as allowed because a containing range covers it. Inspect
+  `--list-ports` for the exact token, add the explicit exception first, then
+  remove the broad range and reload.
+- A WireGuard interface assigned to firewalld's `trusted` zone bypasses
+  per-service allowlists because that zone uses `target=ACCEPT`. Move private
+  VPN ingress to a default-target zone with explicit services and ports, and
+  remove any duplicate VPN-subnet source assignment from `trusted` or the
+  source rule will preserve the bypass after the interface moves.
+- Keep the owning WireGuard installer aligned with the hardened zone. If a
+  shared installer still defaults to `trusted`, invoke its explicit
+  `--firewall-zone` override or update that default before future rebuilds;
+  otherwise a routine reinstall can silently restore unrestricted VPN ingress.
+- Before closing a broad port range, inventory listeners that relied on it
+  implicitly. Peer-to-peer ingress such as Transmission's TCP/UDP peer port
+  needs an explicit replacement rule even when its administrative RPC endpoint
+  remains loopback-only.
+
+### 2026-06-25 — External API clients need timeouts and bounded retries
+
+- Every outbound network request should set a finite timeout; exception handling
+  cannot recover from a request that never returns.
+- Retry loops should have a maximum attempt count or elapsed-time budget and
+  surface a clear failure after exhaustion instead of blocking unattended jobs
+  forever.
+- Add tests for persistent transport errors and repeated non-success responses,
+  not only successful responses or one transient failure.
+
+### 2026-06-22 — Template seed files should cover generated-output sensitivity and optional-dependency CI
+
+- Repeated repo-level security policies treat generated exports, datasets,
+  debug snapshots, and artifact bundles as sensitive until reviewed; new repo
+  `SECURITY.md` seeds should say this explicitly instead of only naming live
+  secrets.
+- Repeated Python repo lessons show that optional dependency groups need CI to
+  install the dev/test extra, such as `pip install -e ".[dev]"`, because bare
+  editable installs can pass locally but fail in clean CI when optional backends
+  are imported by tests.
 
 ### 2026-06-21 — Pre-commit all-files does not validate untracked generated artifacts
 

@@ -10,6 +10,8 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
+### Network Exposure Hardening
+
 ### Reusable Workflow Migration
 
 - [x] [manual:2026-06-17] **Tier 1** — Migrate the reviewed public repositories
@@ -168,6 +170,29 @@ Mark items `[x]` when complete and move them to Done.
   `scripts/mount_snowbridge.sh` (idempotent mount via Keychain credential lookup),
   and `scripts/unmount_snowbridge.sh`. Passwords never touch disk — Keychain only.
   `--host` override on mount allows one-off remote connections over WireGuard/Tailscale.
+
+- [x] [manual:2026-06-25] **P2 — Add scan resistance after exposure
+  hardening** — migrated public WireGuard from default UDP `51820` to fixed
+  non-default UDP `41194`, updated and exported client profiles/QR codes,
+  preserved the restricted P1 zone policy, and verified live remote access.
+  SSH remains on port 22 because it is not publicly forwarded. The non-default
+  WireGuard port is defense-in-depth against opportunistic scans, not DoS
+  prevention.
+
+- [x] [manual:2026-06-25] **P1 — Constrain direct private services by
+  interface/source policy** — moved `wg0` from unrestricted `trusted` into the
+  default-target `wireguard` zone; allowlisted SSH, SMB, DNS, HTTP/HTTPS,
+  Cockpit, RDP, HTTP/3, and forwarding; removed the duplicate trusted VPN
+  source; and restored explicit Transmission peer ingress on the LAN zone.
+  Reversible automation lives in
+  `scripts/harden_firewalld_service_zones.sh`.
+
+- [x] [manual:2026-06-25] **P0 — Narrow the active host firewall policy** —
+  removed `1025-65535/tcp` and `1025-65535/udp` from the active and permanent
+  `FedoraWorkstation` zone on `enp5s0`, preserved explicit WireGuard
+  `51820/udp`, and independently verified the resulting runtime policy.
+  Reversible apply/check/rollback automation lives in
+  `scripts/harden_firewalld_high_ports.sh`.
 
 - [x] [manual:2026-06-11] Add stale-age archive rotation to
   `util-repos/fedora-debugg` for ignored `artifacts/snapshot-*` directories.

@@ -132,6 +132,11 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/tachometer_disk_pressure_agentic.sh`: unattended tachometer disk-pressure remediation handoff for clean candidate repos
 - `scripts/install_tachometer_disk_pressure_agentic_systemd.sh`: `clockwork` installer for the disk-pressure remediation timer
 - `scripts/template_consolidation_agentic.sh`: unattended review pass that scans repo `SECURITY.md` and `LESSONSLEARNED.md` files for guidance worth promoting into the shared templates
+- `scripts/harden_firewalld_high_ports.sh`: reversible host-firewall hardening
+  that removes blanket high-port allowances while preserving explicit
+  WireGuard ingress
+- `scripts/harden_firewalld_service_zones.sh`: reversible service-boundary
+  hardening that replaces a trusted-zone VPN bypass with an explicit allowlist
 
 ## Control-Plane Flow
 
@@ -474,6 +479,64 @@ services runtime-masked. See `tests/containers/README.md` for engine and path
 overrides.
 
 ## Operational Scripts
+
+### Host firewall high-port hardening
+
+Audit the LAN/WAN-facing interface before applying any change:
+
+```bash
+bash scripts/harden_firewalld_high_ports.sh --check
+```
+
+Apply the P0 hardening:
+
+```bash
+sudo bash scripts/harden_firewalld_high_ports.sh --apply
+```
+
+The script snapshots the targeted permanent rules under
+`/var/lib/traction-control/`, preserves the configured WireGuard UDP port, and
+removes only `1025-65535/tcp` and `1025-65535/udp`. It does not remove declared
+services such as SSH or Samba. Roll back the targeted change with:
+
+```bash
+sudo bash scripts/harden_firewalld_high_ports.sh --rollback
+```
+
+Use `--interface`, `--zone`, and `--wireguard-port` when the host differs from
+the defaults. Port scan resistance is a later defense-in-depth step; do not
+reopen broad high-port ranges to support it.
+
+### Private-service zone hardening
+
+Audit the current LAN and WireGuard boundaries:
+
+```bash
+bash scripts/harden_firewalld_service_zones.sh --check
+```
+
+Apply P1:
+
+```bash
+sudo bash scripts/harden_firewalld_service_zones.sh --apply
+```
+
+The workflow moves `wg0` from the unrestricted `trusted` zone into the
+default-target `wireguard` zone and permits only SSH, SMB, DNS, HTTP/HTTPS,
+Cockpit, RDP, HTTP/3, and forwarding. It removes the WireGuard subnet from the
+legacy trusted-zone source list. On the LAN-facing zone it preserves existing
+SSH/Samba access and adds explicit Transmission peer `51413/tcp` and
+`51413/udp` rules; Transmission RPC remains loopback-only.
+
+`short-circuit` owns WireGuard install-time firewall defaults and now defaults
+new installs to the `wireguard` service zone. This workflow remains the
+host-level audit and rollback path for an already-running desktop.
+
+Rollback:
+
+```bash
+sudo bash scripts/harden_firewalld_service_zones.sh --rollback
+```
 
 All unattended agentic jobs in this repo follow the same runtime pattern:
 
