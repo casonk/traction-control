@@ -1,5 +1,152 @@
 @startuml classes_traction-control
 set namespaceSeparator none
+class "AirConfig" as render_air_primary.AirConfig {
+  air_address : str
+  caddy_binary : Path
+  certs_dir : Path
+  clockwork_environment_file : Path
+  clockwork_python : Path
+  clockwork_repo : Path
+  deployment_id : str
+  expected_account : str
+  generation : int
+  inventory_file : Path | None
+  mini_address : str
+  pro_address : str
+  runtime_python : Path
+  share_name : str
+  share_path : Path
+  snowbridge_native_smb_enabled : bool
+  snowbridge_repo : Path
+  snowbridge_web_enabled : bool
+  source : Path
+  wireguard_interface : str
+  wiring_repo : Path
+}
+class "AirPrimaryCoordinator" as render_air_primary.AirPrimaryCoordinator {
+  config
+  generation_dir : Path
+  repo_root
+  snowbridge_output : Path
+  render() -> dict[str, Any]
+  validate() -> dict[str, Any]
+}
+class "<color:red>AuditFailure</color>" as repository_visibility.AuditFailure {
+  failures : tuple
+}
+class "AuthoritativeTarget" as render_portfolio_sidecar_quadlets.AuthoritativeTarget {
+  failure_domain : str
+  mesh_address : str
+  sftp_port : int
+  target_id : str
+}
+class "<color:red>BacklogIndexError</color>" as render_portfolio_backlog.BacklogIndexError {
+}
+class "BacklogItem" as render_portfolio_backlog.BacklogItem {
+  blocker : str
+  item_id : str
+  priority : str
+  repository : str
+  repository_id : str
+  state : str
+  title : str
+}
+class "CatalogDocument" as portfolio_materializer.CatalogDocument {
+  catalog_generation : int
+  path : Path
+  registry_generation : int
+  registry_id : str
+  repositories : tuple[CatalogEntry, ...]
+}
+class "CatalogEntry" as portfolio_materializer.CatalogEntry {
+  desired_presence : str
+  lifecycle : str
+  relative_path : str
+  repository_id : str
+  sync_policy : str
+}
+class "<color:red>ConcurrentSnapshotError</color>" as portfolio_lifecycle_review.ConcurrentSnapshotError {
+}
+class "<color:red>CoordinatorError</color>" as render_air_primary.CoordinatorError {
+  category : str
+  exit_code : int
+  messages : tuple
+  report() -> dict[str, Any]
+}
+class "CoordinatorSpec" as render_portfolio_sidecar_quadlets.CoordinatorSpec {
+  container_name : str
+  image : str
+  unit_name : str
+}
+class "DatasetCapture" as portfolio_sidecar.DatasetCapture {
+  backup_root : Path | None
+  checkout : Path
+  dataset_id : str
+  files : tuple[FileSnapshot, ...]
+  manifest_sha256 : str
+  repository_id : str
+  total_bytes : int
+}
+class "DatasetPolicy" as portfolio_sidecar.DatasetPolicy {
+  adapter : str
+  dataset_id : str
+  max_files : int
+  max_total_bytes : int
+  repository_id : str
+  selectors : tuple[str, ...]
+  target_set_id : str
+  tier : str
+}
+class "DatasetState" as portfolio_sidecar.DatasetState {
+  committed_at : str | None
+  dataset_id : str
+  file_count : int
+  manifest_sha256 : str | None
+  replicas : tuple[ReplicaState, ...]
+  repository_id : str
+  sequence : int
+  total_bytes : int
+}
+class "Deployment" as render_portfolio_sidecar_quadlets.Deployment {
+  coordinator : CoordinatorSpec | None
+  coordinator_mode : str
+  deployment_generation : int
+  deployment_id : str
+  path : Path
+  registry_generation : int | None
+  registry_id : str | None
+  required_acks : int | None
+  sha256 : str
+  target_document_sha256 : str | None
+  target_generation : int | None
+  target_set_id : str | None
+  target_topology_sha256 : str | None
+  targets : tuple[TargetSpec, ...]
+}
+class "<color:red>DirtyCheckoutError</color>" as portfolio_lifecycle_review.DirtyCheckoutError {
+}
+class "FileSnapshot" as portfolio_sidecar.FileSnapshot {
+  ctime_ns : int
+  device : int
+  gid : int
+  inode : int
+  mode : int
+  mtime_ns : int
+  relative_path : str
+  sha256 : str
+  size : int
+  uid : int
+}
+class "FixedCiRun" as monitor_github_ci_emails.FixedCiRun {
+  branch : str
+  failed_head_sha : str
+  fixed_head_sha : str
+  key : str
+  repo_rel : str | None
+  repo_slug : str
+  run_urls : tuple[str, ...]
+  workflow_names : tuple[str, ...]
+}
 class "GitHubCiEmail" as monitor_github_ci_emails.GitHubCiEmail {
   annotation_counts : dict[str, int]
   branch : str
@@ -17,12 +164,49 @@ class "GitHubCiEmail" as monitor_github_ci_emails.GitHubCiEmail {
   subject : str
   workflow_name : str
 }
+class "GitHubRepositoryObservation" as repository_visibility.GitHubRepositoryObservation {
+  repository_id : str
+  slug : str
+  visibility : str
+}
+class "InventoryCandidate" as portfolio_sidecar.InventoryCandidate {
+  file_count : int
+  kind : str
+  selector : str
+  total_bytes : int
+}
+class "InventoryRepository" as portfolio_sidecar.InventoryRepository {
+  candidates : tuple[InventoryCandidate, ...]
+  excluded_counts : tuple[tuple[str, int], ...]
+  repository_id : str
+  status : str
+}
+class "InventoryResult" as portfolio_sidecar.InventoryResult {
+  catalog_generation : int
+  registry_generation : int
+  registry_id : str
+  repositories : tuple[InventoryRepository, ...]
+}
+class "KnownHostsFile" as portfolio_sidecar.KnownHostsFile {
+  path : Path
+  sha256 : str
+}
+class "<color:red>MaterializerError</color>" as portfolio_materializer.MaterializerError {
+}
+class "<color:red>MeshRenderError</color>" as render_portfolio_sidecar_quadlets.MeshRenderError {
+}
 class "MonitorConfig" as monitor_github_ci_emails.MonitorConfig {
+  fixed_notify_digest : bool
+  fixed_notify_repos : tuple[str, ...]
+  fixed_notify_subject_prefix : str
+  fixed_notify_to : tuple[str, ...]
   from_filter : str
   gmail_config : Path
   limit : int
   mailbox : str
   messages_file : Path | None
+  notify_grace_minutes : int
+  notify_label : str
   output_json : bool
   portfolio_root : Path
   processed_label : str
@@ -30,6 +214,10 @@ class "MonitorConfig" as monitor_github_ci_emails.MonitorConfig {
   since_days : int
   state_file : Path
   subject_filter : str
+  trigger_repair : bool
+  trigger_repair_delay_minutes : int
+  trigger_repair_service : str
+  trigger_repair_unit : str
   unseen_only : bool
 }
 class "<color:red>MonitorError</color>" as monitor_github_ci_emails.MonitorError {
@@ -39,5 +227,216 @@ class "ParsedDetection" as monitor_github_ci_emails.ParsedDetection {
   mailbox : str
   uid : int | None
 }
+class "PolicyDocument" as portfolio_sidecar.PolicyDocument {
+  content_sha256 : str
+  datasets : tuple[DatasetPolicy, ...]
+  path : Path
+  policy_generation : int
+  registry_generation : int
+  registry_id : str
+}
+class "PortableManifestFile" as portfolio_sidecar.PortableManifestFile {
+  mode : int
+  relative_path : str
+  sha256 : str
+  size : int
+}
+class "<color:red>PrivateDisclosureFailure</color>" as repository_visibility.PrivateDisclosureFailure {
+  findings : tuple
+}
+class "PrivateDisclosureFinding" as repository_visibility.PrivateDisclosureFinding {
+  count : int
+  path : str
+  root_number : int
+}
+class "ProposedAction" as portfolio_lifecycle_review.ProposedAction {
+  action : str
+  dependency_repository_id : str | None
+  reason : str
+  target_repository_id : str
+}
+class "RegistryDocument" as repository_visibility.RegistryDocument {
+  generation : int
+  path : Path
+  registry_id : str
+  repositories : tuple[RepositoryEntry, ...]
+  visibility : str
+}
+class "<color:red>RegistryError</color>" as repository_visibility.RegistryError {
+}
+class "RegistryPair" as repository_visibility.RegistryPair {
+  entries : tuple[tuple[str, RepositoryEntry], ...]
+  generation : int
+  local_private : tuple[str, ...]
+  private
+  public
+  registry_id : str
+  classification(slug: str) -> str
+}
+class "RepairTriggerResult" as monitor_github_ci_emails.RepairTriggerResult {
+  already_scheduled : bool
+  attempted : bool
+  delay_minutes : int
+  new_detection_count : int
+  reason : str
+  scheduled : bool
+  service : str
+  unit : str
+}
+class "ReplicaState" as portfolio_sidecar.ReplicaState {
+  snapshot_id : str
+  target_id : str
+}
+class "RepositoryEntry" as repository_visibility.RepositoryEntry {
+  repository_id : str
+  slug : str
+}
+class "<color:red>ReviewError</color>" as portfolio_lifecycle_review.ReviewError {
+}
+class "<color:red>RunnerError</color>" as run_traction_control_job.RunnerError {
+}
+class "ScanResult" as portfolio_lifecycle_review.ScanResult {
+  blockers : tuple[dict[str, str], ...]
+  manifests : tuple[dict[str, Any], ...]
+  references : tuple[dict[str, Any], ...]
+  repositories : tuple[dict[str, Any], ...]
+  snapshots : tuple[_RepositorySnapshot, ...]
+  warnings : tuple[dict[str, str], ...]
+}
+class "<color:red>SidecarError</color>" as portfolio_sidecar.SidecarError {
+}
+class "StagedTarget" as portfolio_sidecar.StagedTarget {
+  identity_file : Path
+  password_file : Path
+  repository_file : Path
+}
+class "StateDocument" as portfolio_sidecar.StateDocument {
+  content_sha256 : str
+  coordinator_mode : str
+  datasets : tuple[DatasetState, ...]
+  manifest_format : str
+  path : Path
+  policy_generation : int
+  policy_sha256 : str
+  registry_generation : int
+  registry_id : str
+  state_generation : int
+  target_generation : int
+  target_sha256 : str
+}
+class "Target" as portfolio_sidecar.Target {
+  failure_domain : str
+  identity_file : Path
+  identity_sha256 : str
+  mesh_address : str | None
+  password_file : Path
+  password_sha256 : str
+  repository_file : Path
+  repository_sha256 : str
+  sftp_host : str
+  sftp_port : int
+  sftp_user : str
+  target_id : str
+}
+class "TargetSet" as portfolio_sidecar.TargetSet {
+  required_acks : int
+  target_set_id : str
+  targets : tuple[Target, ...]
+  tier : str
+}
+class "TargetSpec" as render_portfolio_sidecar_quadlets.TargetSpec {
+  authorized_keys_secret : str
+  container_name : str
+  container_port : int
+  failure_domain : str
+  host_key_secret : str
+  image : str
+  mesh_address : str
+  published_port : int
+  repository_volume : str
+  target_id : str
+  unit_name : str
+}
+class "TargetTopology" as render_portfolio_sidecar_quadlets.TargetTopology {
+  document_sha256 : str
+  registry_generation : int
+  registry_id : str
+  required_acks : int
+  sha256 : str
+  target_generation : int
+  target_set_id : str
+  targets : tuple[AuthoritativeTarget, ...]
+}
+class "TargetsDocument" as portfolio_sidecar.TargetsDocument {
+  content_sha256 : str
+  path : Path
+  registry_generation : int
+  registry_id : str
+  target_generation : int
+  target_sets : tuple[TargetSet, ...]
+}
+class "_CatalogLock" as portfolio_materializer._CatalogLock {
+  descriptor : NoneType, int | None
+  path
+}
+class "_CreatedPrivateFile" as portfolio_sidecar._CreatedPrivateFile {
+  device : int
+  inode : int
+  path : Path
+}
+class "_DarwinSiginfo" as portfolio_sidecar._DarwinSiginfo {
+}
+class "_DarwinSigval" as portfolio_sidecar._DarwinSigval {
+}
+class "_Inputs" as portfolio_sidecar._Inputs {
+  catalog
+  pair
+  policy
+  portfolio_root : Path
+  state : StateDocument | None
+  state_path : Path
+  targets
+}
+class "_RegistryLock" as repository_visibility._RegistryLock {
+  descriptor : NoneType, int | None
+  path
+}
+class "_RepositorySnapshot" as portfolio_lifecycle_review._RepositorySnapshot {
+  checkout : Path
+  control : bytes
+  head : str
+  index : bytes
+  object_format : str
+  repository_id : str
+  tree : tuple[_TreeEntry, ...]
+}
+class "_SidecarLock" as portfolio_sidecar._SidecarLock {
+  descriptor : NoneType, int | None
+  directory : Path | None
+  directory_descriptor : NoneType, int | None
+  state_path : Path
+}
+class "_StagingArea" as portfolio_sidecar._StagingArea {
+  run_identity : tuple[int, int] | None
+  run_root : NoneType, Path | None
+  spool_root : Path | None
+  state_path : Path
+}
+class "_TreeEntry" as portfolio_lifecycle_review._TreeEntry {
+  mode : str
+  object_id : str
+  object_type : str
+  path : str
+  size : int | None
+}
+portfolio_lifecycle_review.ConcurrentSnapshotError --|> portfolio_lifecycle_review.ReviewError
+portfolio_lifecycle_review.DirtyCheckoutError --|> portfolio_lifecycle_review.ReviewError
 monitor_github_ci_emails.ParsedDetection --> monitor_github_ci_emails.GitHubCiEmail : email
+portfolio_sidecar._Inputs --> portfolio_materializer.CatalogDocument : catalog
+portfolio_sidecar._Inputs --> portfolio_sidecar.PolicyDocument : policy
+portfolio_sidecar._Inputs --> portfolio_sidecar.TargetsDocument : targets
+repository_visibility.RegistryPair --> repository_visibility.RegistryDocument : private
+repository_visibility.RegistryPair --> repository_visibility.RegistryDocument : public
+portfolio_sidecar._Inputs --> repository_visibility.RegistryPair : pair
+render_air_primary.AirConfig --o render_air_primary.AirPrimaryCoordinator : config
 @enduml

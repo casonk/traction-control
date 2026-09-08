@@ -2,6 +2,24 @@
 set namespaceSeparator none
 top to bottom direction
 skinparam componentStyle rectangle
+rectangle "branch_inventory\n1 python file" as branch_inventory
+rectangle "check_agents_md\n1 python file" as check_agents_md
 rectangle "check_security_md\n1 python file" as check_security_md
+rectangle "find_duplicate_lessons\n1 python file" as find_duplicate_lessons
 rectangle "monitor_github_ci_emails\n1 python file" as monitor_github_ci_emails
+rectangle "portfolio_lifecycle_review\n1 python file" as portfolio_lifecycle_review
+rectangle "portfolio_materializer\n1 python file" as portfolio_materializer
+rectangle "portfolio_sidecar\n1 python file" as portfolio_sidecar
+rectangle "render_air_primary\n1 python file" as render_air_primary
+rectangle "render_portfolio_backlog\n1 python file" as render_portfolio_backlog
+rectangle "render_portfolio_sidecar_quadlets\n1 python file" as render_portfolio_sidecar_quadlets
+rectangle "repository_visibility\n1 python file" as repository_visibility
+rectangle "run_traction_control_job\n1 python file" as run_traction_control_job
+portfolio_lifecycle_review --> portfolio_materializer
+portfolio_lifecycle_review --> repository_visibility
+portfolio_materializer --> repository_visibility
+portfolio_sidecar --> portfolio_materializer
+portfolio_sidecar --> repository_visibility
+render_portfolio_backlog --> portfolio_materializer
+render_portfolio_backlog --> repository_visibility
 @enduml
