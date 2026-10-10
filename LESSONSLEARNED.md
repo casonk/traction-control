@@ -1542,3 +1542,11 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   without Homebrew on the path; here that would not fail, it would silently
   drop `gh`, fall back to git-only classification, and stop recognising
   squash-merged branches. Set `PATH` in the manifest's launchd environment.
+- Remove a repository's worktrees before moving it. A linked worktree and its
+  admin record point at each other by absolute path, so a move breaks both;
+  `git worktree prune` then drops the records and the directories stay on
+  disk, unlisted, where no git command will ever report them. The purge
+  detects these under `.claude/worktrees` and reports whether each one's
+  contents are already in git, but it does not delete them: with the link dead
+  git cannot vouch for the directory, and removing files on outside evidence
+  is a person's decision.

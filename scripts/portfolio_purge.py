@@ -19,6 +19,11 @@ It only ever removes things that can be shown to hold nothing:
   ``--min-age-days``, and sitting on a branch that qualifies above. The age
   guard matters: a worktree created a minute ago from ``main`` is clean and
   "merged" too, and is somebody's work about to start.
+* an **orphaned worktree** -- a directory under ``.claude/worktrees`` that git
+  no longer lists, left behind when its repository was moved -- is never
+  deleted, only reported. Its git link is dead, so git itself cannot vouch for
+  it; the report says whether every file in it is ignored or already stored in
+  the repository's history, and leaves the removal to a person.
 * a **remote branch** (opt-in) goes only when its PR is merged or it has no
   commits that ``origin/main`` lacks.
 * **container images** (opt-in) are pruned with ``podman image prune``, which
@@ -60,11 +65,15 @@ class Report:
     removed: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    # Things this tool will not act on but a person should look at. Printed on
+    # every run, not only with --verbose, because nothing else will raise them.
+    attention: list[str] = field(default_factory=list)
 
     def merge(self, other: Report) -> None:
         self.removed += other.removed
         self.kept += other.kept
         self.errors += other.errors
+        self.attention += other.attention
 
 
 def list_worktrees(repo: Path) -> list[Worktree]:
@@ -174,6 +183,127 @@ def purge_worktrees(
     if apply:
         run(repo, "worktree", "prune")
     return report, in_use
+
+
+# Where agent sessions create their worktrees. Orphans are only looked for
+# here: an unregistered directory anywhere else is not this tool's to judge.
+WORKTREE_PARENT = Path(".claude") / "worktrees"
+
+
+def has_broken_gitlink(directory: Path) -> bool:
+    """True when ``directory`` is a worktree whose repository link is dead.
+
+    A linked worktree's ``.git`` is a file naming an admin directory inside the
+    main repository. Moving the main repository leaves every such file pointing
+    at the old path; `git worktree prune` then drops the admin records, and the
+    directories remain on disk, unlisted and unusable.
+    """
+    gitlink = directory / ".git"
+    if not gitlink.is_file():
+        return False
+    try:
+        text = gitlink.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return False
+    if not text.startswith("gitdir:"):
+        return False
+    return not Path(text[len("gitdir:") :].strip()).exists()
+
+
+def unsaved_files(repo: Path, directory: Path) -> list[str] | None:
+    """Files in an orphan whose content exists nowhere in ``repo``'s history.
+
+    The orphan's own git link is dead, so `git status` cannot answer "is there
+    work here?". This answers it from the main repository instead, read-only:
+    a file is accounted for if the orphan's ignore rules ignore it, or if its
+    exact content is already stored as a blob. Anything else -- an untracked
+    file, or a tracked file with edits that were never committed -- is unsaved.
+
+    Returns None if git could not be asked.
+    """
+    paths = []
+    for path in sorted(directory.rglob("*")):
+        if path == directory / ".git" or (path.is_dir() and not path.is_symlink()):
+            continue
+        paths.append(path.relative_to(directory).as_posix())
+    if not paths:
+        return []
+
+    base = ["git", f"--git-dir={repo / '.git'}", f"--work-tree={directory}"]
+    ignored = subprocess.run(
+        [*base, "check-ignore", "--no-index", "--stdin", "-z"],
+        cwd=directory,
+        input="\0".join(paths) + "\0",
+        capture_output=True,
+        text=True,
+    )
+    if ignored.returncode not in (0, 1):  # 1 means "nothing matched"
+        return None
+    skip = {p for p in ignored.stdout.split("\0") if p}
+    candidates = [p for p in paths if p not in skip]
+
+    unsaved = [p for p in candidates if (directory / p).is_symlink()]
+    regular = [p for p in candidates if not (directory / p).is_symlink()]
+    if not regular:
+        return unsaved
+
+    # hash-object without -w computes the blob id and writes nothing.
+    hashed = subprocess.run(
+        [*base, "hash-object", "--stdin-paths"],
+        cwd=directory,
+        input="\n".join(regular) + "\n",
+        capture_output=True,
+        text=True,
+    )
+    hashes = hashed.stdout.split()
+    if hashed.returncode != 0 or len(hashes) != len(regular):
+        return None
+    present = subprocess.run(
+        [*base, "cat-file", "--batch-check"],
+        input="\n".join(hashes) + "\n",
+        capture_output=True,
+        text=True,
+    )
+    lines = present.stdout.splitlines()
+    if present.returncode != 0 or len(lines) != len(regular):
+        return None
+    unsaved += [p for p, line in zip(regular, lines) if line.endswith(" missing")]
+    return unsaved
+
+
+def report_orphans(repo: Path) -> list[str]:
+    """Describe worktree directories git no longer knows about. Read-only.
+
+    These are never removed here. A registered worktree can be vouched for by
+    git -- clean, merged, unlocked. An orphan cannot: its link is dead, so the
+    only evidence is a comparison made from outside, and deleting a directory
+    on that basis is a person's call. The report gives them what they need to
+    make it.
+    """
+    findings: list[str] = []
+    parent = repo / WORKTREE_PARENT
+    if not parent.is_dir():
+        return findings
+    registered = {tree.path.resolve() for tree in list_worktrees(repo)}
+    for directory in sorted(parent.iterdir()):
+        if not directory.is_dir() or directory.is_symlink():
+            continue
+        if directory.resolve() in registered or not has_broken_gitlink(directory):
+            continue
+        label = f"{repo.name}: orphaned worktree {directory}"
+        unsaved = unsaved_files(repo, directory)
+        if unsaved is None:
+            findings.append(f"{label} (could not verify its contents)")
+        elif unsaved:
+            sample = ", ".join(unsaved[:3]) + (" ..." if len(unsaved) > 3 else "")
+            findings.append(
+                f"{label} ({len(unsaved)} file(s) not saved in git: {sample})"
+            )
+        else:
+            findings.append(
+                f"{label} (every file is ignored or already in git history)"
+            )
+    return findings
 
 
 def purge_branches(
@@ -359,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
             now=now,
         )
         total.merge(trees)
+        total.attention += report_orphans(repo)
         total.merge(
             purge_branches(repo, apply=args.apply, use_gh=use_gh, in_use=in_use)
         )
@@ -376,11 +507,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.verbose:
         for line in total.kept:
             print(f"kept: {line}")
+    for line in total.attention:
+        print(f"needs attention: {line}")
     for line in total.errors:
         print(f"error: {line}", file=sys.stderr)
 
     print(
         f"\n{verb} {len(total.removed)}, kept {len(total.kept)}, "
+        f"needs attention {len(total.attention)}, "
         f"errors {len(total.errors)} across {len(repos)} repo(s)"
     )
     if not args.apply and total.removed:

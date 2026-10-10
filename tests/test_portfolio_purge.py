@@ -183,6 +183,71 @@ class PortfolioPurgeTests(unittest.TestCase):
         self.assertIn("wip", self.branches())
         self.assertIn("active", self.worktrees())
 
+    # -- orphaned worktrees ----------------------------------------------
+
+    def orphan(self, name: str) -> Path:
+        """A worktree whose admin record is gone, as after moving the repo."""
+        self.squash_merged_branch(f"{name}-branch")
+        path = self.add_worktree(name, f"{name}-branch")
+        admin = Path(sh(path, "rev-parse", "--absolute-git-dir"))
+        # Simulate the move. Both halves of the link named the old location:
+        # the admin record pointed at the worktree's old path, and the
+        # worktree's .git file pointed at the old admin directory.
+        old_root = Path(self.temporary.name) / "old-location"
+        (admin / "gitdir").write_text(f"{old_root / name / '.git'}\n", encoding="utf-8")
+        (path / ".git").write_text(
+            f"gitdir: {old_root / '.git' / 'worktrees' / name}\n", encoding="utf-8"
+        )
+        sh(self.repo, "worktree", "prune")
+        self.assertNotIn(name, self.worktrees())
+        return path
+
+    def test_orphan_with_only_committed_content_is_reported_not_deleted(self) -> None:
+        path = self.orphan("lost")
+        code, output = self.run_purge("--apply", "--min-age-days", "0")
+        self.assertEqual(code, 0)
+        self.assertTrue(path.exists(), "an orphan must never be deleted")
+        self.assertIn("needs attention: repo: orphaned worktree", output)
+        self.assertIn("every file is ignored or already in git history", output)
+
+    def test_orphan_with_an_untracked_file_is_flagged_as_unsaved(self) -> None:
+        path = self.orphan("lost")
+        (path / "notes.txt").write_text("never committed\n", encoding="utf-8")
+        _, output = self.run_purge("--apply", "--min-age-days", "0")
+        self.assertTrue((path / "notes.txt").exists())
+        self.assertIn("1 file(s) not saved in git: notes.txt", output)
+
+    def test_orphan_with_an_uncommitted_edit_is_flagged_as_unsaved(self) -> None:
+        path = self.orphan("lost")
+        (path / "README.md").write_text("edited but not committed\n", encoding="utf-8")
+        _, output = self.run_purge("--min-age-days", "0")
+        self.assertIn("1 file(s) not saved in git: README.md", output)
+
+    def test_ignored_files_in_an_orphan_do_not_count_as_unsaved(self) -> None:
+        (self.repo / ".gitignore").write_text("results/\n", encoding="utf-8")
+        sh(self.repo, "add", ".gitignore")
+        sh(self.repo, "commit", "--quiet", "-m", "ignore results")
+        sh(self.repo, "push", "--quiet", "origin", "main")
+        path = self.orphan("lost")
+        (path / "results").mkdir()
+        (path / "results" / "run.log").write_text("regenerable\n", encoding="utf-8")
+        _, output = self.run_purge("--min-age-days", "0")
+        self.assertIn("every file is ignored or already in git history", output)
+
+    def test_plain_directory_beside_worktrees_is_not_called_an_orphan(self) -> None:
+        stray = self.repo / ".claude" / "worktrees" / "just-a-folder"
+        stray.mkdir(parents=True)
+        (stray / "file.txt").write_text("x\n", encoding="utf-8")
+        _, output = self.run_purge("--apply", "--min-age-days", "0")
+        self.assertNotIn("orphaned worktree", output)
+        self.assertTrue(stray.exists())
+
+    def test_live_worktree_is_not_reported_as_an_orphan(self) -> None:
+        self.unmerged_branch("wip")
+        self.add_worktree("active", "wip")
+        _, output = self.run_purge("--min-age-days", "0")
+        self.assertNotIn("orphaned worktree", output)
+
     # -- remote branches -------------------------------------------------
 
     def test_remote_branches_are_untouched_unless_requested(self) -> None:
