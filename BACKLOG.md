@@ -12,7 +12,97 @@ Mark items `[x]` when complete and move them to Done.
 
 ### Network Exposure Hardening
 
+- [ ] [manual:2026-06-26] **Server-side SSH hardening against DoS/brute-force** — On the
+  Linux desktop SSH server, harden `sshd_config` and install connection rate limiting:
+  (1) Set `ClientAliveInterval 60` / `ClientAliveCountMax 3` so stale server-side
+  sessions are reaped (mirrors the client-side `~/.ssh/config` keepalive now in place).
+  (2) Set `MaxAuthTries 3`, `LoginGraceTime 30`, `MaxStartups 10:30:100` to limit
+  unauthenticated connection accumulation.
+  (3) Install `fail2ban` (or configure `nftables` rate-limit rules) to ban IPs after
+  repeated failed auth attempts — protect any port-forwarded SSH or WireGuard ingress.
+  (4) Confirm `PasswordAuthentication no` and `PermitRootLogin no` in sshd_config.
+  Related: see `util-repos/snowbridge` host-setup docs for the desktop's network/firewall context.
+
+- [ ] [manual:2026-06-26] **ttyd web terminal hardening** — The session-control webterm
+  integration (via `SESSION_CONTROL_WEBTERM_URL`) proxies to a ttyd instance. Harden it:
+  (1) Confirm ttyd binds only to loopback or VPN interface, never 0.0.0.0 publicly.
+  (2) Set `--max-clients 5` (or appropriate limit) so a connection flood cannot exhaust
+  file descriptors.
+  (3) Set `--ping-interval 30` in ttyd so idle websocket connections are reaped server-side.
+  (4) Configure Caddy rate limiting (`rate_limit` directive or middleware) in front of the
+  ttyd endpoint so a single IP cannot open more than ~10 connections per minute.
+
+- [ ] [manual:2026-06-26] **Router DoS protection settings audit** — Review the Aterm
+  WG1200CR's SPI firewall and DoS-mitigation knobs through the private
+  router-automation checkout's `show.py`. If the router exposes configurable
+  SYN-flood or port-scan detection settings (check `DEVICE.ADVMENU` and
+  `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add the patches
+  to that checkout's `harden.py` so they survive PSK rotations.
+
 ### Reusable Workflow Migration
+
+- [ ] [manual:2026-06-17] **Publish workflow migration** — Migrate `sonetsim`'s inline
+  `python-publish.yml` to `casonk/.github/.github/workflows/python-publish.yml@main`.
+  The other seven repos originally listed here (crew-chief, archility, auto-pass,
+  clockwork, dyno-lab, nordility, tachometer) already call the shared workflow;
+  checked 2026-10-10.
+
+### Other
+
+- [ ] [manual:2026-06-21] **Repair SSH/Git host config permissions** — Investigate and fix
+  the host-level SSH configuration issue causing Git pushes to fail with
+  `Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`.
+  Standardize the fix so normal `git push` and `ssh -T git@github.com` work
+  without one-off `GIT_SSH_COMMAND` overrides.
+
+- [ ] [manual:2026-06-17] **Private local-only repositories** — Review each
+  ignored-catalog local checkout, create a private remote only through the
+  private-first workflow when appropriate, and keep names, paths, and push
+  status in the ignored lifecycle plan.
+
+- [ ] [manual:2026-06-15] Add TMDB-backed watch suggestions to the clockwork
+  to-watch page. Register for a free TMDB API key, then for each title in the
+  library and watch list call `/movie/{id}/recommendations` and
+  `/tv/{id}/recommendations`, deduplicate, rank by popularity, and surface
+  results in a suggestion panel with poster, year, rating, and one-click "Add
+  to list". Pairs with the existing Ollama suggestion panel as a higher-quality
+  alternative.
+
+- [ ] [manual:2026-06-13] Sign wiring-harness mobileconfig profiles with an
+  Apple Developer certificate so iOS shows "Verified" rather than "Signed,
+  Unverified". The `export_mtls_profile.py` script already accepts
+  `--signing-cert` / `--signing-key`; just needs a Developer ID cert exported
+  from Xcode/Keychain and the paths wired into the install invocation.
+
+- [ ] [manual:2026-06-11] Add post-refresh archive hooks to the private data
+  application identified in the ignored lifecycle plan so its existing
+  `manage_storage_archives.py auto` coverage runs after successful
+  scheduled/manual data refreshes, not only when disk pressure crosses the
+  configured high watermark.
+
+- [ ] [manual:2026-06-11] Decide and implement the post-refresh pruning policy
+  for `research-repos/zillow-public-data`: the existing archive tool currently
+  shows both restored `data/` and `.zillow-generated-archives/data.tar.gz`;
+  choose whether refreshes should prune restored generated data immediately or
+  leave pruning to disk-pressure automation.
+
+- [ ] [manual:2026-06-15] Add tradility entry to clockwork — create a
+  `GET /api/tradility-analysis` endpoint that reads
+  `exports/tradility-analysis.json` and a `to-tradility.html` page that
+  renders RSI and VWAP signals per ticker from the holdings aggregate.
+  Backlog lives in `util-repos/tradility/BACKLOG.md`.
+
+## In Progress
+
+## Done
+
+- [x] [manual:2026-10-10] **Purge stale local git state on a schedule.**
+  `scripts/portfolio_purge.py` removes merged or redundant branches and
+  finished, unlocked worktrees, and is scheduled weekly through
+  `config/clockwork/portfolio-purge.toml`. Worktree directories orphaned by a
+  repository move are reported, with whether their contents are already in
+  git, but never deleted automatically. The first run cleared about 140
+  stale branches and worktrees from one workstation.
 
 - [x] [manual:2026-06-17] **Tier 1** — Migrate the reviewed public repositories
   to reusable workflow callers. Private-repository migration and push details
@@ -41,83 +131,6 @@ Mark items `[x]` when complete and move them to Done.
 - [x] [manual:2026-06-17] **Tier 6 — Major overhaul first** (handle when touching these repos):
   `sonetsim` — drop Python 3.8/3.9 (EOL), add [dev] extras, fix non-standard test paths;
   `pushshift_python` — resolve MPLCONFIGDIR env var need (conftest.py or new workflow input).
-
-- [ ] [manual:2026-06-17] **Publish workflow migration** — Migrate `python-publish.yml` inline
-  workflows to `casonk/.github/.github/workflows/python-publish.yml@main` for repos that have them:
-  crew-chief, archility, auto-pass, clockwork, dyno-lab, nordility, tachometer, sonetsim.
-
-- [ ] [manual:2026-06-21] **Repair SSH/Git host config permissions** — Investigate and fix
-  the host-level SSH configuration issue causing Git pushes to fail with
-  `Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`.
-  Standardize the fix so normal `git push` and `ssh -T git@github.com` work
-  without one-off `GIT_SSH_COMMAND` overrides.
-
-- [ ] [manual:2026-06-26] **Server-side SSH hardening against DoS/brute-force** — On the
-  Linux desktop SSH server, harden `sshd_config` and install connection rate limiting:
-  (1) Set `ClientAliveInterval 60` / `ClientAliveCountMax 3` so stale server-side
-  sessions are reaped (mirrors the client-side `~/.ssh/config` keepalive now in place).
-  (2) Set `MaxAuthTries 3`, `LoginGraceTime 30`, `MaxStartups 10:30:100` to limit
-  unauthenticated connection accumulation.
-  (3) Install `fail2ban` (or configure `nftables` rate-limit rules) to ban IPs after
-  repeated failed auth attempts — protect any port-forwarded SSH or WireGuard ingress.
-  (4) Confirm `PasswordAuthentication no` and `PermitRootLogin no` in sshd_config.
-  Related: see `util-repos/snowbridge` host-setup docs for the desktop's network/firewall context.
-
-- [ ] [manual:2026-06-26] **ttyd web terminal hardening** — The session-control webterm
-  integration (via `SESSION_CONTROL_WEBTERM_URL`) proxies to a ttyd instance. Harden it:
-  (1) Confirm ttyd binds only to loopback or VPN interface, never 0.0.0.0 publicly.
-  (2) Set `--max-clients 5` (or appropriate limit) so a connection flood cannot exhaust
-  file descriptors.
-  (3) Set `--ping-interval 30` in ttyd so idle websocket connections are reaped server-side.
-  (4) Configure Caddy rate limiting (`rate_limit` directive or middleware) in front of the
-  ttyd endpoint so a single IP cannot open more than ~10 connections per minute.
-
-- [ ] [manual:2026-06-26] **Router DoS protection settings audit** — Review the Aterm
-  WG1200CR's SPI firewall and DoS-mitigation knobs through the private
-  router-automation checkout's `show.py`. If the router exposes configurable
-  SYN-flood or port-scan detection settings (check `DEVICE.ADVMENU` and
-  `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add the patches
-  to that checkout's `harden.py` so they survive PSK rotations.
-
-- [ ] [manual:2026-06-17] **Private local-only repositories** — Review each
-  ignored-catalog local checkout, create a private remote only through the
-  private-first workflow when appropriate, and keep names, paths, and push
-  status in the ignored lifecycle plan.
-
-- [ ] [manual:2026-06-15] Add TMDB-backed watch suggestions to the clockwork
-  to-watch page. Register for a free TMDB API key, then for each title in the
-  library and watch list call `/movie/{id}/recommendations` and
-  `/tv/{id}/recommendations`, deduplicate, rank by popularity, and surface
-  results in a suggestion panel with poster, year, rating, and one-click "Add
-  to list". Pairs with the existing Ollama suggestion panel as a higher-quality
-  alternative.
-
-- [ ] [manual:2026-06-13] Sign wiring-harness mobileconfig profiles with an
-  Apple Developer certificate so iOS shows "Verified" rather than "Signed,
-  Unverified". The `export_mtls_profile.py` script already accepts
-  `--signing-cert` / `--signing-key`; just needs a Developer ID cert exported
-  from Xcode/Keychain and the paths wired into the install invocation.
-
-- [ ] [manual:2026-06-11] Add post-refresh archive hooks to the private data
-  application identified in the ignored lifecycle plan so its existing
-  `manage_storage_archives.py auto` coverage runs after successful
-  scheduled/manual data refreshes, not only when disk pressure crosses the
-  configured high watermark.
-- [ ] [manual:2026-06-11] Decide and implement the post-refresh pruning policy
-  for `research-repos/zillow-public-data`: the existing archive tool currently
-  shows both restored `data/` and `.zillow-generated-archives/data.tar.gz`;
-  choose whether refreshes should prune restored generated data immediately or
-  leave pruning to disk-pressure automation.
-
-- [ ] [manual:2026-06-15] Add tradility entry to clockwork — create a
-  `GET /api/tradility-analysis` endpoint that reads
-  `exports/tradility-analysis.json` and a `to-tradility.html` page that
-  renders RSI and VWAP signals per ticker from the holdings aggregate.
-  Backlog lives in `util-repos/tradility/BACKLOG.md`.
-
-## In Progress
-
-## Done
 
 - [x] [manual:2026-08-30] **Add a disposable live-systemd activation test.**
   The opt-in Ubuntu Vagrant harness runs the real installer under its

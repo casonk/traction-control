@@ -4,6 +4,16 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- `scripts/portfolio_purge.py` now reports worktree directories that git no
+  longer lists — left behind under `.claude/worktrees` when a repository is
+  moved — on every run, as "needs attention", stating whether each one's files
+  are all ignored or already in git history. They are reported, never deleted.
+  Four such directories had gone unnoticed after a repository move because no
+  git command lists them.
+- Tidied `BACKLOG.md`: moved five completed items out of Pending into Done,
+  grouped the SSH, ttyd and router items under the previously empty Network
+  Exposure Hardening heading, and narrowed the publish-workflow item to
+  `sonetsim`, the only one of its eight repos not yet migrated.
 - Added `scripts/portfolio_purge.py` and a weekly schedule for it
   (`config/clockwork/portfolio-purge.toml`, wrapper `scripts/portfolio-purge.sh`).
   It removes local branches that `branch_inventory` classifies as `merged` or
