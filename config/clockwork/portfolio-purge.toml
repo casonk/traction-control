@@ -1,0 +1,65 @@
+# Weekly purge of stale local git state across the portfolio: merged branches
+# and finished worktrees. Anything that still needs a decision -- unmerged work,
+# closed PRs, dirty or locked worktrees -- is kept and listed in the log.
+#
+# Install through the shared scheduler:
+#   python3 -m clockwork install --manifest config/clockwork/portfolio-purge.toml --target launchd-user   # macOS
+#   python3 -m clockwork install --manifest config/clockwork/portfolio-purge.toml --target systemd-user   # Linux
+#
+# This is a standalone manifest, not a jobs.conf tier entry: the residue it
+# removes builds up wherever development happens, which is a workstation, and
+# workstations are not necessarily enrolled in the agent tiers.
+#
+# Scope is local-only by default. Deleting merged branches on origin and
+# pruning dangling podman layers are opt-in, because each reaches past this
+# checkout; enable them by adding to [jobs.environment]:
+#   PORTFOLIO_PURGE_REMOTE_BRANCHES = "1"
+#   PORTFOLIO_PURGE_IMAGES = "1"
+
+[[jobs]]
+name = "portfolio-purge"
+description = "Weekly purge of stale local git state across the portfolio"
+scope = "user"
+service_type = "oneshot"
+working_directory = "%h/dev/util-repos/traction-control"
+exec_start = "/bin/bash scripts/portfolio-purge.sh"
+after = ["network-online.target"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Remove merged branches and finished worktrees across the portfolio"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "%h/dev"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "Sun *-*-* 04:30:00"
+persistent = true
+randomized_delay_sec = "600"
+
+[jobs.cron]
+expression = "30 4 * * 0"
+command = "cd $HOME/dev/util-repos/traction-control && PORTFOLIO_ROOT=$HOME/dev /bin/bash scripts/portfolio-purge.sh"
+comments = ["Auto-generated from systemd timer: Sun *-*-* 04:30:00"]
+
+# --- macOS ----------------------------------------------------------------
+# Applied only when rendering for launchd-user; the systemd and cron
+# renderings above are untouched.
+[jobs.launchd]
+# launchd has no ordering dependencies. The purge fetches before classifying,
+# but a failed fetch only makes a run more conservative, so there is nothing
+# that must be waited for.
+after = []
+
+[jobs.launchd.environment]
+PORTFOLIO_ROOT = "%h/dev"
+# launchd starts jobs with a minimal PATH that excludes Homebrew. Without this
+# the purge cannot find gh, silently falls back to git-only classification, and
+# stops recognising squash-merged branches whose PR is the only proof they
+# landed. /usr/bin/python3 is also 3.9 on macOS; Homebrew's comes first here.
+PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+[jobs.launchd.timer]
+# launchd cannot express jitter. It exists to spread load across a fleet; this
+# is one job on one machine, so nothing is lost by dropping it here.
+randomized_delay_sec = ""

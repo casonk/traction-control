@@ -1506,3 +1506,39 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   when `set -u` is active, even though its length can be read safely. Use a
   conditional array expansion or a length guard for no-op inventory paths, and
   retain an empty-inventory regression test for every scheduled audit wrapper.
+
+### 2026-10-10 — Finished work leaves residue that nothing collects; purge it on a schedule, and only what is provably done
+
+- Every merged PR leaves a local branch, every agent session leaves a
+  worktree, and every container build leaves dangling layers. None of it is
+  wrong when created and none of it is revisited. Seven weeks of normal work
+  left about 60 worktrees, 105 local branches, six merged remote branches, a
+  forgotten VM, and 10 GB of unused images on one workstation, and separating
+  the handful that still mattered from the rest took a manual sweep.
+- Tooling: `scripts/portfolio_purge.py`, scheduled weekly through
+  `config/clockwork/portfolio-purge.toml`. It is a dry run unless `--apply` is
+  given, and it builds on `scripts/branch_inventory.py` rather than
+  re-deriving "is this merged?".
+- Remove only what can be shown to hold nothing. A branch goes when it is
+  `merged` or `redundant`. A worktree goes when it is clean, unlocked, on such
+  a branch, **and** older than an age guard — a worktree created a minute ago
+  from `main` is also clean and "merged", and is someone's work about to
+  start. `needs-pr`, `open-pr`, `closed-pr` and `diverged` are decisions, never
+  cleanup; the purge's "kept" list is the review queue.
+- Inspecting state must not change it. A plain `git status` refreshes and
+  rewrites the index, so a tool that checks cleanliness that way resets the
+  very timestamp it then reads to judge age, and every worktree looks new. Use
+  `git --no-optional-locks status`, and take age from `HEAD` and its reflog,
+  not from the index.
+- Push a worktree branch under its own name. A local `worktree-foo` pushed as
+  `feat/foo` cannot be matched to its PR by head name, so once the PR merges
+  nothing links the two. After a history rewrite such a branch also conflicts
+  with `main`, classifies as `diverged`, and is kept forever; each one then
+  needs a person to confirm the PR by hand.
+- Keep the default scope local. Deleting branches on `origin` and pruning
+  container images reach beyond the checkout, so they are opt-in
+  (`--remote-branches`, `--images`) rather than part of the scheduled default.
+- A scheduled job that shells out needs its `PATH` stated. launchd starts jobs
+  without Homebrew on the path; here that would not fail, it would silently
+  drop `gh`, fall back to git-only classification, and stop recognising
+  squash-merged branches. Set `PATH` in the manifest's launchd environment.
