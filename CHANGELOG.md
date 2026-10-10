@@ -4,6 +4,16 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Added `scripts/portfolio_purge.py` and a weekly schedule for it
+  (`config/clockwork/portfolio-purge.toml`, wrapper `scripts/portfolio-purge.sh`).
+  It removes local branches that `branch_inventory` classifies as `merged` or
+  `redundant`, and worktrees that are clean, unlocked, on such a branch and
+  older than an age guard. Everything else is kept and listed. It is a dry run
+  unless `--apply` is given; deleting merged branches on `origin` and pruning
+  dangling podman layers are opt-in. The first run cleared about 140 stale
+  branches and worktrees from one workstation. Recorded the accompanying
+  lesson, including that `git status` rewrites the index and so must not be
+  used to judge a worktree's age.
 - Added an owner-only, render-only Air-primary coordinator. It validates exact
   sibling worktrees and current CLI contracts, stages deterministic private
   inputs, invokes the unchanged Clockwork launchd, Snowbridge macOS SMB-plan,
