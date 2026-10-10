@@ -106,6 +106,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
+- `scripts/portfolio_purge.py`: remove stale local git state across the portfolio — merged branches and finished, unlocked worktrees — as a dry run unless `--apply` is given; `scripts/portfolio-purge.sh` is its logging wrapper, scheduled weekly by `config/clockwork/portfolio-purge.toml`
 - `scripts/render_portfolio_backlog.py`: render an ignored local, privacy-safe portfolio rollup from canonical repository backlogs
 - `scripts/portfolio_sidecar.py`: standalone, fail-closed local-config bootstrap, metadata-only candidate inventory, portable-manifest backup, and exact restore-drill coordinator for explicitly selected ignored data
 - `scripts/render_portfolio_sidecar_quadlets.py`: owner-only generation-zero bootstrap and render-only, one-node-at-a-time Linux Quadlet builder for mesh SFTP targets
