@@ -2,9 +2,11 @@
 # and finished worktrees. Anything that still needs a decision -- unmerged work,
 # closed PRs, dirty or locked worktrees -- is kept and listed in the log.
 #
-# Install through the shared scheduler:
-#   python3 -m clockwork install --manifest config/clockwork/portfolio-purge.toml --target launchd-user   # macOS
-#   python3 -m clockwork install --manifest config/clockwork/portfolio-purge.toml --target systemd-user   # Linux
+# Install through the shared scheduler, from this repo's root. Clockwork lives
+# in its own virtualenv in the sibling checkout, so name that binary rather
+# than `python3 -m clockwork`, which only works with that venv activated:
+#   ../clockwork/.venv/bin/clockwork install --manifest config/clockwork/portfolio-purge.toml --target launchd-user   # macOS
+#   ../clockwork/.venv/bin/clockwork install --manifest config/clockwork/portfolio-purge.toml --target systemd-user   # Linux
 #
 # This is a standalone manifest, not a jobs.conf tier entry: the residue it
 # removes builds up wherever development happens, which is a workstation, and
