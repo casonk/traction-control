@@ -760,6 +760,98 @@ def _observe_github_repository(
     )
 
 
+def record_public_observed(
+    private_path_value: str,
+    public_path_value: str,
+    repository_id_value: str,
+    slug_value: str,
+    *,
+    gh_command: str = "gh",
+) -> bool:
+    """Register a repository that is already public on GitHub but unclassified.
+
+    Neither existing writer covers this state. ``record_private`` is the entry
+    point for new repositories and must never write a public classification,
+    and ``reconcile_observed`` moves an entry that the registry already holds.
+    A repository published before the registry existed, or on a machine whose
+    registry was later replaced, is in neither half, and the only way in was to
+    edit the JSON by hand.
+
+    This records what github.com reports, nothing more. The caller names the
+    immutable ID and the slug; both must match the observation exactly and the
+    observation must say public. It does not publish anything and does not
+    make a private repository public: an unclassified private repository is
+    refused here and belongs to ``record_private``.
+    """
+
+    private_path = Path(private_path_value)
+    public_path = Path(public_path_value)
+    repository_id = _validate_repository_id(repository_id_value)
+    slug = _validate_slug(slug_value)
+
+    observed = _observe_github_repository(gh_command, slug)
+    if observed.repository_id != repository_id:
+        raise RegistryError(
+            "observed GitHub repository ID does not match the requested immutable ID"
+        )
+    if observed.slug != slug:
+        raise RegistryError(
+            "observed canonical GitHub slug does not exactly match the requested slug"
+        )
+    if observed.visibility != "public":
+        raise RegistryError(
+            "observed GitHub repository is not public; record it with record-private"
+        )
+
+    with _RegistryLock(private_path):
+        pair = load_pair(private_path, public_path)
+        slug_key = slug.casefold()
+        for visibility, entry in pair.entries:
+            id_match = entry.repository_id == repository_id
+            slug_match = entry.slug.casefold() == slug_key
+            if id_match and slug_match:
+                if visibility != "public":
+                    # The registry says private and GitHub says public. That is
+                    # a visibility change to review, not a missing record.
+                    raise RegistryError(
+                        "repository is classified private; use reconcile-observed "
+                        "to record a reviewed visibility change"
+                    )
+                return False
+            if id_match:
+                raise RegistryError(
+                    f"repository id is already bound to a different slug: {entry.slug}"
+                )
+            if slug_match:
+                raise RegistryError(
+                    f"repository slug is already bound to a different id: {entry.slug}"
+                )
+
+        generation = pair.generation + 1
+        public_repositories = list(pair.public.repositories)
+        public_repositories.append(RepositoryEntry(repository_id, slug))
+        _replace_pair(
+            private_path,
+            public_path,
+            _document_payload(
+                registry_id=pair.registry_id,
+                generation=generation,
+                visibility="private",
+                repositories=pair.private.repositories,
+            ),
+            _document_payload(
+                registry_id=pair.registry_id,
+                generation=generation,
+                visibility="public",
+                repositories=public_repositories,
+            ),
+        )
+        updated = load_pair(private_path, public_path)
+        if RepositoryEntry(repository_id, slug) not in updated.public.repositories:
+            raise RegistryError("recorded public entry failed post-write verification")
+        return True
+
+
 def reconcile_observed(
     private_path_value: str,
     public_path_value: str,
@@ -1437,6 +1529,22 @@ def _build_parser() -> argparse.ArgumentParser:
     record_parser.add_argument("--id", required=True, dest="repository_id")
     record_parser.add_argument("--slug", required=True)
 
+    record_public_parser = subparsers.add_parser(
+        "record-public-observed",
+        help=(
+            "Record a repository that github.com already reports as public but "
+            "that is in neither half of the registry."
+        ),
+    )
+    _add_pair_arguments(record_public_parser)
+    record_public_parser.add_argument("--id", required=True, dest="repository_id")
+    record_public_parser.add_argument("--slug", required=True)
+    record_public_parser.add_argument(
+        "--gh",
+        default="gh",
+        help="GitHub CLI command or path.",
+    )
+
     reconcile_parser = subparsers.add_parser(
         "reconcile-observed",
         help=(
@@ -1510,6 +1618,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"initialized registry {args.registry_id} generation 0")
             return 0
 
+        if args.command == "record-public-observed":
+            added = record_public_observed(
+                args.private,
+                args.public,
+                args.repository_id,
+                args.slug,
+                gh_command=args.gh,
+            )
+            print(
+                "recorded observed public repository"
+                if added
+                else "already recorded public"
+            )
+            return 0
         if args.command == "reconcile-observed":
             changed = reconcile_observed(
                 args.private,
