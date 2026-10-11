@@ -64,6 +64,11 @@ Mark items `[x]` when complete and move them to Done.
 
 ### Other
 
+- [ ] [manual:2026-10-11] **Job guard follow-ups** — (1) Teach clockwork manifests a
+  start-condition and time-limit field so rendered units carry the guard
+  natively instead of through drop-ins. (2) Notify through shock-relay when a
+  job is dropped after its deferral cap. (3) Decide what, if anything, covers
+  launchd jobs on macOS, where there is no `ExecCondition`.
 - [ ] [manual:2026-10-11] **Investigate workstation process crashes under load** — On
   2026-10-11 the Fedora desktop logged 25 core dumps in one day (`python3.14`, the
   VS Code server `node`, and `rg`) while the load average sat near 26 during the
