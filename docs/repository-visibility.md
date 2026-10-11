@@ -179,6 +179,31 @@ history, secret, reference, licensing, and security-boundary audit followed
 by an explicit GitHub visibility change. Only after remote verification may
 the central registry be updated to describe that external fact.
 
+## Recording An Already-Public Repository
+
+A repository can be public on GitHub and absent from both halves of the
+registry: it was published before the registry existed, or the registry was
+replaced or restored from an older capture. `record-private` cannot record it
+(it only ever writes the private half) and `reconcile-observed` cannot either
+(it moves an entry the registry already holds). Do not edit the JSON by hand;
+record what github.com reports:
+
+```bash
+python3 scripts/repository_visibility.py record-public-observed \
+  --private config/repository-visibility/private.local.json \
+  --public config/repository-visibility/public.local.json \
+  --id REPOSITORY_NODE_ID \
+  --slug OWNER/REPO
+```
+
+The command observes the repository on `github.com` and refuses unless the
+node ID and canonical slug match exactly and GitHub reports it as public. It
+also refuses when the ID or slug is already bound in either half; a repository
+the registry holds as private that GitHub now shows as public is a visibility
+change for `reconcile-observed`, not a missing record. It publishes nothing
+and changes no repository's visibility. An unclassified *private* repository
+still goes through `record-private`.
+
 ## Remote And Portfolio Audit
 
 Validate the local pair and compare every entry with GitHub:
