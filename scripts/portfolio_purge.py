@@ -15,6 +15,13 @@ It only ever removes things that can be shown to hold nothing:
   or ``redundant`` -- a merged PR, or a three-way merge into ``origin/main``
   that changes nothing. ``needs-pr``, ``open-pr``, ``closed-pr`` and
   ``diverged`` branches are never touched: each of those is a decision.
+* a **backup branch** (opt-in) is the one exception to the rule above. A branch
+  under a backup prefix such as ``legacy/`` is kept on purpose even though it
+  has diverged from ``origin/main`` -- it is a safety copy taken before a
+  resync, not work in progress -- so content can never prove it finished.
+  With ``--expire-backups-after-days`` such a branch is deleted once it is
+  older than that, whatever its category. Until then it is kept like any
+  other undecided branch. Only the named prefixes are ever treated this way.
 * a **worktree** goes only when it is clean, unlocked, older than
   ``--min-age-days``, and sitting on a branch that qualifies above. The age
   guard matters: a worktree created a minute ago from ``main`` is clean and
@@ -35,7 +42,9 @@ Nothing is changed without ``--apply``. The default run prints what it would do.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -306,10 +315,50 @@ def report_orphans(repo: Path) -> list[str]:
     return findings
 
 
+DEFAULT_BACKUP_PREFIXES = ("legacy/",)
+_DATE_STAMP = re.compile(r"(\d{8})$")
+
+
+def backup_age_days(repo: Path, branch: str, now: float) -> float | None:
+    """Days since a backup branch was taken, or None if that cannot be told.
+
+    A backup's tip commit is as old as the work it preserves, which says
+    nothing about when the safety copy was made: a branch saved yesterday can
+    point at a commit from last year. So a trailing ``YYYYMMDD`` stamp in the
+    branch name is the authority when there is one, and the tip's commit date
+    is only the fallback.
+    """
+    stamp = _DATE_STAMP.search(branch)
+    if stamp:
+        try:
+            taken = datetime.datetime.strptime(stamp.group(1), "%Y%m%d")
+        except ValueError:
+            taken = None
+        if taken is not None:
+            return (now - taken.timestamp()) / SECONDS_PER_DAY
+    rc, committed = git(repo, "log", "-1", "--format=%ct", branch)
+    if rc != 0 or not committed.isdigit():
+        return None
+    return (now - int(committed)) / SECONDS_PER_DAY
+
+
 def purge_branches(
-    repo: Path, *, apply: bool, use_gh: bool, in_use: set[str]
+    repo: Path,
+    *,
+    apply: bool,
+    use_gh: bool,
+    in_use: set[str],
+    backup_prefixes: tuple[str, ...] = (),
+    backup_max_age_days: float | None = None,
+    now: float | None = None,
 ) -> Report:
-    """Delete local branches whose content is already in ``origin/main``."""
+    """Delete local branches whose content is already in ``origin/main``.
+
+    With ``backup_max_age_days`` set, branches under ``backup_prefixes`` are
+    also deleted once they are older than that, even though they hold content
+    main lacks: see the module docstring for why that is the point of them.
+    """
+    now = time.time() if now is None else now
     report = Report()
     _, current = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     _, out = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/")
@@ -324,9 +373,22 @@ def purge_branches(
             report.kept.append(f"{label} (held by a kept worktree)")
             continue
         category, detail = classify(repo, branch, use_gh)
+        why = category
         if category not in REMOVABLE:
-            report.kept.append(f"{label} ({category}: {detail})")
-            continue
+            is_backup = backup_max_age_days is not None and branch.startswith(
+                backup_prefixes
+            )
+            age = backup_age_days(repo, branch, now) if is_backup else None
+            if age is None or age < backup_max_age_days:
+                note = ""
+                if is_backup and age is not None:
+                    left = backup_max_age_days - age
+                    note = f"; backup expires in {left:.0f} day(s)"
+                elif is_backup:
+                    note = "; backup of unknown age"
+                report.kept.append(f"{label} ({category}: {detail}{note})")
+                continue
+            why = f"expired backup, {age:.0f} days old, was {category}"
         if apply:
             # -D, not -d: a squash-merged branch is never an ancestor of main,
             # so git's own "fully merged" test refuses exactly the branches
@@ -335,7 +397,7 @@ def purge_branches(
             if rc != 0:
                 report.errors.append(f"{label}: {msg}")
                 continue
-        report.removed.append(f"{label} ({category})")
+        report.removed.append(f"{label} ({why})")
     return report
 
 
@@ -447,6 +509,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Leave worktrees touched more recently than this alone (default: 3).",
     )
     parser.add_argument(
+        "--expire-backups-after-days",
+        type=float,
+        default=None,
+        metavar="DAYS",
+        help="Also delete backup branches older than this, even if unmerged. "
+        "Off by default.",
+    )
+    parser.add_argument(
+        "--backup-prefix",
+        action="append",
+        default=None,
+        metavar="PREFIX",
+        help="Branch prefix that marks a backup; repeatable "
+        f"(default: {', '.join(DEFAULT_BACKUP_PREFIXES)}).",
+    )
+    parser.add_argument(
         "--remote-branches",
         action="store_true",
         help="Also delete merged branches on origin.",
@@ -469,6 +547,19 @@ def main(argv: list[str] | None = None) -> int:
 
     use_gh = not args.no_gh
     now = time.time()
+    backup_prefixes = tuple(args.backup_prefix or DEFAULT_BACKUP_PREFIXES)
+    if args.expire_backups_after_days is not None and (
+        args.expire_backups_after_days <= 0 or "" in backup_prefixes
+    ):
+        # An empty prefix matches every branch, and a zero age expires every
+        # match at once: either would turn a retention rule into "delete all
+        # unmerged work".
+        print(
+            "error: --expire-backups-after-days must be positive and "
+            "--backup-prefix must not be empty",
+            file=sys.stderr,
+        )
+        return 2
     total = Report()
 
     for repo in repos:
@@ -491,7 +582,15 @@ def main(argv: list[str] | None = None) -> int:
         total.merge(trees)
         total.attention += report_orphans(repo)
         total.merge(
-            purge_branches(repo, apply=args.apply, use_gh=use_gh, in_use=in_use)
+            purge_branches(
+                repo,
+                apply=args.apply,
+                use_gh=use_gh,
+                in_use=in_use,
+                backup_prefixes=backup_prefixes,
+                backup_max_age_days=args.expire_backups_after_days,
+                now=now,
+            )
         )
         if args.remote_branches:
             total.merge(
