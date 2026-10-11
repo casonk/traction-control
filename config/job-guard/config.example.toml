@@ -1,0 +1,32 @@
+# Job guard policy template. Copy to ~/.config/portfolio-job-guard/config.toml
+# and adjust for the machine. Every value is optional; the ones shown are the
+# built-in defaults. Unit names here are synthetic.
+
+[limits]
+# 1-minute load average divided by CPU threads; heavy jobs wait at or above it.
+load_per_core_busy = 0.85
+# Heavy jobs wait at or above "hot". Every non-exempt job waits at "critical".
+cpu_temp_hot_c = 80
+cpu_temp_critical_c = 90
+gpu_temp_hot_c = 80
+# A deferred job is retried after retry_minutes plus a random 0..jitter minutes.
+retry_minutes = 20
+retry_jitter_minutes = 10
+# After this many deferrals the trigger is dropped until the next scheduled run.
+max_deferrals = 6
+
+[defaults]
+# heavy  : needs a cool, idle machine and runs one at a time
+# light  : cheap; waits only when the CPU is at the critical temperature
+# exempt : never held, and gets no ExecCondition
+class = "heavy"
+# Time limit written to units that do not already declare one. "none" disables.
+timeout = "3h"
+
+[units."example-mail-poller"]
+class = "light"
+timeout = "15min"
+
+[units."example-nightly-render"]
+class = "heavy"
+timeout = "2h"
