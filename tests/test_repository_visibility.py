@@ -378,6 +378,142 @@ class RepositoryVisibilityTests(unittest.TestCase):
         fake.chmod(0o700)
         return fake, log
 
+    def test_record_public_observed_adds_an_unclassified_public_repository(self) -> None:
+        repository_id = "R_synthetic_public"
+        slug = "sample-owner/already-public"
+        self._write_pair(
+            private=[{"id": "R_private", "slug": "sample-owner/private"}],
+        )
+        before = visibility.load_pair(self.private_path, self.public_path)
+        fake, log = self._write_observing_fake_gh(
+            {"id": repository_id, "nameWithOwner": slug, "visibility": "PUBLIC"}
+        )
+
+        with mock.patch.dict(os.environ, {"GH_HOST": "hostile-enterprise.invalid"}):
+            added = visibility.record_public_observed(
+                str(self.private_path),
+                str(self.public_path),
+                repository_id,
+                slug,
+                gh_command=str(fake),
+            )
+
+        pair = visibility.load_pair(self.private_path, self.public_path)
+        self.assertTrue(added)
+        self.assertEqual(pair.generation, before.generation + 1)
+        self.assertEqual(pair.private.generation, pair.public.generation)
+        self.assertEqual(pair.private.repositories, before.private.repositories)
+        self.assertEqual(
+            pair.public.repositories,
+            (visibility.RepositoryEntry(repository_id, slug),),
+        )
+        self.assertEqual(pair.classification(slug), "public")
+        invocation = log.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(invocation[0], "github.com")
+        self.assertEqual(invocation[1:4], ["repo", "view", slug])
+
+        before_private = self.private_path.read_bytes()
+        before_public = self.public_path.read_bytes()
+        again = visibility.record_public_observed(
+            str(self.private_path),
+            str(self.public_path),
+            repository_id,
+            slug,
+            gh_command=str(fake),
+        )
+        self.assertFalse(again)
+        self.assertEqual(self.private_path.read_bytes(), before_private)
+        self.assertEqual(self.public_path.read_bytes(), before_public)
+
+    def test_record_public_observed_rejects_mismatches_without_mutation(self) -> None:
+        repository_id = "R_synthetic_public"
+        slug = "sample-owner/already-public"
+        self._write_pair()
+        before_private = self.private_path.read_bytes()
+        before_public = self.public_path.read_bytes()
+        observations = {
+            "private on GitHub": {
+                "id": repository_id,
+                "nameWithOwner": slug,
+                "visibility": "PRIVATE",
+            },
+            "different id": {
+                "id": "R_someone_else",
+                "nameWithOwner": slug,
+                "visibility": "PUBLIC",
+            },
+            "renamed": {
+                "id": repository_id,
+                "nameWithOwner": "sample-owner/renamed",
+                "visibility": "PUBLIC",
+            },
+            "case differs": {
+                "id": repository_id,
+                "nameWithOwner": "Sample-Owner/Already-Public",
+                "visibility": "PUBLIC",
+            },
+        }
+        for label, observation in observations.items():
+            with self.subTest(label):
+                fake, _ = self._write_observing_fake_gh(observation)
+                with self.assertRaises(visibility.RegistryError):
+                    visibility.record_public_observed(
+                        str(self.private_path),
+                        str(self.public_path),
+                        repository_id,
+                        slug,
+                        gh_command=str(fake),
+                    )
+                self.assertEqual(self.private_path.read_bytes(), before_private)
+                self.assertEqual(self.public_path.read_bytes(), before_public)
+
+    def test_record_public_observed_fails_closed_when_github_cannot_be_observed(
+        self,
+    ) -> None:
+        self._write_pair()
+        before_public = self.public_path.read_bytes()
+        fake = self._write_fake_gh({}, status=1)
+
+        with self.assertRaises(visibility.RegistryError):
+            visibility.record_public_observed(
+                str(self.private_path),
+                str(self.public_path),
+                "R_synthetic_public",
+                "sample-owner/already-public",
+                gh_command=str(fake),
+            )
+        self.assertEqual(self.public_path.read_bytes(), before_public)
+
+    def test_record_public_observed_never_reclassifies_or_rebinds_an_entry(self) -> None:
+        self._write_pair(
+            private=[{"id": "R_private", "slug": "sample-owner/was-private"}],
+            public=[{"id": "R_public", "slug": "sample-owner/public"}],
+        )
+        before_private = self.private_path.read_bytes()
+        before_public = self.public_path.read_bytes()
+        attempts = (
+            # Registry says private, GitHub says public: a change to review.
+            ("R_private", "sample-owner/was-private"),
+            # Known ID under a new name, and a new ID claiming a known name.
+            ("R_public", "sample-owner/other-name"),
+            ("R_new", "sample-owner/public"),
+        )
+        for repository_id, slug in attempts:
+            with self.subTest(repository_id=repository_id, slug=slug):
+                fake, _ = self._write_observing_fake_gh(
+                    {"id": repository_id, "nameWithOwner": slug, "visibility": "PUBLIC"}
+                )
+                with self.assertRaises(visibility.RegistryError):
+                    visibility.record_public_observed(
+                        str(self.private_path),
+                        str(self.public_path),
+                        repository_id,
+                        slug,
+                        gh_command=str(fake),
+                    )
+                self.assertEqual(self.private_path.read_bytes(), before_private)
+                self.assertEqual(self.public_path.read_bytes(), before_public)
+
     def test_reconcile_observed_moves_and_renames_an_exact_github_identity(self) -> None:
         repository_id = "R_synthetic_exact"
         source_slug = "sample-owner/old-public-name"
