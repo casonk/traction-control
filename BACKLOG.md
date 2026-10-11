@@ -195,7 +195,7 @@ Mark items `[x]` when complete and move them to Done.
 
 - [x] [manual:2026-06-25] **P2 — Add scan resistance after exposure
   hardening** — migrated public WireGuard from default UDP `51820` to fixed
-  non-default UDP `41194`, updated and exported client profiles/QR codes,
+  a non-default UDP port, updated and exported client profiles/QR codes,
   preserved the restricted P1 zone policy, and verified live remote access.
   SSH remains on port 22 because it is not publicly forwarded. The non-default
   WireGuard port is defense-in-depth against opportunistic scans, not DoS
