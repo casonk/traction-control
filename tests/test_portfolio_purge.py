@@ -82,7 +82,8 @@ class PortfolioPurgeTests(unittest.TestCase):
 
     def unmerged_branch(self, name: str) -> None:
         sh(self.repo, "checkout", "--quiet", "-b", name)
-        (self.repo / f"{name}.txt").write_text("not on main\n", encoding="utf-8")
+        filename = name.replace("/", "-") + ".txt"
+        (self.repo / filename).write_text("not on main\n", encoding="utf-8")
         sh(self.repo, "add", ".")
         sh(self.repo, "commit", "--quiet", "-m", f"work on {name}")
         sh(self.repo, "checkout", "--quiet", "main")
@@ -128,6 +129,84 @@ class PortfolioPurgeTests(unittest.TestCase):
         sh(self.repo, "checkout", "--quiet", "done")
         self.run_purge("--apply")
         self.assertIn("done", self.branches())
+
+    # -- backup branches -------------------------------------------------
+
+    def test_backup_branch_is_kept_when_expiry_is_not_requested(self) -> None:
+        self.unmerged_branch("legacy/offline-main-20200101")
+        code, output = self.run_purge("--apply", "--verbose")
+        self.assertEqual(code, 0)
+        self.assertIn("legacy/offline-main-20200101", self.branches())
+        self.assertNotIn("backup expires", output)
+
+    def test_expired_backup_branch_is_deleted_despite_unmerged_work(self) -> None:
+        self.unmerged_branch("legacy/offline-main-20200101")
+        code, output = self.run_purge("--apply", "--expire-backups-after-days", "90")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.branches(), {"main"})
+        self.assertIn("expired backup", output)
+        self.assertIn("was needs-pr", output)
+
+    def test_recent_backup_branch_is_kept_and_reports_time_left(self) -> None:
+        # The tip commit is seconds old and so is the name stamp.
+        import datetime
+
+        stamp = datetime.date.today().strftime("%Y%m%d")
+        name = f"legacy/offline-main-{stamp}"
+        self.unmerged_branch(name)
+        code, output = self.run_purge(
+            "--apply", "--verbose", "--expire-backups-after-days", "90"
+        )
+        self.assertEqual(code, 0)
+        self.assertIn(name, self.branches())
+        self.assertIn("backup expires in", output)
+
+    def test_backup_age_comes_from_the_name_stamp_not_the_tip_commit(self) -> None:
+        # Committed seconds ago, but stamped as taken years ago: the stamp wins,
+        # because the tip's date is the age of the work, not of the backup.
+        self.unmerged_branch("legacy/saved-20200101")
+        age = purge.backup_age_days(self.repo, "legacy/saved-20200101", purge.time.time())
+        self.assertGreater(age, 365)
+
+    def test_unstamped_backup_falls_back_to_the_tip_commit_date(self) -> None:
+        self.unmerged_branch("legacy/unstamped")
+        age = purge.backup_age_days(self.repo, "legacy/unstamped", purge.time.time())
+        self.assertLess(age, 1)
+        code, _ = self.run_purge("--apply", "--expire-backups-after-days", "90")
+        self.assertEqual(code, 0)
+        self.assertIn("legacy/unstamped", self.branches())
+
+    def test_expiry_never_reaches_branches_outside_the_backup_prefix(self) -> None:
+        self.unmerged_branch("wip-20200101")
+        code, _ = self.run_purge("--apply", "--expire-backups-after-days", "90")
+        self.assertEqual(code, 0)
+        self.assertIn("wip-20200101", self.branches())
+
+    def test_custom_backup_prefix_replaces_the_default(self) -> None:
+        self.unmerged_branch("backup/old-20200101")
+        self.unmerged_branch("legacy/old-20200101")
+        code, _ = self.run_purge(
+            "--apply", "--expire-backups-after-days", "90", "--backup-prefix", "backup/"
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(self.branches(), {"main", "legacy/old-20200101"})
+
+    def test_expired_backup_is_only_reported_in_a_dry_run(self) -> None:
+        self.unmerged_branch("legacy/offline-main-20200101")
+        code, output = self.run_purge("--expire-backups-after-days", "90")
+        self.assertEqual(code, 0)
+        self.assertIn("would remove: repo: branch legacy/offline-main-20200101", output)
+        self.assertIn("legacy/offline-main-20200101", self.branches())
+
+    def test_unsafe_expiry_settings_are_refused(self) -> None:
+        self.unmerged_branch("wip")
+        for args in (
+            ("--expire-backups-after-days", "0"),
+            ("--expire-backups-after-days", "90", "--backup-prefix", ""),
+        ):
+            code, _ = self.run_purge("--apply", *args)
+            self.assertEqual(code, 2)
+            self.assertIn("wip", self.branches())
 
     # -- worktrees -------------------------------------------------------
 
