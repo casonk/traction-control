@@ -64,11 +64,21 @@ Mark items `[x]` when complete and move them to Done.
 
 ### Other
 
-- [ ] [manual:2026-10-11] **Job guard follow-ups** — (1) Teach clockwork manifests a
-  start-condition and time-limit field so rendered units carry the guard
-  natively instead of through drop-ins. (2) Notify through shock-relay when a
-  job is dropped after its deferral cap. (3) Decide what, if anything, covers
-  launchd jobs on macOS, where there is no `ExecCondition`.
+- [ ] [manual:2026-10-11] **Job guard notifications** — Tell the owner when the guard
+  drops a job after its deferral cap, and when the machine stays hot or busy long
+  enough that jobs keep deferring. Today that is only visible in the journal and
+  in `job_guard.py status`. Route it through crew-chief (which already listens on
+  the shock-relay channels) rather than giving the guard its own messaging path,
+  and de-duplicate so one hot evening is one message, not one per job.
+- [ ] [manual:2026-10-11] **Job guard on macOS** — The guard depends on systemd's
+  `ExecCondition=` and transient timers, and launchd has neither. Cover launchd
+  jobs with a wrapper that runs the same `check` before the real command and
+  reschedules itself, plus macOS readings for temperature and load. Until then
+  scheduled jobs on the Mac run unguarded and without a time limit.
+- [ ] [manual:2026-10-11] **Native guard fields in clockwork** — Teach clockwork
+  manifests a start-condition and time-limit field so rendered units carry the
+  guard themselves instead of through drop-ins that must be re-installed after
+  every render.
 - [ ] [manual:2026-10-11] **Investigate workstation process crashes under load** — On
   2026-10-11 the Fedora desktop logged 25 core dumps in one day (`python3.14`, the
   VS Code server `node`, and `rg`) while the load average sat near 26 during the
