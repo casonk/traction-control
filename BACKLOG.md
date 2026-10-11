@@ -49,6 +49,15 @@ Mark items `[x]` when complete and move them to Done.
 
 ### Other
 
+- [ ] [manual:2026-10-11] **Investigate workstation process crashes under load** — On
+  2026-10-11 the Fedora desktop logged 25 core dumps in one day (`python3.14`, the
+  VS Code server `node`, and `rg`) while the load average sat near 26 during the
+  weekly archility render and a parallel portfolio sync. Pre-commit hooks and a
+  pytest run died with SIGSEGV and passed on re-run. Establish whether this is
+  resource exhaustion, a faulty package build, or hardware (memory); use
+  `fedora-debugg` and `coredumpctl`. If it is contention, give the scheduled
+  portfolio jobs a shared concurrency limit or load-aware start condition so
+  overlapping timers and interactive work cannot stack up.
 - [ ] [manual:2026-06-21] **Repair SSH/Git host config permissions** — Investigate and fix
   the host-level SSH configuration issue causing Git pushes to fail with
   `Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`.
