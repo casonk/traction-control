@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- `scripts/job_guard.py install` now writes the time limit that matches the
+  service type: `TimeoutStartSec=` for a oneshot unit, `RuntimeMaxSec=` for any
+  other. It used to write both, and systemd logged "RuntimeMaxSec= has no
+  effect in combination with Type=oneshot" for every guarded unit on each
+  reload.
 - Added `scripts/job_guard.py` (see `docs/job-guard.md`). `install` writes a
   systemd drop-in for every timer-driven user service that adds a start
   condition and, where the unit has none, a time limit. The condition defers a

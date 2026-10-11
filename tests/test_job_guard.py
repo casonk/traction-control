@@ -206,9 +206,31 @@ class InstallTests(TempDirCase):
         body = (self.units / "nightly.service.d" / guard.DROPIN_NAME).read_text()
         self.assertIn(f"ExecCondition=/usr/bin/python3 {self.script} check --unit %n", body)
         self.assertIn("TimeoutStartSec=3h", body)
-        self.assertIn("RuntimeMaxSec=3h", body)
+        self.assertNotIn("RuntimeMaxSec", body)
         recorded = guard.guarded_units(self.state)
         self.assertEqual(recorded, {"nightly.service": "heavy", "other.service": "heavy"})
+
+    def test_the_time_limit_key_matches_the_service_type(self) -> None:
+        # systemd ignores RuntimeMaxSec on a oneshot unit and logs a warning on
+        # every reload; a long-running type ignores TimeoutStartSec once started.
+        self.unit("batch.service")  # Type=oneshot
+        self.unit("batch.timer", "[Timer]\nOnCalendar=daily\n")
+        self.unit("worker.service", "[Service]\nExecStart=/bin/true\n")  # default type
+        self.unit("worker.timer", "[Timer]\nOnCalendar=daily\n")
+        self.unit("inst@.service", "[Service]\nType=oneshot\nExecStart=/bin/true\n")
+        self.unit("inst@a.timer", "[Timer]\nOnCalendar=daily\n")
+
+        self.install()
+
+        def body(name: str) -> str:
+            return (self.units / f"{name}.d" / guard.DROPIN_NAME).read_text()
+
+        self.assertIn("TimeoutStartSec=3h", body("batch.service"))
+        self.assertNotIn("RuntimeMaxSec", body("batch.service"))
+        self.assertIn("RuntimeMaxSec=3h", body("worker.service"))
+        self.assertNotIn("TimeoutStartSec", body("worker.service"))
+        self.assertIn("TimeoutStartSec=3h", body("inst@a.service"))
+        self.assertNotIn("RuntimeMaxSec", body("inst@a.service"))
 
     def test_a_unit_that_sets_its_own_limit_keeps_it(self) -> None:
         self.unit("slow.service", "[Service]\nType=oneshot\nTimeoutStartSec=7200\n")

@@ -407,17 +407,34 @@ def timer_driven_services(unit_dir: Path) -> list[str]:
     return sorted(services)
 
 
-def _declares_timeout(unit_dir: Path, unit: str) -> bool:
+def _unit_text(unit_dir: Path, unit: str) -> str:
+    """The unit file's text, falling back to its template for an instance."""
     template = re.sub(r"@[^.]*\.service$", "@.service", unit)
     for candidate in (unit_dir / unit, unit_dir / template):
         with contextlib.suppress(OSError):
-            text = candidate.read_text(encoding="utf-8", errors="replace")
-            if re.search(r"^\s*(TimeoutStartSec|RuntimeMaxSec)\s*=", text, re.M):
-                return True
-    return False
+            return candidate.read_text(encoding="utf-8", errors="replace")
+    return ""
 
 
-def render_dropin(unit: str, policy: UnitPolicy, script: Path, *, keep_own_timeout: bool) -> str:
+def _declares_timeout(unit_dir: Path, unit: str) -> bool:
+    return bool(
+        re.search(r"^\s*(TimeoutStartSec|RuntimeMaxSec)\s*=", _unit_text(unit_dir, unit), re.M)
+    )
+
+
+def _is_oneshot(unit_dir: Path, unit: str) -> bool:
+    types = re.findall(r"^\s*Type\s*=\s*(\S+)", _unit_text(unit_dir, unit), re.M)
+    return bool(types) and types[-1] == "oneshot"
+
+
+def render_dropin(
+    unit: str,
+    policy: UnitPolicy,
+    script: Path,
+    *,
+    keep_own_timeout: bool,
+    oneshot: bool = True,
+) -> str:
     lines = [
         "# Managed by traction-control scripts/job_guard.py; do not edit.",
         "# Remove every such drop-in with: job_guard.py install --remove",
@@ -426,8 +443,11 @@ def render_dropin(unit: str, policy: UnitPolicy, script: Path, *, keep_own_timeo
     if policy.job_class != "exempt":
         lines.append(f"ExecCondition=/usr/bin/python3 {script} check --unit %n")
     if policy.timeout and not keep_own_timeout:
-        # TimeoutStartSec bounds a oneshot job; RuntimeMaxSec bounds any other type.
-        lines += [f"TimeoutStartSec={policy.timeout}", f"RuntimeMaxSec={policy.timeout}"]
+        # A oneshot job is "starting" for as long as it runs, so TimeoutStartSec
+        # bounds it and RuntimeMaxSec does nothing (systemd warns about it on
+        # every reload). Any other type is bounded by RuntimeMaxSec instead.
+        key = "TimeoutStartSec" if oneshot else "RuntimeMaxSec"
+        lines.append(f"{key}={policy.timeout}")
     return "\n".join(lines) + "\n"
 
 
@@ -451,7 +471,9 @@ def install(
     for unit in timer_driven_services(unit_dir):
         policy = config.policy(unit)
         own = _declares_timeout(unit_dir, unit)
-        body = render_dropin(unit, policy, script, keep_own_timeout=own)
+        body = render_dropin(
+            unit, policy, script, keep_own_timeout=own, oneshot=_is_oneshot(unit_dir, unit)
+        )
         limit = "own limit kept" if own else (policy.timeout or "no limit")
         report.append(f"{unit}: {policy.job_class}, {limit}")
         recorded[unit] = policy.job_class
