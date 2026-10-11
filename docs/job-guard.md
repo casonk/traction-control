@@ -19,7 +19,7 @@ The guard attaches to systemd units, not to the jobs:
   that a timer in the user unit directory activates. Nothing in the unit files,
   the clockwork manifests that render them, or the jobs changes.
 - The drop-in adds `ExecCondition=... job_guard.py check --unit %n` and, when
-  the unit declares no limit of its own, `TimeoutStartSec=` and `RuntimeMaxSec=`.
+  the unit declares no limit of its own, a time limit: `TimeoutStartSec=` for a\n  oneshot unit, `RuntimeMaxSec=` for any other type.
 - `check` exits 0 to let the job start or 75 to defer it. systemd records a
   deferred start as skipped, not failed.
 - A deferred job is retried through a transient timer after `retry_minutes`
