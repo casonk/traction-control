@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- `scripts/portfolio_purge.py` can now expire backup branches. With
+  `--expire-backups-after-days`, a branch under a backup prefix (`legacy/` by
+  default, `--backup-prefix` to change) is deleted once it is older than that,
+  even though it holds content `main` lacks; until then it is kept and the log
+  says how long it has left. Age comes from a trailing `YYYYMMDD` stamp in the
+  branch name, else the tip commit date. The weekly schedule enables it at 90
+  days. Pre-resync safety copies were otherwise permanent: they diverge from
+  `main` by design, so no content test could ever call them finished.
 - `scripts/portfolio_purge.py` now reports worktree directories that git no
   longer lists — left behind under `.claude/worktrees` when a repository is
   moved — on every run, as "needs attention", stating whether each one's files
