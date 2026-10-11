@@ -120,6 +120,26 @@ Up-integrated from `clockwork` and `wiring-harness`.
   repositories this machine has never cloned, which a local-only ahead/behind
   scan reports as "everything is even."
 
+### 2026-10-11 — Scheduled jobs need a time limit and a look at the machine
+
+- Every scheduled job here was written as if it ran alone. Six heavy ones in
+  one overnight window ran a workstation's CPU to 98 C for hours, and a
+  benchmark with no time limit sat stuck for 4h40m. Random process crashes and
+  an in-memory filesystem checksum failure followed. No single job was wrong.
+- Give every timer-driven service a time limit. A oneshot unit with no
+  `TimeoutStartSec=` can run forever and nothing will notice.
+- Gate heavy jobs on the machine's state, not only on the clock:
+  `scripts/job_guard.py` adds a start condition (load, CPU and GPU
+  temperature, one heavy job at a time) through systemd drop-ins. Re-run
+  `job_guard.py install` after adding or re-rendering scheduled units.
+- A monitor must name the sensor it reads. The dashboard showed 28 C during
+  that night because it took the first thermal zone, a board sensor, as the
+  CPU. Prefer "no reading" to a reading from an unrelated sensor.
+- When a filesystem error appears, check on disk before believing it:
+  an offline `e2fsck -n` found nothing, so the corruption was in memory. Heat
+  and RAM are then the suspects, not the drive.
+- If fans are already at full speed, a fan curve is not the fix.
+
 ### 2026-10-11 — A stash needs a written inventory, not just a label
 
 - A stash message such as "offline WIP before upstream sync" says when and why
