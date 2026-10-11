@@ -107,6 +107,35 @@ Up-integrated from `clockwork` and `wiring-harness`.
   Its fail-closed generation check exposes stale owner-local catalog state
   before a misleading aggregate view is used for triage.
 
+### 2026-10-11 — A locked SSH key should not block a portfolio fetch; rewrite to HTTPS per command
+
+- When every repo fails with `Permission denied (publickey)`, check for a
+  missing agent (`SSH_AUTH_SOCK` unset) before suspecting GitHub access. The
+  key is passphrase-protected, so a non-interactive session cannot use it.
+- `gh` is already the global HTTPS credential helper, so fetch without touching
+  remotes or config:
+  `git -c url."https://github.com/".insteadOf="git@github.com:" fetch --all --prune`.
+- A cross-machine sync must also compare the hosted inventory
+  (`gh repo list`) against local clones. Work done elsewhere may live in
+  repositories this machine has never cloned, which a local-only ahead/behind
+  scan reports as "everything is even."
+
+### 2026-10-11 — A stash needs a written inventory, not just a label
+
+- A stash message such as "offline WIP before upstream sync" says when and why
+  the stash was taken but not what is in it. Weeks later nobody can tell
+  whether it holds unpublished work or disposable output without opening it,
+  so stashes accumulate and never get resolved.
+- Whenever a stash is created, record in the repo's `CHATHISTORY.md` (and the
+  portfolio `CHATHISTORY.md` for cross-repo work): the stash message, the file
+  list from `git stash show --include-untracked --stat`, one line per group of
+  files on what the change does, whether it is authored work or generated
+  output, and the intended disposition (publish, re-apply after sync, or drop).
+- Prefer a pushed WIP branch over a stash for anything that should survive.
+  A stash is invisible to other machines and to every branch-based audit.
+- Keep generated output (rendered diagrams, benchmark reports) out of the same
+  stash as authored work so the disposable part can be dropped on sight.
+
 ### 2026-08-29 — Portfolio rollups must preserve the canonical-backlog boundary
 
 - Treat each repository's tracked `BACKLOG.md` as the source of work-item text.
