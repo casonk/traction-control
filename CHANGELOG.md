@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- `scripts/repository_visibility.py record-public-observed`: record a
+  repository that is already public on GitHub but in neither half of the
+  registry. Until now the only way to register one was to edit the JSON pair by
+  hand, because `record-private` writes only the private half and
+  `reconcile-observed` needs an existing entry. The command observes
+  github.com, requires the immutable ID and canonical slug to match exactly and
+  the repository to be public, refuses any ID or slug already bound, and never
+  changes a repository's visibility.
 - `scripts/portfolio_purge.py` can now expire backup branches. With
   `--expire-backups-after-days`, a branch under a backup prefix (`legacy/` by
   default, `--backup-prefix` to change) is deleted once it is older than that,
