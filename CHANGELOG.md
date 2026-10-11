@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Added `scripts/job_guard.py` (see `docs/job-guard.md`). `install` writes a
+  systemd drop-in for every timer-driven user service that adds a start
+  condition and, where the unit has none, a time limit. The condition defers a
+  job while the CPU or GPU is hot, load is high, or another heavy job is
+  running, and retries it later a bounded number of times. Jobs can be marked
+  `light` or `exempt` in an optional local config. The guard fails open: an
+  unreadable sensor or a broken config never stops a job.
 - `scripts/repository_visibility.py record-public-observed`: record a
   repository that is already public on GitHub but in neither half of the
   registry. Until now the only way to register one was to edit the JSON pair by
