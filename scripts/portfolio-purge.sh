@@ -11,6 +11,12 @@
 #   PORTFOLIO_PURGE_REMOTE_BRANCHES=1   also delete merged branches on origin
 #   PORTFOLIO_PURGE_IMAGES=1            also prune dangling podman layers
 #
+# One retention rule is opt-in, because it deletes unmerged content on purpose:
+#   PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS=90   also delete backup branches (under
+#                                            legacy/ by default) older than this
+#   PORTFOLIO_PURGE_BACKUP_PREFIXES          space-separated backup prefixes
+#                                            (default: legacy/)
+#
 # Other settings:
 #   PORTFOLIO_PURGE_MIN_AGE_DAYS        worktree age guard (default: 3)
 #   PORTFOLIO_PURGE_DRY_RUN=1           report only; delete nothing
@@ -47,6 +53,12 @@ ARGS=(--portfolio-root "${PORTFOLIO_ROOT}" --verbose
 [[ "${PORTFOLIO_PURGE_DRY_RUN:-0}" == "1" ]] || ARGS+=(--apply)
 [[ "${PORTFOLIO_PURGE_REMOTE_BRANCHES:-0}" == "1" ]] && ARGS+=(--remote-branches)
 [[ "${PORTFOLIO_PURGE_IMAGES:-0}" == "1" ]] && ARGS+=(--images)
+if [[ -n "${PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS:-}" ]]; then
+  ARGS+=(--expire-backups-after-days "${PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS}")
+  for prefix in ${PORTFOLIO_PURGE_BACKUP_PREFIXES:-}; do
+    ARGS+=(--backup-prefix "${prefix}")
+  done
+fi
 # Without gh the purge still works, but finds only what git alone can prove.
 command -v gh >/dev/null 2>&1 || ARGS+=(--no-gh)
 

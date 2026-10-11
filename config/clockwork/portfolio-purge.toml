@@ -17,6 +17,13 @@
 # checkout; enable them by adding to [jobs.environment]:
 #   PORTFOLIO_PURGE_REMOTE_BRANCHES = "1"
 #   PORTFOLIO_PURGE_IMAGES = "1"
+#
+# Backup branches are the one place this job deletes unmerged content. A branch
+# under legacy/ is a safety copy taken before a resync; it has diverged from
+# main by design, so nothing above would ever remove it. They are kept for
+# PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS and then deleted. The age is read from a
+# trailing YYYYMMDD stamp in the branch name, falling back to the tip commit
+# date. Remove the setting to keep backups indefinitely.
 
 [[jobs]]
 name = "portfolio-purge"
@@ -32,6 +39,7 @@ timer_description = "Remove merged branches and finished worktrees across the po
 
 [jobs.environment]
 PORTFOLIO_ROOT = "%h/dev"
+PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS = "90"
 
 [jobs.timer]
 kind = "calendar"
@@ -55,6 +63,7 @@ after = []
 
 [jobs.launchd.environment]
 PORTFOLIO_ROOT = "%h/dev"
+PORTFOLIO_PURGE_BACKUP_MAX_AGE_DAYS = "90"
 # launchd starts jobs with a minimal PATH that excludes Homebrew. Without this
 # the purge cannot find gh, silently falls back to git-only classification, and
 # stops recognising squash-merged branches whose PR is the only proof they
