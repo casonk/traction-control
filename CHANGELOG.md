@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Agentic jobs in `auto` provider mode now fall back to the next ready
+  provider (`codex`, then `claude`, then `copilot`) when the chosen one fails
+  within two minutes of starting or reports a quota or rate limit. Before, a
+  provider that passed its readiness probe and then failed on the real run
+  ended the job, which is how the `--full-auto` removal went unnoticed.
 - The six agentic job scripts now call `codex exec --sandbox workspace-write`
   instead of `codex exec --full-auto`. Newer `codex` releases removed
   `--full-auto` from `exec`, so every run since 2026-06-20 exited 2 at
