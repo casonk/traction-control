@@ -1599,3 +1599,10 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   contents are already in git, but it does not delete them: with the link dead
   git cannot vouch for the directory, and removing files on outside evidence
   is a person's decision.
+- A scheduled job that drives an outside CLI breaks when that CLI drops a
+  flag, and the failure looks like any other failed run. The agentic jobs
+  passed `codex exec --full-auto` for months after `codex` removed it; every
+  run exited 2 during argument parsing and nobody saw it for four months.
+  When a scheduled job fails the same way twice in a row, read the error
+  instead of waiting for it to clear, and check `systemctl --user --failed`
+  after updating tools the jobs depend on.
