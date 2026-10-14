@@ -169,6 +169,7 @@ if [[ "${1:-}" == "-C" ]]; then
       ;;
     ls-files)
       case " $* " in
+        *" --stage -z "*) printf '100644 %040d 0\tsample.py\0' 0 ;;
         *" --error-unmatch REFS-PUBLIC.md "*) printf 'REFS-PUBLIC.md\n' ;;
         *) printf 'sample.py\n' ;;
       esac

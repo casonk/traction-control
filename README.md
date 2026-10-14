@@ -68,6 +68,9 @@ continuity files.
 
 When auditing or maintaining the portfolio, scan from the portfolio root, not from the `traction-control` repo root.
 
+Tracked repository structure and artifact checks are described in
+[Repository Quality Gates](docs/repository-quality-gates.md).
+
 Example:
 
 ```bash
