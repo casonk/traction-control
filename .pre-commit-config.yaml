@@ -5,6 +5,9 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
       - id: check-added-large-files
       - id: detect-private-key
   - repo: https://github.com/gitleaks/gitleaks
@@ -13,6 +16,18 @@ repos:
       - id: gitleaks
   - repo: local
     hooks:
+      - id: repository-quality-contract
+        name: tracked repository structure and artifact contract
+        entry: python3 scripts/check_repository_quality.py --profile code --forbid-prefix artifacts/
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: repository-quality-contract-tests
+        name: repository quality contract tests
+        entry: python3 -m unittest discover -s tests -p test_check_repository_quality.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: portfolio-private-metadata-check
         name: portfolio private-metadata index check
         entry: /bin/bash scripts/check_portfolio_privacy.sh
