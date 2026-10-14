@@ -271,6 +271,17 @@ the active registry is available and always rejects staged operational
 `*.local.*` control-plane files. A passing current-index audit does not cleanse
 older Git history; history rewriting remains a separate destructive review.
 
+A private repository named after an ordinary word makes every public text
+that uses the word a finding. List such names in the ignored
+`config/repository-visibility/common-words.local.json` (shape:
+`common-words.example.json`) and pass it with `--common-words`;
+`scripts/portfolio-audit.sh` does this when the file exists. A listed name
+still matches as an `owner/name` slug, as a path segment (`dir/name`,
+`name/...`), and with a `.git` suffix. It no longer matches as a word in
+prose. Every entry needs a `reason`, and every name must be a private
+repository name, so the list cannot exempt anything else. The file names
+private repositories, so it stays local like the registry.
+
 ## Replication And Future Authority
 
 For now, the paired JSON files are a single-writer control-plane artifact.

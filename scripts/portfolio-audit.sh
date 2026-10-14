@@ -254,6 +254,8 @@ VIS_DIR="${CONTROL_PLANE}/config/repository-visibility"
 PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/private.local.json}"
 PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${VIS_DIR}/public.local.json}"
 LOCAL_PRIVATE_REGISTRY="${TRACTION_CONTROL_LOCAL_PRIVATE_REPOS_CONFIG:-${VIS_DIR}/local-private.local.json}"
+COMMON_WORDS_LIST="${TRACTION_CONTROL_COMMON_WORDS_CONFIG:-${VIS_DIR}/common-words.local.json}"
+[[ -f "${COMMON_WORDS_LIST}" ]] || COMMON_WORDS_LIST=""
 
 if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
     log "=== private-name disclosure sweep (public repos only) ==="
@@ -278,6 +280,7 @@ if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
                 --private "${PRIVATE_REGISTRY}" \
                 --public "${PUBLIC_REGISTRY}" \
                 ${LOCAL_PRIVATE_REGISTRY:+--local-private "${LOCAL_PRIVATE_REGISTRY}"} \
+                ${COMMON_WORDS_LIST:+--common-words "${COMMON_WORDS_LIST}"} \
                 --root "${repo}" 2>&1
         )"
         disclosure_status=$?
