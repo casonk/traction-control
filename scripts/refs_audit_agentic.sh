@@ -44,12 +44,12 @@ Inventory repos in the portfolio and invoke an unattended agentic audit of
 REFS-PUBLIC.md files, checking for missing or stale external references.
 
 Options:
-  --provider NAME        Provider to use: auto, codex, claude, or copilot.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
   --model MODEL          Optional model override for the selected provider.
   --portfolio-root PATH  Override the portfolio scan root.
   --log-dir DIR          Override the run-log directory.
   --prompt-file PATH     Override the audit prompt file.
-  --force                Ignore dirty worktrees and audit them anyway.
+  --force                Ignore dirty or busy worktrees and audit them anyway.
   --help                 Show this help text.
 EOF
 }
@@ -193,6 +193,7 @@ log "found ${#REPO_DIRS[@]} repositories"
 has_refs_count=0
 missing_refs_count=0
 dirty_count=0
+busy_count=0
 skip_count=0
 
 repo_index=0
@@ -204,6 +205,12 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
   if (( FORCE == 0 )) && [[ -n "$(git -C "${repo}" status --porcelain 2>/dev/null || true)" ]]; then
     record_inventory "dirty" "${local_rel}" "-" "0" "-" "worktree not clean"
     dirty_count=$(( dirty_count + 1 ))
+    repo_index=$(( repo_index + 1 ))
+    continue
+  fi
+  if (( FORCE == 0 )) && busy_reason="$(agentic_checkout_busy "${repo}")"; then
+    record_inventory "busy" "${local_rel}" "-" "0" "-" "${busy_reason}"
+    busy_count=$(( busy_count + 1 ))
     repo_index=$(( repo_index + 1 ))
     continue
   fi
@@ -259,15 +266,17 @@ ln -sf "${INVENTORY_FILE}" "${LATEST_INVENTORY_LINK}"
 awk -F '\t' 'NR == 1 || $1 == "candidate"' "${INVENTORY_FILE}" > "${CANDIDATE_FILE}"
 candidate_count=$(( has_refs_count + missing_refs_count ))
 
-log "inventory summary: has_refs=${has_refs_count} missing_refs=${missing_refs_count} dirty=${dirty_count} skipped=${skip_count}"
+log "inventory summary: has_refs=${has_refs_count} missing_refs=${missing_refs_count} dirty=${dirty_count} busy=${busy_count} skipped=${skip_count}"
 
 if (( candidate_count == 0 )); then
   log "no repos matched the refs audit inventory"
   exit 0
 fi
 
+agentic_defer_if_busy "${REPO_ROOT}"
+
 PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-  || fail "no ready agent provider found (codex, claude, copilot)"
+  || fail "no ready agent provider found (codex, claude, copilot, local)"
 PROMPT_TEXT="$(cat "${PROMPT_FILE}")"
 
 log "provider used   : ${PROVIDER}"

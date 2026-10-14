@@ -4,6 +4,15 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Agentic jobs check, before contacting any provider, that no other agent is
+  working in the checkout: a `codex`, `claude` or `copilot` process whose
+  working directory is inside it, or any Git-visible file edited within the
+  last 15 minutes, defers the run (exit 0, logged) or marks a repository
+  `busy` in the inventory. A codex session editing the control-plane checkout
+  for several hours on 2026-10-14 is the case this covers.
+- A `local` provider runs codex against a model served by the local Ollama
+  instance. It is opt-in (`AGENTIC_LOCAL_FALLBACK=1`) and is tried after
+  `codex`, `claude` and `copilot` in `auto` mode.
 - Agentic jobs in `auto` provider mode now fall back to the next ready
   provider (`codex`, then `claude`, then `copilot`) when the chosen one fails
   within two minutes of starting or reports a quota or rate limit. Before, a

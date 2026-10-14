@@ -27,7 +27,7 @@ ci_repair_agentic.sh --discovery-only.
 Options:
   --candidate-file PATH  TSV file containing only candidate repo rows.
   --inventory-file PATH  Full discovery TSV inventory.
-  --provider NAME        Provider to use: auto, codex, claude, or copilot.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
   --model MODEL          Optional model override for the selected provider.
   --log-dir DIR          Override the run-log directory.
   --prompt-file PATH     Override the maintenance prompt file.
@@ -111,8 +111,10 @@ log "model override  : ${MODEL_REQUESTED:-<default>}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
+agentic_defer_if_busy "${REPO_ROOT}"
+
 PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-  || fail "no ready agent provider found (codex, claude, copilot)"
+  || fail "no ready agent provider found (codex, claude, copilot, local)"
 log "provider used   : ${PROVIDER}"
 
 PROMPT_TEXT="$(cat "${PROMPT_FILE}")"

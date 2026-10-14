@@ -32,13 +32,13 @@ commit of each clean GitHub repo, then invoke an unattended agent to repair the
 affected repos.
 
 Options:
-  --provider NAME        Provider to use: auto, codex, claude, or copilot.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
   --model MODEL          Optional model override for the selected provider.
   --portfolio-root PATH  Override the portfolio scan root.
   --log-dir DIR          Override the run-log directory.
   --prompt-file PATH     Override the maintenance prompt file.
   --run-limit N          How many recent branch workflow runs to inspect per repo (default: 30).
-  --force                Ignore dirty worktrees and scan them anyway.
+  --force                Ignore dirty or busy worktrees and scan them anyway.
   --discovery-only       Stop after writing inventory/candidate files; skip agent repair.
   --help                 Show this help text.
 EOF
@@ -227,8 +227,9 @@ log ""
 
 PROVIDER=""
 if (( DISCOVERY_ONLY == 0 )); then
+  agentic_defer_if_busy "${REPO_ROOT}"
   PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-    || fail "no ready agent provider found (codex, claude, copilot)"
+    || fail "no ready agent provider found (codex, claude, copilot, local)"
   log "provider used   : ${PROVIDER}"
 fi
 
@@ -250,6 +251,7 @@ log "found ${#REPO_DIRS[@]} repositories"
 candidate_count=0
 clean_count=0
 dirty_count=0
+busy_count=0
 pending_count=0
 no_ci_count=0
 skipped_count=0
@@ -265,6 +267,11 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
   if (( FORCE == 0 )) && [[ -n "$(git -C "${repo}" status --porcelain 2>/dev/null || true)" ]]; then
     record_inventory "dirty" "${repo_rel}" "-" "-" "-" "-" "-" "-" "worktree not clean"
     dirty_count=$(( dirty_count + 1 ))
+    continue
+  fi
+  if (( FORCE == 0 )) && busy_reason="$(agentic_checkout_busy "${repo}")"; then
+    record_inventory "busy" "${repo_rel}" "-" "-" "-" "-" "-" "-" "${busy_reason}"
+    busy_count=$(( busy_count + 1 ))
     continue
   fi
 
@@ -367,7 +374,7 @@ ln -sf "${INVENTORY_FILE}" "${LATEST_INVENTORY_LINK}"
 awk -F '\t' 'NR == 1 || $1 == "candidate"' "${INVENTORY_FILE}" > "${CANDIDATE_FILE}"
 ln -sf "${CANDIDATE_FILE}" "${LATEST_CANDIDATE_LINK}"
 
-log "inventory summary: candidate=${candidate_count} clean=${clean_count} dirty=${dirty_count} pending=${pending_count} no_ci=${no_ci_count} skipped=${skipped_count} error=${error_count}"
+log "inventory summary: candidate=${candidate_count} clean=${clean_count} dirty=${dirty_count} busy=${busy_count} pending=${pending_count} no_ci=${no_ci_count} skipped=${skipped_count} error=${error_count}"
 
 if (( candidate_count == 0 )); then
   log "no failing default-branch CI detected in clean GitHub repos"
