@@ -129,7 +129,7 @@ PROMPT_TEXT="$(cat "${PROMPT_FILE}")"
 } > "${PROMPT_RUNTIME_FILE}"
 
 run_codex() {
-  local cmd=(codex exec --full-auto --color never -C "${REPO_ROOT}" --add-dir "${PORTFOLIO_ROOT}" -o "${LAST_MESSAGE_FILE}")
+  local cmd=(codex exec --sandbox workspace-write --color never -C "${REPO_ROOT}" --add-dir "${PORTFOLIO_ROOT}" -o "${LAST_MESSAGE_FILE}")
   if [[ -n "${MODEL_REQUESTED}" ]]; then
     cmd+=(--model "${MODEL_REQUESTED}")
   fi
