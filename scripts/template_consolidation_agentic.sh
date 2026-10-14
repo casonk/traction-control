@@ -29,7 +29,7 @@ Run an unattended agentic pass that reviews repo SECURITY.md and
 LESSONSLEARNED.md files for guidance worth promoting into the shared templates.
 
 Options:
-  --provider NAME        Provider to use: auto, codex, claude, or copilot.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
   --model MODEL          Optional model override for the selected provider.
   --portfolio-root PATH  Override the portfolio scan root.
   --log-dir DIR          Override the run-log directory.
@@ -120,8 +120,10 @@ log "prompt file     : ${PROMPT_FILE}"
 log "run dir         : ${RUN_DIR}"
 log ""
 
+agentic_defer_if_busy "${REPO_ROOT}"
+
 PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-  || fail "no ready agent provider found (codex, claude, copilot)"
+  || fail "no ready agent provider found (codex, claude, copilot, local)"
 log "provider used   : ${PROVIDER}"
 
 REPO_DIRS=()
@@ -153,7 +155,7 @@ if (( FORCE == 0 )); then
         docs/templates/LESSONSLEARNED.md \
         2>/dev/null || true
     )"
-    if [[ -n "${status}" ]]; then
+    if [[ -n "${status}" ]] || agentic_checkout_busy "${repo}" >/dev/null; then
       DIRTY_REPOS+=("${repo#${PORTFOLIO_ROOT}/}")
     fi
   done

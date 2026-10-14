@@ -559,6 +559,22 @@ All unattended agentic jobs in this repo follow the same runtime pattern:
   A later failure does not fall back, because the agent may already have
   changed files. An explicitly named provider is never replaced. Set
   `AGENTIC_FALLBACK_WINDOW_SECONDS` to change the two-minute window
+- `local` is a fourth provider, tried last: codex in open-source mode
+  (`--oss --local-provider ollama`) against a model served by the local
+  Ollama instance. It is off unless `AGENTIC_LOCAL_FALLBACK=1`; pick the model
+  with `AGENTIC_LOCAL_MODEL` (default `qwen3:32b`) and the endpoint with
+  `AGENTIC_OLLAMA_URL`. Its readiness check only confirms Ollama serves the
+  model. A local model is weaker at unattended edits than the hosted ones,
+  and it loads the GPU for the whole run
+- before contacting any provider, each job checks that the checkout the agent
+  works in is quiet. It is busy, and the job exits 0 with a `deferred` log
+  line, when a `codex`, `claude` or `copilot` process (other than the job's
+  own ancestors) has its working directory inside it, or when any file Git
+  would see (tracked, or untracked and not ignored) changed, or HEAD moved,
+  within `AGENTIC_QUIET_SECONDS` (default 900; `0` turns the time check off).
+  The same check marks individual repositories `busy` in each job's
+  inventory so the agent leaves them alone. `--force` skips it;
+  `AGENTIC_SKIP_PROCESS_CHECK=1` keeps only the time check
 - install scripts accept `--provider` and `--model`, and the `clockwork` web UI
   can edit the tracked provider/model defaults for the example manifests
 
