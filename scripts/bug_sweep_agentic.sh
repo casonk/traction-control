@@ -240,7 +240,7 @@ done < <(
     -maxdepth "${MAX_DEPTH}" \
     -type d \
     -name ".git" \
-    ! -path "*/archive-repos/*" \
+    ! -path "*/archive-repos/*" -exec test -f "{}/HEAD" ';' -print \
   | sed 's|/.git$||' \
   | sort
 )

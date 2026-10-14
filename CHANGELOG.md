@@ -9,6 +9,12 @@ All notable changes to `traction-control` are documented here.
   within two minutes of starting or reports a quota or rate limit. Before, a
   provider that passed its readiness probe and then failed on the real run
   ended the job, which is how the `--full-auto` removal went unnoticed.
+- Portfolio scans (archility daily and weekly, the portfolio audit, and the
+  agentic jobs) now count a directory as a repository only when its `.git`
+  holds a `HEAD` file. An empty `.git` at the portfolio root, left behind as a
+  sandbox mount point, made every scan treat the whole portfolio as one more
+  repository: archility rendered diagrams into the portfolio root and timed
+  out, and the agentic jobs listed the root as a candidate.
 - The six agentic job scripts now call `codex exec --sandbox workspace-write`
   instead of `codex exec --full-auto`. Newer `codex` releases removed
   `--full-auto` from `exec`, so every run since 2026-06-20 exited 2 at

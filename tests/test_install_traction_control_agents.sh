@@ -1437,6 +1437,7 @@ test_bash32_wrapper_smokes() {
   local forbidden_hit=0
 
   mkdir -p "${empty_portfolio}" "${sample_portfolio}/sample/.git" "${sample_portfolio}/sample/.tachometer"
+  printf 'ref: refs/heads/main\n' > "${sample_portfolio}/sample/.git/HEAD"
   printf '# refs fixture\n' > "${sample_portfolio}/sample/REFS-PUBLIC.md"
   printf 'print("fixture")\n' > "${sample_portfolio}/sample/sample.py"
   : > "${COMMAND_LOG}"
