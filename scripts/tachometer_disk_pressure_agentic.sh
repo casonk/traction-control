@@ -30,7 +30,7 @@ pressure is present, invoke an unattended agent to implement conservative
 repo-local archive automation in clean candidate repos.
 
 Options:
-  --provider NAME        Provider to use: auto, codex, claude, or copilot.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
   --model MODEL          Optional model override for the selected provider.
   --portfolio-root PATH  Override the portfolio scan root.
   --log-dir DIR          Override the run-log directory.
@@ -38,7 +38,7 @@ Options:
   --threshold-percent N  Disk utilization percent that counts as pressure.
   --min-size-mib N       Minimum repo size to hand to the agent.
   --max-candidates N     Maximum candidate repos handed to the agent.
-  --force                Ignore dirty worktrees and include them if they match.
+  --force                Ignore dirty or busy worktrees and include them if they match.
   --dry-run              Inventory only; do not launch an agent.
   --help                 Show this help text.
 EOF
@@ -204,7 +204,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "${PROVIDER_REQUESTED}" in
-  auto|codex|claude|copilot)
+  auto|codex|claude|copilot|local)
     ;;
   *)
     fail "unsupported provider: ${PROVIDER_REQUESTED}"
@@ -272,6 +272,7 @@ done < <(
 log "found ${#REPO_DIRS[@]} repositories"
 
 dirty_count=0
+busy_count=0
 skip_count=0
 pressure_count=0
 host_pressure_count=0
@@ -294,6 +295,11 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
   if (( FORCE == 0 )) && [[ -n "$(git -C "${repo}" status --porcelain 2>/dev/null || true)" ]]; then
     record_inventory "dirty" "${repo_rel}" "0" "-" "-" "worktree not clean"
     dirty_count=$(( dirty_count + 1 ))
+    continue
+  fi
+  if (( FORCE == 0 )) && busy_reason="$(agentic_checkout_busy "${repo}")"; then
+    record_inventory "busy" "${repo_rel}" "0" "-" "-" "${busy_reason}"
+    busy_count=$(( busy_count + 1 ))
     continue
   fi
 
@@ -337,7 +343,7 @@ if (( candidate_count == 0 && host_pressure_count > 0 )); then
   candidate_count="$(awk -F '\t' 'NR > 1 && $1 == "candidate" {count += 1} END {print count + 0}' "${CANDIDATE_FILE}")"
 fi
 
-log "inventory summary: clean=${clean_count} pressure=${pressure_count} host_pressure=${host_pressure_count} dirty=${dirty_count} skipped=${skip_count} candidate=${candidate_count}"
+log "inventory summary: clean=${clean_count} pressure=${pressure_count} host_pressure=${host_pressure_count} dirty=${dirty_count} busy=${busy_count} skipped=${skip_count} candidate=${candidate_count}"
 
 if (( pressure_count == 0 && host_pressure_count == 0 )); then
   log "no tachometer disk pressure detected; agent not launched"
@@ -354,8 +360,10 @@ if (( DRY_RUN == 1 )); then
   exit 0
 fi
 
+agentic_defer_if_busy "${REPO_ROOT}"
+
 PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
-  || fail "no ready agent provider found (codex, claude, copilot)"
+  || fail "no ready agent provider found (codex, claude, copilot, local)"
 PROMPT_TEXT="$(cat "${PROMPT_FILE}")"
 
 log "provider used   : ${PROVIDER}"
