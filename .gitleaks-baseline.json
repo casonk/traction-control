@@ -2,6 +2,190 @@
  {
   "RuleID": "portfolio-git-workspace-path",
   "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 32,
+  "EndLine": 32,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:32"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 33,
+  "EndLine": 33,
+  "StartColumn": 15,
+  "EndColumn": 30,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:33"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 55,
+  "EndLine": 55,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:55"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 56,
+  "EndLine": 56,
+  "StartColumn": 15,
+  "EndColumn": 30,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:56"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 78,
+  "EndLine": 78,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:78"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 79,
+  "EndLine": 79,
+  "StartColumn": 15,
+  "EndColumn": 30,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:79"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 101,
+  "EndLine": 101,
+  "StartColumn": 14,
+  "EndColumn": 29,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:101"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
+  "StartLine": 102,
+  "EndLine": 102,
+  "StartColumn": 15,
+  "EndColumn": 30,
+  "Match": "/mnt/4tb-m2/git/",
+  "Secret": "/mnt/4tb-m2/git/",
+  "File": ".gitleaks-baseline.json",
+  "SymlinkFile": "",
+  "Commit": "795357b6619f7d158c7f07d8fad62eef059b78a5",
+  "Entropy": 3.0778196,
+  "Author": "Cason A Konzer",
+  "Email": "72440835+casonk@users.noreply.github.com",
+  "Date": "2026-08-29T08:02:45Z",
+  "Message": "chore: regenerate gitleaks baseline after history rewrite (#18)",
+  "Tags": [
+   "local-path",
+   "machine-specific"
+  ],
+  "Fingerprint": "795357b6619f7d158c7f07d8fad62eef059b78a5:.gitleaks-baseline.json:portfolio-git-workspace-path:102"
+ },
+ {
+  "RuleID": "portfolio-git-workspace-path",
+  "Description": "Hardcoded absolute path to local git workspace in config/code/scripts",
   "StartLine": 9,
   "EndLine": 9,
   "StartColumn": 14,
@@ -10,7 +194,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": ".gitleaks-baseline.json",
   "SymlinkFile": "",
-  "Commit": "2aafb37acbc76e977c549a4a68ac09df42199fca",
+  "Commit": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b",
   "Entropy": 3.0778196,
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -20,7 +204,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2aafb37acbc76e977c549a4a68ac09df42199fca:.gitleaks-baseline.json:portfolio-git-workspace-path:9"
+  "Fingerprint": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b:.gitleaks-baseline.json:portfolio-git-workspace-path:9"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -33,7 +217,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": ".gitleaks-baseline.json",
   "SymlinkFile": "",
-  "Commit": "2aafb37acbc76e977c549a4a68ac09df42199fca",
+  "Commit": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b",
   "Entropy": 3.0778196,
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -43,7 +227,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2aafb37acbc76e977c549a4a68ac09df42199fca:.gitleaks-baseline.json:portfolio-git-workspace-path:10"
+  "Fingerprint": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b:.gitleaks-baseline.json:portfolio-git-workspace-path:10"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -56,7 +240,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": ".gitleaks-baseline.json",
   "SymlinkFile": "",
-  "Commit": "2aafb37acbc76e977c549a4a68ac09df42199fca",
+  "Commit": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b",
   "Entropy": 3.0778196,
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -66,7 +250,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2aafb37acbc76e977c549a4a68ac09df42199fca:.gitleaks-baseline.json:portfolio-git-workspace-path:33"
+  "Fingerprint": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b:.gitleaks-baseline.json:portfolio-git-workspace-path:33"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -79,7 +263,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": ".gitleaks-baseline.json",
   "SymlinkFile": "",
-  "Commit": "2aafb37acbc76e977c549a4a68ac09df42199fca",
+  "Commit": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b",
   "Entropy": 3.0778196,
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -89,7 +273,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2aafb37acbc76e977c549a4a68ac09df42199fca:.gitleaks-baseline.json:portfolio-git-workspace-path:34"
+  "Fingerprint": "8ea3fc63f3d1518fd96fc38815dc2a92da75652b:.gitleaks-baseline.json:portfolio-git-workspace-path:34"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -153,7 +337,7 @@
   "Author": "Cason Konzer",
   "Email": "72440835+casonk@users.noreply.github.com",
   "Date": "2026-04-03T04:25:57Z",
-  "Message": "feat: add archility weekly systemd service and timer\n\n- scripts/archility-weekly.sh: discovers all portfolio repos (maxdepth 4,\n  skips archive-repos/), runs archility audit across all, then archility\n  render per-repo; logs timestamped to ~/.local/share/archility-weekly/\n  with a 'latest.log' symlink\n- systemd/archility-weekly.service: oneshot user service referencing the script\n- systemd/archility-weekly.timer: fires every Sunday at 02:00, Persistent=true\n  so missed runs catch up within 1 h of next boot\n\nInstall with:\n  cp systemd/* ~/.config/systemd/user/\n  systemctl --user daemon-reload\n  systemctl --user enable --now archility-weekly.timer\n\nCo-authored-by: Copilot \u003c223556219+Copilot@users.noreply.github.com\u003e",
+  "Message": "feat: add archility weekly systemd service and timer\n\n- scripts/archility-weekly.sh: discovers all portfolio repos (maxdepth 4,\n  skips archive-repos/), runs archility audit across all, then archility\n  render per-repo; logs timestamped to ~/.local/share/archility-weekly/\n  with a 'latest.log' symlink\n- systemd/archility-weekly.service: oneshot user service referencing the script\n- systemd/archility-weekly.timer: fires every Sunday at 02:00, Persistent=true\n  so missed runs catch up within 1 h of next boot\n\nInstall with:\n  cp systemd/* ~/.config/systemd/user/\n  systemctl --user daemon-reload\n  systemctl --user enable --now archility-weekly.timer\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
   "Tags": [
    "local-path",
    "machine-specific"
