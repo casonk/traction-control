@@ -550,6 +550,12 @@ All unattended agentic jobs in this repo follow the same runtime pattern:
   model-specific readiness probe before the real maintenance prompt starts, so
   an over-quota or unavailable provider is skipped up front instead of being
   discovered after the full job launches
+- in `auto` mode, a provider that passes the precheck but then fails within
+  two minutes of starting (a removed CLI flag, an expired login), or reports a
+  quota or rate limit at any point, hands the job to the next ready provider.
+  A later failure does not fall back, because the agent may already have
+  changed files. An explicitly named provider is never replaced. Set
+  `AGENTIC_FALLBACK_WINDOW_SECONDS` to change the two-minute window
 - install scripts accept `--provider` and `--model`, and the `clockwork` web UI
   can edit the tracked provider/model defaults for the example manifests
 
