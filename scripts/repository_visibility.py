@@ -356,6 +356,49 @@ def _read_local_private(path: str | os.PathLike[str] | None) -> tuple[str, ...]:
     return tuple(names)
 
 
+def read_common_words(
+    path: str | os.PathLike[str] | None,
+    pair: RegistryPair,
+) -> frozenset[str]:
+    """Private repository names that are also ordinary words.
+
+    A private repository can be named after a common word ("tangent",
+    say). For a name listed here the disclosure audit stops matching the bare
+    word in prose but still matches it as an owner/name slug, as a path
+    segment, or with a ".git" suffix. Every listed name must be a private
+    repository name, so the list cannot quietly exempt anything else. The
+    file names private repositories and must stay local and ignored.
+    """
+    if path is None:
+        return frozenset()
+    document = Path(path)
+    if not document.is_file():
+        return frozenset()
+    try:
+        payload = json.loads(document.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RegistryError(f"common-word list is not readable JSON: {document}") from error
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise RegistryError(f"common-word list must have schema_version 1: {document}")
+    private_names = {
+        entry.slug.rsplit("/", 1)[1].casefold() for entry in pair.private.repositories
+    } | {name.casefold() for name in pair.local_private}
+    words: set[str] = set()
+    for entry in payload.get("common_words", []):
+        if not isinstance(entry, dict):
+            raise RegistryError(f"common-word entry must be an object: {document}")
+        name = str(entry.get("name", "")).strip().casefold()
+        reason = str(entry.get("reason", "")).strip()
+        if not name or not reason:
+            raise RegistryError(f"common-word entry needs a name and a reason: {document}")
+        if name not in private_names:
+            raise RegistryError(
+                f"common-word entry is not a private repository name: {document}"
+            )
+        words.add(name)
+    return frozenset(words)
+
+
 def load_pair(
     private_path: str | os.PathLike[str],
     public_path: str | os.PathLike[str],
@@ -1160,6 +1203,7 @@ def audit_pair(
 
 def _private_disclosure_matcher(
     pair: RegistryPair,
+    common_words: frozenset[str] = frozenset(),
 ) -> tuple[re.Pattern[bytes] | None, int, re.Pattern[str] | None]:
     full_slugs = {
         entry.slug.casefold(): entry.slug.encode("ascii")
@@ -1180,7 +1224,15 @@ def _private_disclosure_matcher(
         re.escape(value) + rb"(?:\.git)?"
         for value in full_slugs.values()
     ]
-    alternatives.extend(re.escape(value) for value in repository_names.values())
+    for key, value in repository_names.items():
+        if key in common_words:
+            # Only where it reads as a repository: a path segment or a clone
+            # URL. The owner/name form is already in full_slugs.
+            alternatives.append(re.escape(value) + rb"(?=/)")
+            alternatives.append(rb"(?<=/)" + re.escape(value))
+            alternatives.append(re.escape(value) + rb"\.git")
+        else:
+            alternatives.append(re.escape(value))
     alternatives.sort(key=len, reverse=True)
     token_characters = rb"A-Za-z0-9._-"
     matcher = re.compile(
@@ -1193,7 +1245,7 @@ def _private_disclosure_matcher(
     )
     maximum_match_bytes = max(
         [len(value) + len(b".git") for value in full_slugs.values()]
-        + [len(value) for value in repository_names.values()]
+        + [len(value) + len(b".git") for value in repository_names.values()]
     )
 
     redaction_values = [
@@ -1431,12 +1483,16 @@ def _scan_git_index_blobs(
 def audit_private_disclosures(
     pair: RegistryPair,
     roots: Sequence[str],
+    *,
+    common_words: frozenset[str] = frozenset(),
 ) -> None:
     """Fail when supplied Git index paths or blobs disclose a private identity."""
 
     if not roots:
         raise RegistryError("private disclosure audit requires at least one root")
-    matcher, maximum_match_bytes, redactor = _private_disclosure_matcher(pair)
+    matcher, maximum_match_bytes, redactor = _private_disclosure_matcher(
+        pair, common_words
+    )
     path_matcher = _private_path_disclosure_matcher(pair)
     findings: list[PrivateDisclosureFinding] = []
     for root_number, root_value in enumerate(roots, start=1):
@@ -1607,6 +1663,15 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Git worktree root whose index to scan; repeat as needed.",
     )
+    disclosure_parser.add_argument(
+        "--common-words",
+        default=None,
+        help=(
+            "Optional local JSON list of private repository names that are also "
+            "ordinary words. Those names match only as a slug, a path segment, "
+            "or with a .git suffix, not as a word in prose."
+        ),
+    )
     return parser
 
 
@@ -1681,7 +1746,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if args.command == "audit-private-disclosures":
-            audit_private_disclosures(pair, args.root)
+            audit_private_disclosures(
+                pair,
+                args.root,
+                common_words=read_common_words(args.common_words, pair),
+            )
             print(
                 f"private disclosure audit passed for {len(args.root)} Git root(s)"
             )

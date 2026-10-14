@@ -1132,5 +1132,100 @@ class RepositoryVisibilityTests(unittest.TestCase):
         self.assertEqual(without.classification("casonk/workstation-only"), "unclassified")
 
 
+    def _common_words_file(self, entries: object) -> Path:
+        path = self.root / "common-words.local.json"
+        path.write_text(
+            json.dumps({"schema_version": 1, "common_words": entries}),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_common_word_names_match_only_as_repository_references(self) -> None:
+        self._write_pair(
+            private=[
+                {"id": "R_synthetic_other", "slug": "sample-owner/concealed-agent"},
+                {"id": "R_synthetic_word", "slug": "sample-owner/tangent"},
+            ],
+        )
+        pair = visibility.load_pair(self.private_path, self.public_path)
+        words = visibility.read_common_words(
+            self._common_words_file(
+                [{"name": "Tangent", "reason": "math vocabulary"}]
+            ),
+            pair,
+        )
+        self.assertEqual(words, frozenset({"tangent"}))
+
+        plain, _, _ = visibility._private_disclosure_matcher(pair)
+        matcher, _, _ = visibility._private_disclosure_matcher(pair, words)
+        prose = b"drawing the tangent line"
+        self.assertTrue(plain.search(prose))
+        self.assertFalse(matcher.search(prose))
+        self.assertFalse(matcher.search(b"MTH 305 - Tangent Lines"))
+        for reference in (
+            b"see sample-owner/tangent",
+            b"cd util-repos/tangent",
+            b"tangent/README.md",
+            b"git clone git@host:x/tangent.git",
+        ):
+            self.assertTrue(matcher.search(reference), reference)
+        # Names not on the list keep matching as plain words.
+        self.assertTrue(matcher.search(b"the concealed-agent job"))
+
+    def test_common_word_list_rejects_names_that_are_not_private(self) -> None:
+        self._write_pair(
+            private=[{"id": "R_synthetic_word", "slug": "sample-owner/tangent"}],
+        )
+        pair = visibility.load_pair(self.private_path, self.public_path)
+        for entries in (
+            [{"name": "something-public", "reason": "not private"}],
+            [{"name": "tangent"}],
+            ["tangent"],
+        ):
+            with self.subTest(entries=entries):
+                with self.assertRaises(visibility.RegistryError):
+                    visibility.read_common_words(
+                        self._common_words_file(entries), pair
+                    )
+        self.assertEqual(
+            visibility.read_common_words(self.root / "absent.json", pair),
+            frozenset(),
+        )
+
+    def test_common_word_audit_passes_prose_and_flags_paths(self) -> None:
+        self._write_pair(
+            private=[{"id": "R_synthetic_word", "slug": "sample-owner/tangent"}],
+        )
+        pair = visibility.load_pair(self.private_path, self.public_path)
+        words = frozenset({"tangent"})
+        repository = self.root / "word-worktree"
+        repository.mkdir()
+        subprocess.run(
+            ["git", "init", "-q", str(repository)], check=True, capture_output=True
+        )
+        tracked = repository / "notes.md"
+        tracked.write_text("Draw the tangent line.\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(repository), "add", "notes.md"],
+            check=True,
+            capture_output=True,
+        )
+        visibility.audit_private_disclosures(
+            pair, [str(repository)], common_words=words
+        )
+        with self.assertRaises(visibility.PrivateDisclosureFailure):
+            visibility.audit_private_disclosures(pair, [str(repository)])
+
+        tracked.write_text("See ../tangent/README.md\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(repository), "add", "notes.md"],
+            check=True,
+            capture_output=True,
+        )
+        with self.assertRaises(visibility.PrivateDisclosureFailure):
+            visibility.audit_private_disclosures(
+                pair, [str(repository)], common_words=words
+            )
+
 if __name__ == "__main__":
     unittest.main()
