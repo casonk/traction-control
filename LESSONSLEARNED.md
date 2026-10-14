@@ -1606,3 +1606,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   When a scheduled job fails the same way twice in a row, read the error
   instead of waiting for it to clear, and check `systemctl --user --failed`
   after updating tools the jobs depend on.
+- Find repositories by `.git/HEAD`, not by a directory named `.git`. A
+  sandboxed agent given the portfolio root as a writable directory can leave
+  empty `.git`, `.codex` and `.agents` folders there as read-only mount
+  points. Every `find -name .git` scan then reports the portfolio root as a
+  repository. With GNU `find`, adding `-exec test -f "{}/HEAD" ';'` needs an
+  explicit `-print`, because any `-exec` turns off the implicit one.
