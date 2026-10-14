@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- The six agentic job scripts now call `codex exec --sandbox workspace-write`
+  instead of `codex exec --full-auto`. Newer `codex` releases removed
+  `--full-auto` from `exec`, so every run since 2026-06-20 exited 2 at
+  argument parsing, before the agent started.
 - `scripts/job_guard.py install` now writes the time limit that matches the
   service type: `TimeoutStartSec=` for a oneshot unit, `RuntimeMaxSec=` for any
   other. It used to write both, and systemd logged "RuntimeMaxSec= has no
