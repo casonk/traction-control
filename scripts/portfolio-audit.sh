@@ -81,7 +81,7 @@ while IFS= read -r candidate; do
     esac
 done < <(
     find "${PORTFOLIO_ROOT}" -maxdepth 4 -type d -name .git \
-        ! -path "*/archive-repos/*" 2>/dev/null | sed 's|/.git$||' | sort
+        ! -path "*/archive-repos/*" -exec test -f "{}/HEAD" ';' -print 2>/dev/null | sed 's|/.git$||' | sort
 )
 
 # Present in the defaults repo at any of the three locations GitHub accepts.
@@ -110,7 +110,7 @@ done < <(
         -type d \
         -name ".git" \
         ! -path "*/archive-repos/*" \
-        ! -path "*/vendor/filebrowser-upstream/*" \
+        ! -path "*/vendor/filebrowser-upstream/*" -exec test -f "{}/HEAD" ';' -print \
     | sed 's|/.git$||' \
     | sort
 )
