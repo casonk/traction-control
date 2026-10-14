@@ -431,22 +431,8 @@ run_copilot() {
 }
 
 AGENT_STATUS=0
-set +e
-case "${PROVIDER}" in
-  codex)
-    run_codex > "${AGENT_OUTPUT_FILE}" 2>&1
-    AGENT_STATUS=$?
-    ;;
-  claude)
-    run_claude > "${AGENT_OUTPUT_FILE}" 2>&1
-    AGENT_STATUS=$?
-    ;;
-  copilot)
-    run_copilot > "${AGENT_OUTPUT_FILE}" 2>&1
-    AGENT_STATUS=$?
-    ;;
-esac
-set -e
+agentic_run_with_fallback "${AGENT_OUTPUT_FILE}" "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}" \
+  || AGENT_STATUS=$?
 
 cat "${AGENT_OUTPUT_FILE}" >> "${LOG_FILE}"
 ln -sf "${AGENT_OUTPUT_FILE}" "${LATEST_OUTPUT_LINK}"
