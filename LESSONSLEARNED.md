@@ -12,6 +12,42 @@
 
 ## Lessons
 
+### 2026-10-14 — History rewrites: verify gitleaks the way CI runs it, and check that the scan still runs
+
+- Before saying a gitleaks change passes, run the workflow's own command:
+  full history (`--log-opts=--all`), the repository's config, and the same
+  baseline flag. A file deleted from the tip still exists in old commits, so
+  removing it from an allowlist brings back every finding in it. A
+  terminility change that scanned clean on the tip failed the full-history run
+  for exactly this reason.
+- When re-anchoring a baseline after a rewrite, a rescan without
+  `--baseline-path` also reports matches inside earlier versions of the
+  baseline file, which gitleaks skips when the file is passed as the baseline.
+  Accept the new baseline only if every old finding (rule, file, lines,
+  secret, match) is still present and each extra one sits in the baseline file
+  itself. Then rescan with the new baseline until it is clean.
+- GitHub turns off scheduled workflows after 60 days with no repository
+  activity, and a disabled workflow does not run on push either. Six public
+  repositories had Secret Scan in `disabled_inactivity`. After a rewrite, list
+  the workflow states (`gh api repos/OWNER/REPO/actions/workflows`), re-enable
+  them, and dispatch a full-history run.
+- Rewrite in a fresh clone, keep a bundle and filter-repo's `commit-map`, and
+  confirm the tip tree is unchanged so local checkouts can move with a mixed
+  reset. A checkout that is behind with uncommitted work must not be reset:
+  rename its branch to `legacy/…` and create a new `main` from the rewritten
+  remote. Delete merged remote branches first, because they keep old history
+  reachable.
+
+### 2026-10-14 — A busy-checkout check must ignore what the checking job writes
+
+- An agent job should not start in a checkout where another agent is working.
+  Check for agent processes whose working directory is inside the checkout,
+  and for recent edits to files Git would see.
+- `git status` rewrites `.git/index` whenever cached stat data is stale, so the
+  index mtime records the job's own dirty check, not someone's edit. In a live
+  run it marked two quiet repositories busy. Use the `HEAD` reflog instead; it
+  moves only on commit, checkout and reset.
+
 ### 2026-10-14 — Repository quality gates should read the index and use explicit profiles
 
 - A pre-commit repository contract should inspect `git ls-files --stage`, not
