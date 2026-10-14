@@ -15,6 +15,12 @@ All notable changes to `traction-control` are documented here.
   sandbox mount point, made every scan treat the whole portfolio as one more
   repository: archility rendered diagrams into the portfolio root and timed
   out, and the agentic jobs listed the root as a candidate.
+- `repository_visibility.py audit-private-disclosures --common-words FILE`:
+  private repository names that are also ordinary words can be listed in an
+  ignored local file. Such a name no longer matches as a word in prose but
+  still matches as a slug, a path segment, or with `.git`. Each entry needs a
+  reason and must name a private repository. `portfolio-audit.sh` passes
+  `config/repository-visibility/common-words.local.json` when it exists.
 - The six agentic job scripts now call `codex exec --sandbox workspace-write`
   instead of `codex exec --full-auto`. Newer `codex` releases removed
   `--full-auto` from `exec`, so every run since 2026-06-20 exited 2 at
