@@ -12,6 +12,20 @@
 
 ## Lessons
 
+### 2026-10-14 — Repository quality gates should read the index and use explicit profiles
+
+- A pre-commit repository contract should inspect `git ls-files --stage`, not
+  filesystem presence: an untracked baseline file cannot enter the next
+  commit, and a required symlink is not a regular document.
+- Keep shared checks to tracked baseline files and unambiguously local or
+  runtime artifacts. Require `tests/` and CI only through an explicit code
+  profile; source-file heuristics classify documentation and operations repos
+  as code and create false gaps.
+- Treat committed diagram renders as reviewed artifacts. Check that each render
+  has a tracked source in the fast gate; use archility's slower audit/render
+  workflow for content drift, with deterministic clean-worktree rendering
+  before making it a CI failure.
+
 ### 2026-09-02 — Remote-access firewall hardening needs an out-of-band recovery path
 
 - Treat firewall, WireGuard, router, SSH, and reverse-proxy hardening as

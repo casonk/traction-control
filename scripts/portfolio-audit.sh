@@ -5,6 +5,8 @@
 #   - missing Tier-1 baseline files (README, LICENSE, AGENTS.md, BACKLOG.md, etc.)
 #   - missing CHATHISTORY.md entry in .gitignore
 #   - missing .pre-commit-config.yaml in non-doc code repos
+#   - missing tracked baseline files, orphaned diagram renders, and tracked
+#     local or runtime artifacts
 #   - AGENTS.md files that exist but miss the shared agent conventions
 #     (sudo boundary, portfolio standards backlink, session-memory boundary,
 #     local CI verification) — see check_agents_md.py
@@ -212,6 +214,32 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
             while IFS= read -r line; do
                 [[ -n "${line}" ]] && warn "  checker: ${line}"
             done <<< "${security_output}"
+            exit 2
+            ;;
+    esac
+
+    # The structure/artifact contract reads the Git index, so an untracked
+    # scaffold cannot satisfy the baseline merely by existing on disk.
+    quality_status=0
+    set +e
+    quality_output="$(
+        PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/check_repository_quality.py" \
+            --repo "${repo}" 2>&1
+    )"
+    quality_status=$?
+    set -e
+    case "${quality_status}" in
+        0) ;;
+        1)
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] && missing+=("${line}")
+            done <<< "${quality_output}"
+            ;;
+        *)
+            warn "${rel}: repository quality checker error"
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] && warn "  checker: ${line}"
+            done <<< "${quality_output}"
             exit 2
             ;;
     esac
