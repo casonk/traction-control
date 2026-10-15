@@ -12,6 +12,16 @@
 
 ## Lessons
 
+### 2026-10-15 — Reconcile local instructions when a central contribution rule changes
+
+- A file-presence or heading audit cannot detect a repo-level `AGENTS.md`
+  rule that contradicts a newer control-plane contribution policy. After a
+  central policy change, review each local `CONTRIBUTING.md` and `AGENTS.md`
+  on the current default branch together; update contradictory guidance in
+  the same repo PR. Keep the disclosure in the designated section and do not
+  add per-artifact attribution elsewhere.
+
+
 ### 2026-10-15 — Hand cross-machine operations over as tracked scripts, not pasted loops
 
 - A one-line loop over many repositories, pasted into the Mac's zsh, failed

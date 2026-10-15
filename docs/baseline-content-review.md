@@ -27,7 +27,7 @@ be correct for years. Conversely, a recently edited file can still be wrong.
 
 | File | Check against current behavior |
 |---|---|
-| `CONTRIBUTING.md` | Actual setup, tests, PR route, and required disclosure section; account default applies only when there is no local override. |
+| `CONTRIBUTING.md` | Actual setup, tests, PR route, and required disclosure section; account default applies only when there is no local override. Check the repo's `AGENTS.md` for contradictory contribution rules. |
 | `SECURITY.md` | Private reporting route, real credentials/data/network surfaces, and safe handling of generated output. |
 | `CHANGELOG.md` | Released versions and dates versus tags and package metadata; distinguish an unreleased work log from release notes. |
 | `CODE_OF_CONDUCT.md` | Whether a local override is intentional and gives a usable reporting or moderation path; otherwise rely on the account default. |
