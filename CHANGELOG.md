@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/realign_rewritten_checkouts.sh`, which moves the other clones
+  of a rewritten portfolio (the Mac's, for example) onto the new history
+  without losing local work: it resets only clones whose HEAD content exists
+  on the new origin branch, keeps non-colliding local changes, and keeps the
+  old HEAD as a local `legacy/pre-rewrite-<date>` branch. Repositories are
+  discovered, so the tracked script names none.
+- Backlog items keep Git-excluded material in a local attachment folder named
+  after the item; the GitHub Support purge request moved there.
 - AGENTS.md rule 13 now discloses AI assistance once per repository, in a
   standard `CONTRIBUTING.md` section (`docs/templates/CONTRIBUTING-ai-disclosure.md`),
   instead of per commit; `scripts/portfolio-audit.sh` reports a local

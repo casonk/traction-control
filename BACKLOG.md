@@ -8,6 +8,12 @@ The archility twice-weekly job populates this file automatically via `archility 
 To execute a backlog item with crew-chief: `crew-chief agent "Work on item: <item text>"`.
 Mark items `[x]` when complete and move them to Done.
 
+Material an item needs that must stay out of Git (commit IDs, drafts, backups)
+lives in a local attachment folder named after the item:
+`~/.local/share/portfolio-backups/backlog/<repository>/<item id>/`, owner-only,
+with a `README.md` pointing back here. The item names its id as
+`attachment: <item id>`; the folder itself is never committed.
+
 ## Pending
 
 - [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — three
@@ -18,15 +24,16 @@ Mark items `[x]` when complete and move them to Done.
   trailers, every portfolio repository that carried them). Open one ticket at
   <https://support.github.com/request> ("Remove sensitive data"). The first
   two sets are the sensitive ones; list them first and add the 2026-10-15 set
-  in the same ticket. The repository list, old and new `main` hashes and a
-  draft ticket are kept outside git in
-  `~/.local/share/portfolio-backups/github-support-purge-request.md` on the
-  Fedora desktop; do not paste hashes or removed values into a public issue.
-  After Support confirms, check that an old hash returns 404, mark the
+  in the same ticket. The draft ticket, every old and new commit ID, and the
+  pull-request descriptions as they were before their footers were removed
+  are in the local attachment (attachment: `2026-10-15-github-support-purge`,
+  on the Fedora desktop); do not paste hashes or removed values into a public
+  issue. After Support confirms, check that an old hash returns 404, mark the
   matching item in each repository's backlog done, then delete the
-  pre-rewrite bundles in the `history-rewrite-*` folders. Every other clone,
-  the Mac's included, must hard-reset or re-clone and never push old history
-  back; the Mac's `legacy/pre-rewrite-*` branches stay local.
+  attachment and the pre-rewrite bundles in the `history-rewrite-*` folders.
+  Every other clone must be moved with `scripts/realign_rewritten_checkouts.sh`
+  or re-cloned and must never push old history back; its
+  `legacy/pre-rewrite-*` branches stay local.
 
 ### Network Exposure Hardening
 
