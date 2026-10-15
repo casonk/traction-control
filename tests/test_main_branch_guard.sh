@@ -27,7 +27,23 @@ new_repo() {
 
 commit() { git -C "$1" commit -q --allow-empty -m "$2" 2>/dev/null; }
 
+scratch="$(new_repo scratch)"
+commit "${scratch}" "one" && commit "${scratch}" "two" ||
+  fail "a repository without a GitHub remote should not be guarded"
+pass "repository without a GitHub remote is not guarded"
+
+fixture="$(new_repo fixture)"
+git -C "${fixture}" remote add origin https://github.com/owner/fixture.git
+commit "${fixture}" "one" && commit "${fixture}" "two" ||
+  fail "a checkout in a temporary directory should not be guarded"
+pass "checkout in a temporary directory is not guarded"
+
+# Every repository below lives in TEST_ROOT, a temporary directory.
+export MAIN_BRANCH_GUARD_IN_TMP=1
+
 repo="$(new_repo plain)"
+# The guard keys on a GitHub remote; this one is never contacted.
+git -C "${repo}" remote add github git@github.com:owner/plain.git
 commit "${repo}" "bootstrap" || fail "first commit on an unborn main should be allowed"
 pass "first commit on unborn main"
 
@@ -90,6 +106,7 @@ dest="${XDG_CONFIG_HOME}/git/main-branch-guard"
 [ -x "${dest}/pre-commit" ] && [ -x "${dest}/pre-push" ] || fail "installer should copy hooks"
 installed="${TEST_ROOT}/installed"
 git init -q -b main "${installed}"
+git -C "${installed}" remote add origin https://github.com/owner/installed.git
 commit "${installed}" "bootstrap"
 commit "${installed}" "second" && fail "installed hooks should guard main"
 pass "installer sets a working global hooksPath"
