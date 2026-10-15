@@ -117,8 +117,8 @@ When another repo needs one of these capabilities, prefer integrating with the r
 
 Current strong baseline across the portfolio:
 
-- every repo now has `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `CONTRIBUTING.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, `.github/PULL_REQUEST_TEMPLATE.md`, and issue templates
-- every repo now has `REFS-PUBLIC.md` (tracked, public external references) and `REFS-LOCAL.md` (gitignored, machine-specific local paths)
+- every repo should have the core tracked files `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `LESSONSLEARNED.md`, `.editorconfig`, `SECURITY.md`, and `CHANGELOG.md`; `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, the pull-request template, and issue templates may be inherited from the account-level `.github` repository when a repo has no local copy
+- every repo should have `REFS-PUBLIC.md` (tracked, public external references) and `REFS-LOCAL.md` (gitignored, machine-specific local paths)
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
 - every tracked `AGENTS.md` should include the standard "Sudo Boundary" note that agents cannot run `sudo` and must hand exact elevated commands to the user
 - every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, unified test bench utilities, and local LLM inference
@@ -136,6 +136,7 @@ Current strong baseline across the portfolio:
 - CI workflows should call reusable workflows from `casonk/.github` (locally `./util-repos/dot-github`) instead of embedding action pins directly; see the Reusable Workflow Strategy section
 
 Re-scan before making claims based on exact counts. This layer should stay accurate without becoming stale.
+For periodic content review, use [the baseline content review guide](docs/baseline-content-review.md). A scaffold-era commit date is a triage signal, not proof that a file needs to change.
 
 ## Local Session Memory Standard
 

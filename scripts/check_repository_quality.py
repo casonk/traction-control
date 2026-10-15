@@ -17,12 +17,15 @@ from pathlib import Path
 
 BASE_FILES = (
     ".gitignore",
+    ".editorconfig",
     "README.md",
     "LICENSE",
     "AGENTS.md",
     "LESSONSLEARNED.md",
     "BACKLOG.md",
     "SECURITY.md",
+    "CHANGELOG.md",
+    "REFS-PUBLIC.md",
     "docs/contributor-architecture-blueprint.md",
     "docs/diagrams/repo-architecture.puml",
     "docs/diagrams/repo-architecture.drawio",

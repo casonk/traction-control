@@ -10,6 +10,26 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
+- [ ] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
+  Use `docs/baseline-content-review.md` and the ignored audit log. Resolve the
+  current contribution-disclosure, agent-convention, security-policy, and
+  missing `.editorconfig` and `REFS-PUBLIC.md` findings in their owning
+  repositories. Verify each
+  fix against the repo's current behavior and local CI; do not bulk-copy
+  templates or treat age alone as a failure. Re-run the portfolio audit after
+  the sweep, including its disclosure phase.
+- [ ] [manual:2026-10-15] **Disposition the local legacy-branch disclosure
+  findings in `intake`.** The portfolio audit found 12 matching indexed files
+  in a pre-rewrite local branch, while the local `main` and `origin/main`
+  checks found none. Keep that branch and its unpublished content out of
+  public pushes; review whether the legacy branch is still needed before
+  retiring it through the existing branch lifecycle process.
+- [ ] [manual:2026-10-15] **Align release notes with published tags.** Review
+  `sonetsim` and `snowbridge` tags, version metadata, and release contents;
+  replace their unreleased-only changelog history with accurate versioned
+  entries. Keep this repo-specific, since the 47-checkout scan found no
+  justification for a portfolio-wide changelog rewrite.
+
 - [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — three
   history rewrites have left old commits reachable on GitHub by hash and
   through the read-only `refs/pull/*` refs of earlier pull requests:

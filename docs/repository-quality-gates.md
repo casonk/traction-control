@@ -5,7 +5,8 @@ would enter the next commit. Stage new files before running it. It exits 0
 for a valid repository, 1 for contract failures, and 2 for setup errors.
 
 The `base` profile requires tracked governance and architecture source files,
-rejects local session files and common runtime/build output, and rejects
+including `.editorconfig`, `CHANGELOG.md`, and `REFS-PUBLIC.md`. It rejects
+local session files and common runtime/build output, and rejects
 PlantUML or draw.io renders whose source is not tracked. It does not forbid
 all generated output: reviewed architecture renders are part of the portfolio
 baseline, and some repositories deliberately track other artifacts.
