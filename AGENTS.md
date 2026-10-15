@@ -265,6 +265,7 @@ guidance derived from the visibility registry and portfolio catalog.
 New repos should initialize `AGENTS.md` from `./util-repos/traction-control/docs/templates/AGENTS.md`, which carries the four conventions `scripts/check_agents_md.py` verifies: the sudo boundary, the portfolio standards backlink, the `CHATHISTORY.md` / `LESSONSLEARNED.md` session-memory boundary, and Local CI Verification. That checker is concept-based, so rewording a section is fine as long as the rule survives; it runs as part of `scripts/portfolio-audit.sh`.
 New repos should initialize `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` and keep the shared baseline lessons unless a repo-specific lesson already captures the same operating rule more precisely.
 New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/docs/templates/BACKLOG.md`. The archility twice-weekly audit job populates `BACKLOG.md` automatically via `archility audit --write-backlog`. crew-chief can execute backlog items via its agent loop.
+A new repo with its own `CONTRIBUTING.md` should end it with the section in `./util-repos/traction-control/docs/templates/CONTRIBUTING-ai-disclosure.md` (see rule 13); one without inherits the account default, which already carries it.
 New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
 
 `README.md` should include:
@@ -339,13 +340,13 @@ Add:
 10. **Run the full local CI check suite before every push.** This is non-negotiable — do not push code that has not passed local verification. See the repo’s `AGENTS.md` "Local CI Verification" section for the exact commands. At minimum: `pre-commit run --all-files`; for Python repos also `pytest -q`.
 11. After pushing changes that trigger GitHub Actions or other hosted CI, check the resulting workflow runs and resolve new failures before considering the work complete.
 12. Use Conventional Commits for any git operations: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`.
-13. **Never attribute work in this portfolio to Claude, Anthropic, or any AI model, agent, or tool.** These are proprietary repositories and their history must read as the owner's own work. This covers, without exception:
+13. **Disclose AI involvement once per repository, never per artifact.** Each repository's `CONTRIBUTING.md` carries the standard "AI Contribution Disclosure" section from `docs/templates/CONTRIBUTING-ai-disclosure.md`; a repository without its own `CONTRIBUTING.md` inherits the one in the account `.github` repository, which carries the same section. That section is the only place AI assistance is named. Do not add attribution to Claude, Anthropic, or any other AI model, agent, or tool anywhere else:
     - commit messages and commit trailers, including `Co-Authored-By:` and any session or assistant trailer
     - pull-request and issue titles, bodies, and comments, including any "generated with" or "created by" notice
     - code comments, docstrings, changelog entries, and generated documentation
     - tags, release notes, and any other artifact published from this portfolio
 
-    The harness-level enforcement is `attribution: { "commit": "", "pr": "", "sessionUrl": false }` in `~/.claude/settings.json`. Do not rely on that alone: it is per-machine and per-tool, so if you find yourself composing an attribution line, drop it. Removing such a line from history is a separate, explicitly requested operation, because it rewrites published commits.
+    The harness-level enforcement is `attribution: { "commit": "", "pr": "", "sessionUrl": false }` in `~/.claude/settings.json`. Do not rely on that alone: it is per-machine and per-tool, so if you find yourself composing an attribution line, drop it. `scripts/portfolio-audit.sh` reports a local `CONTRIBUTING.md` that lacks the disclosure section. Existing trailers were removed from published history on 2026-10-15; removing any that reappear is a separate, explicitly requested operation, because it rewrites published commits.
 14. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
 15. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
 16. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.

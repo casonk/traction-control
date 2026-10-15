@@ -147,6 +147,14 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
         fi
     done
 
+    # One repo-wide AI contribution disclosure replaces per-commit attribution
+    # (AGENTS.md rule 13). A repo without its own CONTRIBUTING.md inherits the
+    # account default, which carries the same section.
+    if [[ -f "${repo}/CONTRIBUTING.md" ]] \
+        && ! grep -q '^## AI Contribution Disclosure' "${repo}/CONTRIBUTING.md"; then
+        missing+=("CONTRIBUTING.md: AI Contribution Disclosure section")
+    fi
+
     # AGENTS.md shared-convention checks (sudo boundary, portfolio standards
     # backlink, session-memory boundary, local CI verification). Concept-based,
     # not template-exact: the previous exact-string marker flagged three repos

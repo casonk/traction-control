@@ -12,6 +12,27 @@
 
 ## Lessons
 
+### 2026-10-15 — A history rewrite is not finished at the force-push
+
+- GitHub keeps serving rewritten-away commits to anyone with a hash, and
+  through the read-only `refs/pull/*` refs of earlier pull requests, until
+  GitHub Support garbage-collects them. The 2026-10-14 rewrite was reported
+  done without queuing that request. Add the purge item to each rewritten
+  repository's `BACKLOG.md`, and to the consolidated item here, in the same
+  change as the rewrite, and record the old and new hashes in the local
+  support-request file rather than in git.
+- When stripping commit-message trailers with `git filter-repo`, limit the
+  commit callback to the owner's commits (by author email) and to messages
+  that actually match, so vendored upstream history keeps its IDs. Then check
+  that every branch tip's tree is unchanged and that the commit map has no
+  all-zero (pruned) entries.
+- Re-anchor a redacted gitleaks baseline with a redacted rescan. A baseline
+  written with `--redact` stores `REDACTED`; an unredacted rescan fails the
+  finding-set comparison and would publish the matched value.
+- Only findings in rewritten commits move. Commits older than the first
+  changed message keep their IDs, so many baselines need no new commit; still
+  run the full-history scan with the baseline before pushing.
+
 ### 2026-10-14 — History rewrites: verify gitleaks the way CI runs it, and check that the scan still runs
 
 - Before saying a gitleaks change passes, run the workflow's own command:

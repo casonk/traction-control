@@ -24,3 +24,13 @@
 - Keep each pull request focused on one governance theme.
 - Call out cross-repo implications explicitly.
 - Note whether any inventory or baseline counts were refreshed.
+
+## AI Contribution Disclosure
+
+Parts of this repository's code, documentation and commit history were drafted
+with AI coding assistants, including Claude Code, OpenAI Codex, GitHub Copilot
+and Continue. The maintainer directs that work, reviews and tests each change
+before it merges, and is responsible for the result.
+
+This section is the repository-wide disclosure. Individual commits, pull
+requests and files do not carry per-tool attribution lines.

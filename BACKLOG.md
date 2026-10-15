@@ -10,20 +10,23 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
-- [ ] [manual:2026-10-11] **Ask GitHub Support to purge pre-rewrite history** — `main`
-  was rewritten on 2026-10-11 to remove a live WireGuard listen port from
-  every commit. GitHub still serves the old commits to anyone who has a hash,
-  and through the read-only `refs/pull/*` refs of earlier pull requests, until
-  Support removes them. Open a ticket at <https://support.github.com/request>
-  ("remove sensitive data"): name this repository, give the old and new `main`
-  hashes, and ask for the unreachable commits to be garbage-collected, cached
-  views cleared, and the affected pull-request refs and diffs removed. The
-  hashes are recorded locally, outside git, in
-  `~/.local/share/portfolio-backups/history-rewrite-20261011/` on the Fedora
-  desktop; do not paste them or the removed values into a public issue. After
-  Support confirms, check that an old hash returns 404, then delete the local
-  pre-rewrite bundles. Every other clone must re-clone or hard-reset to
-  `origin/main` and must not push its old history back.
+- [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — three
+  history rewrites have left old commits reachable on GitHub by hash and
+  through the read-only `refs/pull/*` refs of earlier pull requests:
+  2026-10-11 (a live WireGuard listen port), 2026-10-14 (private repository
+  names, nine public repositories) and 2026-10-15 (per-commit AI attribution
+  trailers, every portfolio repository that carried them). Open one ticket at
+  <https://support.github.com/request> ("Remove sensitive data"). The first
+  two sets are the sensitive ones; list them first and add the 2026-10-15 set
+  in the same ticket. The repository list, old and new `main` hashes and a
+  draft ticket are kept outside git in
+  `~/.local/share/portfolio-backups/github-support-purge-request.md` on the
+  Fedora desktop; do not paste hashes or removed values into a public issue.
+  After Support confirms, check that an old hash returns 404, mark the
+  matching item in each repository's backlog done, then delete the
+  pre-rewrite bundles in the `history-rewrite-*` folders. Every other clone,
+  the Mac's included, must hard-reset or re-clone and never push old history
+  back; the Mac's `legacy/pre-rewrite-*` branches stay local.
 
 ### Network Exposure Hardening
 

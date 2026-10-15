@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- AGENTS.md rule 13 now discloses AI assistance once per repository, in a
+  standard `CONTRIBUTING.md` section (`docs/templates/CONTRIBUTING-ai-disclosure.md`),
+  instead of per commit; `scripts/portfolio-audit.sh` reports a local
+  `CONTRIBUTING.md` without it. Per-commit AI attribution trailers were
+  removed from the published history of every portfolio repository that
+  carried them.
+- The backlog's GitHub Support purge item now covers all three history
+  rewrites (2026-10-11, 2026-10-14 and 2026-10-15).
 - Agentic jobs check, before contacting any provider, that no other agent is
   working in the checkout: a `codex`, `claude` or `copilot` process whose
   working directory is inside it, or any Git-visible file edited within the
