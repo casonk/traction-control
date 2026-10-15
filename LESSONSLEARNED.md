@@ -29,9 +29,24 @@
 - Re-anchor a redacted gitleaks baseline with a redacted rescan. A baseline
   written with `--redact` stores `REDACTED`; an unredacted rescan fails the
   finding-set comparison and would publish the matched value.
-- Only findings in rewritten commits move. Commits older than the first
-  changed message keep their IDs, so many baselines need no new commit; still
-  run the full-history scan with the baseline before pushing.
+- `git filter-repo` drops commit signatures, so every GitHub-signed commit
+  (web edits, squash merges) gets a new ID even when its message is
+  untouched, and loses its Verified badge. Only unsigned commits older than
+  the first changed message keep their IDs. Baselines whose findings all sit
+  in such commits need no new commit; still run the full-history scan with
+  the baseline before pushing, and give Support the full set of old IDs.
+- GitHub's email-privacy setting checks the tip commit of each pushed ref. A
+  rewritten lightweight tag whose tip carries the private address is refused
+  even though the same commit was accepted as part of `main`. Leave such a
+  tag on its original commit when that history holds nothing being removed,
+  or turn the setting off for one push.
+- After a force push, `gitleaks/gitleaks-action` scans the push range from the
+  replaced commit, which the checkout no longer has, and fails with a git
+  error rather than a finding. Re-run it with `workflow_dispatch` for a full
+  scan; repositories on the reusable full-history workflow are unaffected.
+- Pull-request descriptions keep "Generated with" footers after the commits
+  are cleaned. They are editable in place through the pulls API, so remove
+  them in the same pass; no history rewrite is involved.
 
 ### 2026-10-14 — History rewrites: verify gitleaks the way CI runs it, and check that the scan still runs
 
