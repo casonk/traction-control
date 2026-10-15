@@ -78,7 +78,7 @@ overlaps() {
   local path
   while IFS= read -r path; do
     [[ -n "${path}" ]] || continue
-    if printf '%s\n' "$2" | grep -qxF -- "${path}"; then
+    if printf '%s\n' "$2" | grep -xF -- "${path}" >/dev/null; then
       return 0
     fi
   done <<< "$1"
@@ -144,7 +144,10 @@ realign_one() {  # <absolute repo dir> <display name>
   # Diverged. Safe only if HEAD's content was published under a new ID.
   local tree
   tree="$("${g[@]}" rev-parse "HEAD^{tree}")"
-  if ! "${g[@]}" log --format=%T "${upstream}" | grep -qxF "${tree}"; then
+  # Not `grep -q`: it stops reading at the first match, git log then dies of
+  # SIGPIPE, and pipefail turns a found tree into "not found" on any history
+  # longer than a few kilobytes of output.
+  if ! "${g[@]}" log --format=%T "${upstream}" | grep -xF "${tree}" >/dev/null; then
     report "${name}" "diverged with local-only commits; skipped"
     counts_skip=$((counts_skip + 1)); return
   fi

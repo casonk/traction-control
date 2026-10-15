@@ -4,6 +4,9 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Fix `scripts/realign_rewritten_checkouts.sh` skipping every real rewritten
+  clone as "diverged with local-only commits": `grep -q` under `pipefail`
+  turned a found tree into SIGPIPE failure on any non-trivial history.
 - Add `scripts/realign_rewritten_checkouts.sh`, which moves the other clones
   of a rewritten portfolio (the Mac's, for example) onto the new history
   without losing local work: it resets only clones whose HEAD content exists
