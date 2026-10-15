@@ -18,12 +18,13 @@ with a `README.md` pointing back here. The item names its id as
 
 - [ ] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
   Use `docs/baseline-content-review.md` and the ignored audit log. Resolve the
-  current contribution-disclosure, agent-convention, security-policy, and
-  missing `.editorconfig` and `REFS-PUBLIC.md` findings in their owning
-  repositories. Verify each
-  fix against the repo's current behavior and local CI; do not bulk-copy
-  templates or treat age alone as a failure. Re-run the portfolio audit after
-  the sweep, including its disclosure phase.
+  remaining agent-convention, security-policy, and missing `.editorconfig`
+  and `REFS-PUBLIC.md` findings in their owning repositories. The
+  current-default-branch contribution-disclosure gaps were resolved on
+  2026-10-15; a local legacy branch may still report a historical match.
+  Verify each fix against the repo's current behavior and local CI; do not
+  bulk-copy templates or treat age alone as a failure. Re-run the portfolio
+  audit after the sweep, including its disclosure phase.
 - [ ] [manual:2026-10-15] **Disposition the local legacy-branch disclosure
   findings in `intake`.** The portfolio audit found 12 matching indexed files
   in a pre-rewrite local branch, while the local `main` and `origin/main`
