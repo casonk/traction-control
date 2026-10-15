@@ -12,6 +12,24 @@
 
 ## Lessons
 
+### 2026-10-15 — Scaffold age is a review signal, not a content failure
+
+- A baseline file's last commit date or scaffold-style subject cannot prove
+  staleness. Compare the content with current code, tags, manifests, and
+  exposure boundaries. Stable licenses and shared conduct policies may need
+  no edit, while an actively edited unreleased changelog may still omit
+  published release history.
+- Account-level GitHub defaults can provide contribution, conduct, and PR
+  template coverage where a repository has no local copy. A local override
+  replaces the inherited default and needs its own content review. An
+  explicit “no standing references” in `REFS-PUBLIC.md` is valid; requiring a
+  URL would create fake dependencies.
+- A disclosure scan of a registered-public repository's local Git index is
+  prepublication evidence for that checkout, not proof about the hosted
+  default branch. Check `HEAD` and the remote-tracking branch before calling
+  a finding a published exposure; legacy pre-rewrite branches can retain old
+  names after the public branch is clean.
+
 ### 2026-10-15 — A history rewrite is not finished at the force-push
 
 - GitHub keeps serving rewritten-away commits to anyone with a hash, and

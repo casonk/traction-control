@@ -44,6 +44,7 @@ TIER1_FILES=(
     .editorconfig
     SECURITY.md
     CHANGELOG.md
+    REFS-PUBLIC.md
     docs/contributor-architecture-blueprint.md
     docs/diagrams/repo-architecture.puml
     docs/diagrams/repo-architecture.drawio
@@ -240,7 +241,15 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
         0) ;;
         1)
             while IFS= read -r line; do
-                [[ -n "${line}" ]] && missing+=("${line}")
+                [[ -n "${line}" ]] || continue
+                # The worktree Tier-1 check already reports a wholly missing
+                # file. Retain the index error when the file exists locally
+                # but has not been staged/tracked.
+                if [[ "${line}" == "quality check: required tracked file missing: "* ]]; then
+                    required_path="${line#quality check: required tracked file missing: }"
+                    [[ -f "${repo}/${required_path}" ]] || continue
+                fi
+                missing+=("${line}")
             done <<< "${quality_output}"
             ;;
         *)
@@ -294,7 +303,8 @@ COMMON_WORDS_LIST="${TRACTION_CONTROL_COMMON_WORDS_CONFIG:-${VIS_DIR}/common-wor
 [[ -f "${COMMON_WORDS_LIST}" ]] || COMMON_WORDS_LIST=""
 
 if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
-    log "=== private-name disclosure sweep (public repos only) ==="
+    log "=== private-name disclosure sweep (local Git indexes of registry-public repos) ==="
+    log "this sweep does not establish what the hosted default branch contains"
     # Under Bash 3 with nounset, expanding an empty array directly in a for
     # list raises an unbound-variable error. The conditional expansion keeps an
     # empty portfolio a valid no-op audit rather than a failed run.
@@ -324,7 +334,7 @@ if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
 
         if (( disclosure_status != 0 )); then
             hits="$(grep -c '^error:' <<< "${disclosure_output}" || true)"
-            warn "${rel}: ${hits} tracked file(s) name a private repository"
+            warn "${rel}: ${hits} indexed file(s) name a private repository in this local checkout"
             while IFS= read -r line; do
                 [[ "${line}" == error:* ]] && warn "  ${line#error: }"
             done <<< "${disclosure_output}"
@@ -332,7 +342,7 @@ if [[ -f "${PRIVATE_REGISTRY}" && -f "${PUBLIC_REGISTRY}" ]]; then
         fi
     done
     if (( DISCLOSURE_COUNT == 0 )); then
-        log "no private repository names in public repositories"
+        log "no private repository names in the scanned local Git indexes"
     fi
 else
     warn "disclosure sweep SKIPPED: visibility registry not found at ${PRIVATE_REGISTRY}"
@@ -350,7 +360,7 @@ log ""
 ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 
 if (( DISCLOSURE_COUNT > 0 )); then
-    log "ACTION REQUIRED: ${DISCLOSURE_COUNT} tracked file(s) in public repositories name a private repository"
+    log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
 if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"

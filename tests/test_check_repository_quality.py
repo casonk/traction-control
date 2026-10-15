@@ -12,12 +12,15 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/check_repository_quality.py"
 BASE_FILES = (
     ".gitignore",
+    ".editorconfig",
     "README.md",
     "LICENSE",
     "AGENTS.md",
     "LESSONSLEARNED.md",
     "BACKLOG.md",
     "SECURITY.md",
+    "CHANGELOG.md",
+    "REFS-PUBLIC.md",
     "docs/contributor-architecture-blueprint.md",
     "docs/diagrams/repo-architecture.puml",
     "docs/diagrams/repo-architecture.drawio",
@@ -64,6 +67,16 @@ class RepositoryQualityTests(unittest.TestCase):
         result = self.check()
         self.assertEqual(result.returncode, 1)
         self.assertIn("required tracked file missing: README.md", result.stderr)
+
+    def test_public_references_must_be_tracked(self) -> None:
+        subprocess.run(
+            ["git", "-C", str(self.repo), "rm", "--cached", "REFS-PUBLIC.md"],
+            check=True,
+            capture_output=True,
+        )
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("required tracked file missing: REFS-PUBLIC.md", result.stderr)
 
     def test_empty_index_is_a_repository_gap(self) -> None:
         subprocess.run(
