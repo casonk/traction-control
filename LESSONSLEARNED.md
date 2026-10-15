@@ -12,6 +12,21 @@
 
 ## Lessons
 
+### 2026-10-15 — Hand cross-machine operations over as tracked scripts, not pasted loops
+
+- A one-line loop over many repositories, pasted into the Mac's zsh, failed
+  with `parse error near '}'`: the terminal wrapped the long line inside a
+  brace expansion. Anything the user must run on another machine across many
+  repositories belongs in a tracked script in the owning repository (here
+  `scripts/realign_rewritten_checkouts.sh`), which discovers repositories
+  instead of listing them, so public repositories name no private ones.
+- When a clone cannot pull the script yet, run it from the fetched ref with
+  process substitution: `bash <(git show origin/main:path/to/script.sh)`.
+  Piping into `bash -s` is unsafe for scripts that fetch over SSH, because ssh
+  reads standard input and swallows the rest of the script.
+- Keep such scripts Bash 3.2 compatible (no `mapfile`, associative arrays or
+  `${var,,}`) so they run unchanged on macOS.
+
 ### 2026-10-15 — Scaffold age is a review signal, not a content failure
 
 - A baseline file's last commit date or scaffold-style subject cannot prove
