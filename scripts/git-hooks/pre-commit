@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Refuse commits on main/master unless explicitly allowed; see main-branch-guard.sh.
+set -euo pipefail
+
+# shellcheck source=main-branch-guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/main-branch-guard.sh"
+
+branch="$(git symbolic-ref --short -q HEAD || true)"
+# An unborn branch has no commits yet; its first commit bootstraps the repo.
+if guard_protected_branch "${branch}" && git rev-parse -q --verify HEAD >/dev/null; then
+  guard_allowed || guard_refuse "refusing to commit directly to '${branch}'."
+fi
+
+guard_chain pre-commit ${1+"$@"}

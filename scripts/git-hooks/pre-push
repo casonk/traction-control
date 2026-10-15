@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Refuse pushes to a remote main/master unless explicitly allowed; see main-branch-guard.sh.
+set -euo pipefail
+
+# shellcheck source=main-branch-guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/main-branch-guard.sh"
+
+zero="0000000000000000000000000000000000000000"
+updates="$(cat)"
+
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  [ -n "${remote_ref:-}" ] || continue
+  branch="${remote_ref#refs/heads/}"
+  guard_protected_branch "${branch}" || continue
+  # Deleting is never a bootstrap; creating the first remote branch is.
+  if [ "${local_sha}" != "${zero}" ] && [ "${remote_sha}" = "${zero}" ]; then
+    continue
+  fi
+  guard_allowed || guard_refuse "refusing to push directly to '${branch}' on $1."
+done <<<"${updates}"
+
+hook="$(git rev-parse --git-common-dir)/hooks/pre-push"
+if [ -x "${hook}" ]; then
+  exec "${hook}" "$@" <<<"${updates}"
+fi
+exit 0

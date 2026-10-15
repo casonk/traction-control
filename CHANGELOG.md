@@ -4,6 +4,16 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add repository settings as code: every repository declares its GitHub
+  description and main-branch policy in `.github/repository.toml` (template in
+  `docs/templates/repository.toml`), and `scripts/repo_settings.py check|apply`
+  reports drift and applies the merged file to GitHub. Public repositories get
+  the `main-branch-guard` ruleset (pull request required, no bypass).
+- Add the local main-branch guard, `scripts/install_main_branch_guard.sh`:
+  global pre-commit and pre-push hooks that refuse direct commits and pushes to
+  `main`/`master` unless `ALLOW_MAIN=1` or the repository opts in. AGENTS.md
+  rule 17 makes branch-and-pull-request the default for agents.
+
 - Fix `scripts/realign_rewritten_checkouts.sh` skipping every real rewritten
   clone as "diverged with local-only commits": `grep -q` under `pipefail`
   turned a found tree into SIGPIPE failure on any non-trivial history.

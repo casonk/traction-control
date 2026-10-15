@@ -52,3 +52,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: repo-settings-tests
+        name: repository settings sync tests
+        entry: python3 -m unittest discover -s tests -p test_repo_settings.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: main-branch-guard-tests
+        name: main-branch guard hook tests
+        entry: /bin/bash tests/test_main_branch_guard.sh
+        language: system
+        pass_filenames: false
+        always_run: true
