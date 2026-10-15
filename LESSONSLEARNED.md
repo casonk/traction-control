@@ -26,6 +26,13 @@
   reads standard input and swallows the rest of the script.
 - Keep such scripts Bash 3.2 compatible (no `mapfile`, associative arrays or
   `${var,,}`) so they run unchanged on macOS.
+- Under `set -o pipefail`, never end a pipeline with `grep -q`: it exits at
+  the first match, the writer dies of SIGPIPE (status 141), and the pipeline
+  reports failure for a match. The realign script's first release skipped
+  every real repository on the Mac as "local-only commits" for this reason;
+  its tests used three-commit repositories whose `git log` output finished
+  before grep exited. Use `grep ... >/dev/null`, and test with a history long
+  enough to keep the writer busy.
 
 ### 2026-10-15 — Scaffold age is a review signal, not a content failure
 

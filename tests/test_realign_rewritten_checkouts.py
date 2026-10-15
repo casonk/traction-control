@@ -30,19 +30,46 @@ def commit(repo: Path, name: str, text: str, message: str) -> None:
     git(repo, "commit", "-qm", message)
 
 
-def portfolio(tmp_path: Path, name: str = "repo") -> tuple[Path, Path, Path]:
+def long_history(repo: Path, commits: int) -> None:
+    """Add `commits` commits quickly with fast-import, each with its own tree."""
+    stream = []
+    for n in range(commits):
+        data = f"{n}\n"
+        stream.append(
+            f"commit refs/heads/main\ncommitter t <t@example.invalid> {1_700_000_000 + n} +0000\n"
+            f"data 5\nbase\nM 644 inline base.txt\ndata {len(data)}\n{data}\n"
+        )
+    subprocess.run(
+        ["git", "-C", str(repo), "fast-import", "--quiet"],
+        input="".join(stream),
+        text=True,
+        env=ENV,
+        check=True,
+    )
+    git(repo, "reset", "-q", "--hard", "main")
+
+
+def portfolio(
+    tmp_path: Path, name: str = "repo", *, history: int = 0
+) -> tuple[Path, Path, Path]:
     """Origin, a writer clone that rewrites it, and the stale clone under test."""
     origin = tmp_path / "origin" / f"{name}.git"
     git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
     writer = tmp_path / "writer" / name
     git(tmp_path, "clone", "-q", str(origin), str(writer))
+    if history:
+        long_history(writer, history)
     commit(writer, "a.txt", "one\n", "feat: one\n\nCo-Authored-By: Tool <t@example.invalid>")
     commit(writer, "b.txt", "two\n", "feat: two")
     git(writer, "push", "-q", "origin", "main")
     stale = tmp_path / "root" / "util-repos" / name
     git(tmp_path, "clone", "-q", str(origin), str(stale))
     # Rewrite: same trees, new messages, force-pushed; then one more commit.
-    git(writer, "rebase", "-q", "--root", "--exec", "git commit -q --amend -m rewritten")
+    # With a long base history, rewrite only the top two commits: rebasing
+    # thousands one at a time is slow, and the matching tree stays near the
+    # top of `git log`, which is the case that matters.
+    base = "HEAD~2" if history else "--root"
+    git(writer, "rebase", "-q", base, "--exec", "git commit -q --amend -m rewritten")
     commit(writer, "c.txt", "three\n", "feat: three")
     git(writer, "push", "-q", "--force", "origin", "main")
     return origin, writer, stale
@@ -149,3 +176,15 @@ def test_a_clone_that_is_only_behind_is_fast_forwarded(tmp_path):
     assert "fast-forwarded" in result.stdout
     assert git(stale, "rev-parse", "HEAD") == git(writer, "rev-parse", "HEAD")
     assert "legacy/pre-rewrite-T" not in git(stale, "branch")
+
+
+def test_a_long_history_is_still_recognised_as_rewritten(tmp_path):
+    # Thousands of tree lines: grep finds the match while git log is still
+    # writing. With `grep -q` under pipefail that SIGPIPE read as "not found"
+    # and every real repository was skipped as having local-only commits.
+    _, writer, stale = portfolio(tmp_path, history=3000)
+
+    result = run(tmp_path / "root", "--apply")
+
+    assert "moved to origin" in result.stdout, result.stdout
+    assert git(stale, "rev-parse", "HEAD") == git(writer, "rev-parse", "HEAD")
