@@ -201,6 +201,39 @@ jobs:
 
 Existing repos still use inline CI workflows. Migrate them to the reusable pattern as they are touched for other reasons or in a dedicated migration sweep.
 
+## Repository Settings As Code
+
+GitHub keeps a repository's description and branch rules only in its API, so
+each repository declares them in a tracked `.github/repository.toml`
+(template: `docs/templates/repository.toml`) and `scripts/repo_settings.py`
+applies them:
+
+```bash
+python3 scripts/repo_settings.py check   # missing files and drift; exit 1 on any
+python3 scripts/repo_settings.py apply   # update GitHub to match (--dry-run to preview)
+```
+
+Both read the file from `origin/main`, so a change reaches GitHub only after its
+pull request merges. Change a description by editing the file, never in the
+GitHub UI or with `gh repo edit`; the next `check` reports UI edits as drift.
+
+### Main-Branch Guard
+
+Changes reach `main` through a branch and pull request. Direct commits and
+pushes to `main` (or `master`) need explicit permission:
+
+- **Public repositories:** `apply` installs the `main-branch-guard` ruleset:
+  pull request required (no approvals needed, no bypass actors), and
+  force-pushes and deletion blocked.
+- **Private repositories:** the account's plan cannot enforce rulesets on
+  private repositories, so the guard is local. Install it once per machine with
+  `scripts/install_main_branch_guard.sh`; it sets the global `core.hooksPath`
+  and still runs each checkout's own `.git/hooks/*` after the guard.
+- **Explicit permission:** `ALLOW_MAIN=1` allows one local command. A standing
+  exception is `[main_branch] allow_direct = true` in that repository's
+  settings file, which also removes its ruleset; adding it is a reviewed change
+  like any other.
+
 ## Current Portfolio Priorities
 
 ### P0 — Governance Maintenance
@@ -257,6 +290,7 @@ Every new repository should start with:
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
+- `.github/repository.toml` seeded from `./util-repos/traction-control/docs/templates/repository.toml`
 
 Repo-level `AGENTS.md` files should include a short portfolio standards reference that points to `./util-repos/traction-control`.
 Repo-level `AGENTS.md` files should include the standard "Sudo Boundary" section explaining that agents cannot run `sudo` commands and must hand exact elevated commands to the user.
@@ -351,6 +385,7 @@ Add:
 14. Prefer additive, PR-ready changes. Do not rewrite history or remove user data unless explicitly instructed.
 15. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
 16. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
+17. **Never commit or push directly to `main`** without the user's explicit permission for that change. Create a branch, push it, and open a pull request; leave merging to the user unless they ask otherwise. See [Main-Branch Guard](#main-branch-guard).
 
 ## Sudo Boundary
 
@@ -365,6 +400,8 @@ Run before every push:
 ```bash
 pre-commit run --all-files
 bash tests/test_repository_visibility_ci.sh
+bash tests/test_main_branch_guard.sh
+python3 -m unittest discover -s tests -p test_repo_settings.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are

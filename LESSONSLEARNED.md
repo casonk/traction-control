@@ -12,6 +12,22 @@
 
 ## Lessons
 
+### 2026-10-15 — GitHub repository settings have no file form; guard private repos locally
+
+- A repository's description, topics, and branch rules exist only in the GitHub
+  API; no tracked file sets them. Keep them reviewable by declaring them in
+  `.github/repository.toml` and applying the merged file with
+  `scripts/repo_settings.py apply`, not by editing the GitHub UI.
+- On a free personal plan, rulesets and branch protection are enforced only on
+  public repositories. Private repositories need the local guard
+  (`scripts/install_main_branch_guard.sh`), which only protects machines where
+  it is installed: install it on every machine that commits.
+- A global `core.hooksPath` hides every checkout's `.git/hooks/`, so the guard
+  hooks chain to them explicitly, and `pre-commit install` refuses to run while
+  it is set.
+- Under `set -u`, Bash 3.2 (macOS) treats an empty `"$@"` as unbound; write
+  `${1+"$@"}` in hooks that may receive no arguments.
+
 ### 2026-10-15 — Reconcile local instructions when a central contribution rule changes
 
 - A file-presence or heading audit cannot detect a repo-level `AGENTS.md`
