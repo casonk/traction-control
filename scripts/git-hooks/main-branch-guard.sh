@@ -1,7 +1,8 @@
 # shellcheck shell=bash
 # Shared logic for the portfolio main-branch guard hooks.
 #
-# Direct commits and pushes to main/master are refused unless one of these
+# In checkouts with a GitHub remote, direct commits and pushes to main/master
+# are refused unless one of these
 # explicitly allows them:
 #   - ALLOW_MAIN=1 in the environment (one command, one approval)
 #   - [main_branch] allow_direct = true in the repo's .github/repository.toml
@@ -9,7 +10,26 @@
 # After the guard passes, the repo's own .git/hooks/<name> runs, because a
 # global core.hooksPath otherwise hides repo-local hooks.
 
+guard_applies() {
+  # Only real checkouts are guarded: they have a GitHub remote and do not live
+  # in a temporary directory. Test fixtures and scratch repositories commit to
+  # main freely. MAIN_BRANCH_GUARD_IN_TMP=1 guards temporary checkouts too.
+  git remote -v 2>/dev/null | grep 'github\.com[:/]' >/dev/null || return 1
+  [ "${MAIN_BRANCH_GUARD_IN_TMP:-}" = "1" ] && return 0
+  local top tmp
+  top="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)" || return 1
+  for tmp in "${TMPDIR:-}" /tmp /var/tmp; do
+    [ -n "${tmp}" ] && [ -d "${tmp}" ] || continue
+    tmp="$(cd "${tmp}" && pwd -P)"
+    case "${top}/" in
+      "${tmp%/}/"*) return 1 ;;
+    esac
+  done
+  return 0
+}
+
 guard_protected_branch() {
+  guard_applies || return 1
   case "$1" in
     main | master) return 0 ;;
     *) return 1 ;;

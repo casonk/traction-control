@@ -25,6 +25,9 @@
 - A global `core.hooksPath` hides every checkout's `.git/hooks/`, so the guard
   hooks chain to them explicitly, and `pre-commit install` refuses to run while
   it is set.
+- A machine-wide commit guard also hits tests and tools that commit to `main`
+  in throwaway repositories, and fixtures often carry literal `github.com`
+  remotes; scope it to checkouts with a GitHub remote outside temp dirs.
 - Under `set -u`, Bash 3.2 (macOS) treats an empty `"$@"` as unbound; write
   `${1+"$@"}` in hooks that may receive no arguments.
 

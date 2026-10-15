@@ -229,6 +229,9 @@ pushes to `main` (or `master`) need explicit permission:
   private repositories, so the guard is local. Install it once per machine with
   `scripts/install_main_branch_guard.sh`; it sets the global `core.hooksPath`
   and still runs each checkout's own `.git/hooks/*` after the guard.
+- **Scope:** the local hooks guard only checkouts that have a GitHub remote
+  and live outside temporary directories, so test fixtures and scratch
+  repositories can still commit to `main`.
 - **Explicit permission:** `ALLOW_MAIN=1` allows one local command. A standing
   exception is `[main_branch] allow_direct = true` in that repository's
   settings file, which also removes its ruleset; adding it is a reviewed change
