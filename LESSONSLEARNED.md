@@ -1767,3 +1767,10 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   points. Every `find -name .git` scan then reports the portfolio root as a
   repository. With GNU `find`, adding `-exec test -f "{}/HEAD" ';'` needs an
   explicit `-print`, because any `-exec` turns off the implicit one.
+- Bash reads a script as it runs, not all at once. Editing a script while a
+  scheduled job is still executing it (on 2026-10-16 the career daily job,
+  mid-discovery) shifts the bytes under bash's saved offset, so when the
+  current command returns it can run half a line. Check
+  `systemctl --user is-active <unit>` before editing a script a timer runs;
+  if it is active, restore the original bytes and apply the change after the
+  run ends, or replace the file atomically (write a new file, then `mv`).
