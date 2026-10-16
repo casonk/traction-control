@@ -1768,9 +1768,26 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   repository. With GNU `find`, adding `-exec test -f "{}/HEAD" ';'` needs an
   explicit `-print`, because any `-exec` turns off the implicit one.
 - Bash reads a script as it runs, not all at once. Editing a script while a
-  scheduled job is still executing it (on 2026-10-16 the career daily job,
+  scheduled job is still executing it (on 2026-10-16 a daily discovery job,
   mid-discovery) shifts the bytes under bash's saved offset, so when the
   current command returns it can run half a line. Check
   `systemctl --user is-active <unit>` before editing a script a timer runs;
   if it is active, restore the original bytes and apply the change after the
   run ends, or replace the file atomically (write a new file, then `mv`).
+- Pushing any commit that adds or changes `.github/workflows/` needs the gh
+  token's `workflow` scope, and the agent shell has no usable SSH key. The
+  missing scope blocked pushes three times (two fix branches in September,
+  the first push of a new repository on 2026-10-16). Check `gh auth status`
+  for `workflow` before such a push, and if it is missing ask the user to run
+  `gh auth refresh -h github.com -s workflow` instead of trying SSH.
+- Run checks and the push as separate commands. On 2026-10-16
+  `pre-commit run ...; git push` pushed a branch whose formatter check had
+  just failed, because `;` does not stop on failure. Read the check result,
+  fix and commit, then push.
+- Registering a repository as private makes its name private everywhere at
+  once. On 2026-10-16 a lesson and a public utility's code named a project
+  hours before its repository was created and registered private; the
+  privacy hook then flagged the lesson. Before naming a project in a public
+  repository, check whether it is or will become private, and keep any
+  per-service wiring (pins, icons, hostnames) in the ignored local registry
+  rather than in public code.
