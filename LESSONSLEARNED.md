@@ -1791,3 +1791,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   repository, check whether it is or will become private, and keep any
   per-service wiring (pins, icons, hostnames) in the ignored local registry
   rather than in public code.
+- Before calling a Python project ready for PyPI, build its wheel from a clean
+  tracked export and inspect what it contains. Then check documented install
+  paths and optional features from that installed layout: editable installs
+  can hide repo-relative config, sibling-checkout imports, and scripts that
+  never enter the wheel. A publish workflow and passing source-tree tests do
+  not establish that the released package works for a fresh user.
