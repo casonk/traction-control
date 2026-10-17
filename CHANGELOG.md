@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Fix the main-branch guard printing `cd: null directory` and `this operation
+  must be run in a work tree` on every push from a bare repository: it now
+  locates a bare repository by its Git directory, so bare clones outside
+  temporary directories are guarded and scratch ones pass silently.
 - Add repository settings as code: every repository declares its GitHub
   description and main-branch policy in `.github/repository.toml` (template in
   `docs/templates/repository.toml`), and `scripts/repo_settings.py check|apply`

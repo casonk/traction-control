@@ -10,6 +10,18 @@
 # After the guard passes, the repo's own .git/hooks/<name> runs, because a
 # global core.hooksPath otherwise hides repo-local hooks.
 
+# The checkout's top level, or the Git directory of a bare repository, which
+# has no working tree for --show-toplevel to report.
+guard_location() {
+  local dir
+  if [ "$(git rev-parse --is-bare-repository 2>/dev/null)" = "true" ]; then
+    dir="$(git rev-parse --absolute-git-dir 2>/dev/null)"
+  else
+    dir="$(git rev-parse --show-toplevel 2>/dev/null)"
+  fi
+  [ -n "${dir}" ] && (cd "${dir}" && pwd -P)
+}
+
 guard_applies() {
   # Only real checkouts are guarded: they have a GitHub remote and do not live
   # in a temporary directory. Test fixtures and scratch repositories commit to
@@ -17,7 +29,7 @@ guard_applies() {
   git remote -v 2>/dev/null | grep 'github\.com[:/]' >/dev/null || return 1
   [ "${MAIN_BRANCH_GUARD_IN_TMP:-}" = "1" ] && return 0
   local top tmp
-  top="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)" || return 1
+  top="$(guard_location)" || return 1
   for tmp in "${TMPDIR:-}" /tmp /var/tmp; do
     [ -n "${tmp}" ] && [ -d "${tmp}" ] || continue
     tmp="$(cd "${tmp}" && pwd -P)"
