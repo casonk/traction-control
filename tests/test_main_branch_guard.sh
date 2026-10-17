@@ -100,6 +100,22 @@ pass "ALLOW_MAIN=1 allows a push"
 git -C "${repo}" push -q origin :main 2>/dev/null && fail "deleting remote main should be refused"
 pass "deleting remote main refused"
 
+bare="${TEST_ROOT}/bare.git"
+git clone -q --bare "${remote}" "${bare}"
+git -C "${bare}" remote add github https://github.com/owner/plain.git
+git -C "${bare}" config core.hooksPath "${HOOKS}"
+err="$(git -C "${bare}" push -q "${remote}" feat/x:refs/heads/from-bare 2>&1)" ||
+  fail "push of a feature branch from a bare repository should be allowed: ${err}"
+[ -z "${err}" ] || fail "guard should be silent in a bare repository: ${err}"
+err="$(git -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" &&
+  fail "push to main from a bare repository should be refused"
+case "${err}" in *main-branch-guard:*) ;; *) fail "unexpected bare-repository refusal: ${err}" ;; esac
+case "${err}" in *"work tree"* | *"null directory"*) fail "bare-repository refusal has errors: ${err}" ;; esac
+err="$(MAIN_BRANCH_GUARD_IN_TMP=0 git -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" ||
+  fail "a bare repository in a temporary directory should not be guarded: ${err}"
+[ -z "${err}" ] || fail "guard should be silent for a temporary bare repository: ${err}"
+pass "bare repositories are guarded without errors"
+
 bash "${INSTALLER}" >/dev/null
 dest="${XDG_CONFIG_HOME}/git/main-branch-guard"
 [ "$(git config --global core.hooksPath)" = "${dest}" ] || fail "installer should set core.hooksPath"
