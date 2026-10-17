@@ -16,6 +16,19 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-17] **Publish the system-level tools as Fedora RPMs.**
+  PyPI covers the Python packages; an RPM in the `casonk/tools` COPR project
+  adds what pip cannot: systemd units, files in `/etc`, and system package
+  dependencies. bit-byte-block is the first (its PR adds `packaging/`, which
+  the others should copy). Next, in order: short-circuit (requires
+  `wireguard-tools`, has units), crew-chief (ships a Podman Quadlet for the
+  Ollama service), auto-pass (requires `keepassxc`), nordility (after it stops
+  assuming a sibling auto-pass checkout and packages its config example and
+  systemd installers), terminility (requires `tmux`). Before each, check that
+  the installed package does not read files relative to a source checkout.
+  The owner creates the COPR project once with a Fedora account. Debian
+  packages and the AUR can follow.
+
 - [ ] [manual:2026-10-16] **Resolve PyPI distribution-name collisions.**
   The public repositories `intake`, `windshield`, and `magneto` cannot publish
   under their repository names because unrelated PyPI projects hold those
