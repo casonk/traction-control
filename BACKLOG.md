@@ -16,6 +16,24 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-16] **Resolve PyPI distribution-name collisions.**
+  The public repositories `intake`, `windshield`, and `magneto` cannot publish
+  under their repository names because unrelated PyPI projects hold those
+  names. Suggested distribution names are `receipt-intake`,
+  `browser-windshield`, and `torrent-magneto`, respectively; their import names
+  may stay unchanged. `clockwork` has the same collision and already declares
+  `casonk-clockwork`, which can be published under that name after release
+  review. The suggested names returned no PyPI project record on 2026-10-16;
+  verify them again immediately before choosing a release name. Update
+  metadata, docs, installed-wheel checks, and Trusted Publisher registration
+  together for each rename.
+- [ ] [manual:2026-10-16] **Repair empty Python distributions before PyPI
+  release.** The current wheels for `short-circuit`, `shock-relay`,
+  `snowbridge`, `wiring-harness`, `citegres`, `fred-public-data`, and
+  `zillow-public-data` contain no Python module or CLI. Either package the
+  intended reusable interface and test a clean installation, or remove
+  package/publish metadata that implies a usable distribution.
+
 - [ ] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
   Use `docs/baseline-content-review.md` and the ignored audit log. Resolve the
   remaining agent-convention, security-policy, and missing `.editorconfig`
