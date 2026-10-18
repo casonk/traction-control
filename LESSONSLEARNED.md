@@ -1797,3 +1797,16 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   can hide repo-relative config, sibling-checkout imports, and scripts that
   never enter the wheel. A publish workflow and passing source-tree tests do
   not establish that the released package works for a fresh user.
+- For a first PyPI release through GitHub Actions, register the pending Trusted
+  Publisher in an authenticated PyPI account before publishing the GitHub
+  release. An unfamiliar browser can require email confirmation after either
+  an authenticator code or a recovery code, so a recovery code does not solve
+  a missing confirmation email. Use an already authenticated browser for the
+  account-side registration when new-device confirmation is unavailable.
+- PyPI trusted publishing rejects OIDC tokens from reusable workflow publish
+  jobs. Use a reusable build job, then download and publish in the repository's
+  own workflow job. PyPI currently allows only three pending publishers per
+  account, so publish registered projects before adding more. Its publisher
+  form can reject a distribution name as too similar even when the project
+  JSON endpoint returns 404. PyPI also rejects direct Git URL requirements in
+  optional dependency metadata; validate built metadata before a release.
