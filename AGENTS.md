@@ -157,7 +157,7 @@ For periodic content review, use [the baseline content review guide](docs/baseli
 
 ## Reusable Workflow Strategy
 
-Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). All action version pins (`actions/checkout`, `actions/setup-python`, etc.) are kept **only** in that repo's workflow files. Dependabot on `casonk/.github` keeps those pins current with a weekly PR.
+Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). Build and CI action version pins live in that repo and Dependabot keeps them current. PyPI trusted publishing requires the upload job in the calling repository, so `actions/download-artifact` and `pypa/gh-action-pypi-publish` are the two caller-local exceptions; review their versions across package callers.
 
 ### Available Reusable Workflows
 
@@ -165,7 +165,7 @@ Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-git
 |---|---|---|
 | Python CI | `casonk/.github/.github/workflows/python-ci.yml@main` | `python-versions`, `install-extra`, `run-pytest` |
 | Secret Scan | `casonk/.github/.github/workflows/secret-scan.yml@main` | `gitleaks-version` |
-| Python Publish | `casonk/.github/.github/workflows/python-publish.yml@main` | `package-name` |
+| Python Build | `casonk/.github/.github/workflows/python-build.yml@main` | none; pair with a caller-local PyPI upload job |
 | Shell CI | `casonk/.github/.github/workflows/shell-ci.yml@main` | `run-tests`, `test-script` |
 | Docs CI | `casonk/.github/.github/workflows/docs-ci.yml@main` | `ruby-version`, `build-command` |
 
@@ -189,13 +189,21 @@ jobs:
 
 ### Dependabot Conflict Rules
 
+PyPI release workflows call `python-build.yml` for the distribution artifact,
+then download it and run `pypa/gh-action-pypi-publish` in their own top-level
+`pypi` environment job with `id-token: write`. PyPI rejects OIDC tokens from
+reusable workflow publish jobs. The old reusable `python-publish.yml` must not
+be used for new releases.
+
 | Situation | Action |
 |---|---|
 | Dependabot PR on `casonk/.github` bumps an action | Review and merge — propagates to all callers |
-| Dependabot PR on an individual repo for `github-actions` | Close with label `superseded` — the repo has an unmigrated inline workflow |
+| Dependabot PR on an individual repo for `github-actions` | Review if it updates the caller-local PyPI upload actions; close unrelated inline-workflow bumps with label `superseded` |
 | A repo's CI diverges from the reusable workflow | Migrate the repo; remove its inline action pins |
 
-**Never** add a `github-actions` Dependabot entry to a calling repo that has already migrated. The canonical pin lives in `casonk/.github`.
+Do not add a `github-actions` Dependabot entry solely for reusable CI callers.
+If a package repo tracks its required local PyPI upload actions, review those
+updates as exceptions to the central pin policy.
 
 ### Migration Status
 
