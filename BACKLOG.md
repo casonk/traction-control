@@ -27,6 +27,10 @@ with a `README.md` pointing back here. The item names its id as
   verify them again immediately before choosing a release name. Update
   metadata, docs, installed-wheel checks, and Trusted Publisher registration
   together for each rename.
+  PyPI also rejected `auto-pass` as too similar to an existing project even
+  though its project JSON endpoint returned 404. Suggested distribution name:
+  `casonk-auto-pass` (no project record on 2026-10-18). Keep its import name;
+  confirm the replacement name in PyPI's publisher form before release.
 - [ ] [manual:2026-10-16] **Repair empty Python distributions before PyPI
   release.** The current wheels for `short-circuit`, `shock-relay`,
   `snowbridge`, `wiring-harness`, `citegres`, `fred-public-data`, and
