@@ -1810,3 +1810,10 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   form can reject a distribution name as too similar even when the project
   JSON endpoint returns 404. PyPI also rejects direct Git URL requirements in
   optional dependency metadata; validate built metadata before a release.
+- Seed new repositories from `docs/templates/`, not from another repository's
+  copy: a public repo's `secret-scan.yml` without job `permissions` made the
+  first PR of a new private repo fail with `403 Resource not accessible by
+  integration` before gitleaks scanned anything. The template now grants
+  `contents: read` and `pull-requests: read`. Treat any failed required check as
+  blocking even on a docs-only first PR; confirm every check passed before
+  merging.
