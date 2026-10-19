@@ -26,7 +26,7 @@ class "AirConfig" as render_air_primary.AirConfig {
 class "AirPrimaryCoordinator" as render_air_primary.AirPrimaryCoordinator {
   config
   generation_dir : Path
-  repo_root
+  repo_root : Path
   snowbridge_output : Path
   render() -> dict[str, Any]
   validate() -> dict[str, Any]
@@ -66,6 +66,12 @@ class "CatalogEntry" as portfolio_materializer.CatalogEntry {
   sync_policy : str
 }
 class "<color:red>ConcurrentSnapshotError</color>" as portfolio_lifecycle_review.ConcurrentSnapshotError {
+}
+class "Config" as job_guard.Config {
+  default
+  limits
+  units : dict[str, UnitPolicy]
+  policy(unit: str) -> UnitPolicy
 }
 class "<color:red>CoordinatorError</color>" as render_air_primary.CoordinatorError {
   category : str
@@ -169,6 +175,8 @@ class "GitHubRepositoryObservation" as repository_visibility.GitHubRepositoryObs
   slug : str
   visibility : str
 }
+class "<color:red>GuardError</color>" as job_guard.GuardError {
+}
 class "InventoryCandidate" as portfolio_sidecar.InventoryCandidate {
   file_count : int
   kind : str
@@ -190,6 +198,15 @@ class "InventoryResult" as portfolio_sidecar.InventoryResult {
 class "KnownHostsFile" as portfolio_sidecar.KnownHostsFile {
   path : Path
   sha256 : str
+}
+class "Limits" as job_guard.Limits {
+  cpu_temp_critical_c : float
+  cpu_temp_hot_c : float
+  gpu_temp_hot_c : float
+  load_per_core_busy : float
+  max_deferrals : int
+  retry_jitter_minutes : int
+  retry_minutes : int
 }
 class "<color:red>MaterializerError</color>" as portfolio_materializer.MaterializerError {
 }
@@ -227,6 +244,10 @@ class "ParsedDetection" as monitor_github_ci_emails.ParsedDetection {
   mailbox : str
   uid : int | None
 }
+class "Peer" as job_guard.Peer {
+  name : str
+  started_monotonic : int
+}
 class "PolicyDocument" as portfolio_sidecar.PolicyDocument {
   content_sha256 : str
   datasets : tuple[DatasetPolicy, ...]
@@ -255,6 +276,11 @@ class "ProposedAction" as portfolio_lifecycle_review.ProposedAction {
   reason : str
   target_repository_id : str
 }
+class "Readings" as job_guard.Readings {
+  cpu_temp_c : float | None
+  gpu_temp_c : float | None
+  load_per_core : float | None
+}
 class "RegistryDocument" as repository_visibility.RegistryDocument {
   generation : int
   path : Path
@@ -273,6 +299,15 @@ class "RegistryPair" as repository_visibility.RegistryPair {
   registry_id : str
   classification(slug: str) -> str
 }
+class "Remote" as repo_settings.Remote {
+  archived : bool
+  default_branch : str
+  description : str
+  name : str
+  owner : str
+  slug : str
+  visibility : str
+}
 class "RepairTriggerResult" as monitor_github_ci_emails.RepairTriggerResult {
   already_scheduled : bool
   attempted : bool
@@ -286,6 +321,13 @@ class "RepairTriggerResult" as monitor_github_ci_emails.RepairTriggerResult {
 class "ReplicaState" as portfolio_sidecar.ReplicaState {
   snapshot_id : str
   target_id : str
+}
+class "Report" as portfolio_purge.Report {
+  attention : list[str]
+  errors : list[str]
+  kept : list[str]
+  removed : list[str]
+  merge(other: Report) -> None
 }
 class "RepositoryEntry" as repository_visibility.RepositoryEntry {
   repository_id : str
@@ -302,6 +344,12 @@ class "ScanResult" as portfolio_lifecycle_review.ScanResult {
   repositories : tuple[dict[str, Any], ...]
   snapshots : tuple[_RepositorySnapshot, ...]
   warnings : tuple[dict[str, str], ...]
+}
+class "Settings" as repo_settings.Settings {
+  allow_direct : bool
+  description : str
+}
+class "<color:red>SettingsError</color>" as repo_settings.SettingsError {
 }
 class "<color:red>SidecarError</color>" as portfolio_sidecar.SidecarError {
 }
@@ -375,6 +423,16 @@ class "TargetsDocument" as portfolio_sidecar.TargetsDocument {
   target_generation : int
   target_sets : tuple[TargetSet, ...]
 }
+class "UnitPolicy" as job_guard.UnitPolicy {
+  job_class : str
+  timeout : str | None
+}
+class "Worktree" as portfolio_purge.Worktree {
+  branch : str | None
+  locked : bool
+  path : Path
+  prunable : bool
+}
 class "_CatalogLock" as portfolio_materializer._CatalogLock {
   descriptor : NoneType, int | None
   path
@@ -431,6 +489,8 @@ class "_TreeEntry" as portfolio_lifecycle_review._TreeEntry {
 }
 portfolio_lifecycle_review.ConcurrentSnapshotError --|> portfolio_lifecycle_review.ReviewError
 portfolio_lifecycle_review.DirtyCheckoutError --|> portfolio_lifecycle_review.ReviewError
+job_guard.Config --> job_guard.Limits : limits
+job_guard.Config --> job_guard.UnitPolicy : default
 monitor_github_ci_emails.ParsedDetection --> monitor_github_ci_emails.GitHubCiEmail : email
 portfolio_sidecar._Inputs --> portfolio_materializer.CatalogDocument : catalog
 portfolio_sidecar._Inputs --> portfolio_sidecar.PolicyDocument : policy

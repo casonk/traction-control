@@ -9,13 +9,16 @@ rectangle "containers/portfolio-sidecar-sftp/sftp-target-healthcheck.sh\n0 local
 rectangle "containers/portfolio-sidecar-sftp/start-sftp-target.sh\n0 local shell edges\n5 external tools" as shell_containers_portfolio_sidecar_sftp_start_sftp_target_sh #DBEAFE
 rectangle "scripts/archility-daily.sh\n0 local shell edges\n4 external tools" as shell_scripts_archility_daily_sh #DBEAFE
 rectangle "scripts/archility-weekly.sh\n0 local shell edges\n4 external tools" as shell_scripts_archility_weekly_sh #DBEAFE
-rectangle "scripts/bug_sweep_agentic.sh\n0 local shell edges\n13 external tools" as shell_scripts_bug_sweep_agentic_sh #DBEAFE
+rectangle "scripts/bug_sweep_agentic.sh\n0 local shell edges\n15 external tools" as shell_scripts_bug_sweep_agentic_sh #DBEAFE
 rectangle "scripts/check_github_push_ci.sh\n0 local shell edges\n8 external tools" as shell_scripts_check_github_push_ci_sh #DBEAFE
 rectangle "scripts/check_portfolio_privacy.sh\n0 local shell edges\n0 external tools" as shell_scripts_check_portfolio_privacy_sh #DBEAFE
-rectangle "scripts/ci_repair_agentic.sh\n0 local shell edges\n19 external tools" as shell_scripts_ci_repair_agentic_sh #DBEAFE
-rectangle "scripts/ci_repair_agentic_repair.sh\n0 local shell edges\n6 external tools" as shell_scripts_ci_repair_agentic_repair_sh #DBEAFE
+rectangle "scripts/ci_repair_agentic.sh\n0 local shell edges\n21 external tools" as shell_scripts_ci_repair_agentic_sh #DBEAFE
+rectangle "scripts/ci_repair_agentic_repair.sh\n0 local shell edges\n7 external tools" as shell_scripts_ci_repair_agentic_repair_sh #DBEAFE
 rectangle "scripts/create_private_github_repo.sh\n0 local shell edges\n2 external tools" as shell_scripts_create_private_github_repo_sh #DBEAFE
 rectangle "scripts/deploy-secret-scan.sh\n0 local shell edges\n7 external tools" as shell_scripts_deploy_secret_scan_sh #DBEAFE
+rectangle "scripts/git-hooks/main-branch-guard.sh\n0 local shell edges\n6 external tools" as shell_scripts_git_hooks_main_branch_guard_sh #DBEAFE
+rectangle "scripts/git-hooks/pre-commit\n0 local shell edges\n4 external tools" as shell_scripts_git_hooks_pre_commit #DBEAFE
+rectangle "scripts/git-hooks/pre-push\n0 local shell edges\n3 external tools" as shell_scripts_git_hooks_pre_push #DBEAFE
 rectangle "scripts/harden_firewalld_high_ports.sh\n0 local shell edges\n5 external tools" as shell_scripts_harden_firewalld_high_ports_sh #DBEAFE
 rectangle "scripts/harden_firewalld_service_zones.sh\n0 local shell edges\n7 external tools" as shell_scripts_harden_firewalld_service_zones_sh #DBEAFE
 rectangle "scripts/install_archility_daily_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_archility_daily_systemd_sh #DBEAFE
@@ -25,6 +28,7 @@ rectangle "scripts/install_ci_repair_agentic_discovery_systemd.sh\n0 local shell
 rectangle "scripts/install_ci_repair_agentic_repair_systemd.sh\n0 local shell edges\n3 external tools" as shell_scripts_install_ci_repair_agentic_repair_systemd_sh #DBEAFE
 rectangle "scripts/install_ci_repair_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_ci_repair_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_github_ci_email_monitor_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_github_ci_email_monitor_systemd_sh #DBEAFE
+rectangle "scripts/install_main_branch_guard.sh\n0 local shell edges\n3 external tools" as shell_scripts_install_main_branch_guard_sh #DBEAFE
 rectangle "scripts/install_no_auto_suspend.sh\n0 local shell edges\n3 external tools" as shell_scripts_install_no_auto_suspend_sh #DBEAFE
 rectangle "scripts/install_podman_runtime.sh\n0 local shell edges\n3 external tools" as shell_scripts_install_podman_runtime_sh #DBEAFE
 rectangle "scripts/install_portfolio_audit_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_portfolio_audit_systemd_sh #DBEAFE
@@ -32,16 +36,18 @@ rectangle "scripts/install_refs_audit_agentic_systemd.sh\n0 local shell edges\n5
 rectangle "scripts/install_tachometer_disk_pressure_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_tachometer_disk_pressure_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_template_consolidation_agentic_systemd.sh\n0 local shell edges\n2 external tools" as shell_scripts_install_template_consolidation_agentic_systemd_sh #DBEAFE
 rectangle "scripts/install_traction_control_agents.sh\n0 local shell edges\n35 external tools" as shell_scripts_install_traction_control_agents_sh #DBEAFE
-rectangle "scripts/lib/agentic_provider.sh\n0 local shell edges\n16 external tools" as shell_scripts_lib_agentic_provider_sh #DBEAFE
+rectangle "scripts/lib/agentic_provider.sh\n0 local shell edges\n22 external tools" as shell_scripts_lib_agentic_provider_sh #DBEAFE
 rectangle "scripts/mount_snowbridge.sh\n0 local shell edges\n2 external tools" as shell_scripts_mount_snowbridge_sh #DBEAFE
 rectangle "scripts/portfolio-audit.sh\n0 local shell edges\n5 external tools" as shell_scripts_portfolio_audit_sh #DBEAFE
-rectangle "scripts/refs_audit_agentic.sh\n0 local shell edges\n14 external tools" as shell_scripts_refs_audit_agentic_sh #DBEAFE
+rectangle "scripts/portfolio-purge.sh\n0 local shell edges\n3 external tools" as shell_scripts_portfolio_purge_sh #DBEAFE
+rectangle "scripts/realign_rewritten_checkouts.sh\n0 local shell edges\n5 external tools" as shell_scripts_realign_rewritten_checkouts_sh #DBEAFE
+rectangle "scripts/refs_audit_agentic.sh\n0 local shell edges\n16 external tools" as shell_scripts_refs_audit_agentic_sh #DBEAFE
 rectangle "scripts/render_private_bundle_overlay.sh\n0 local shell edges\n9 external tools" as shell_scripts_render_private_bundle_overlay_sh #DBEAFE
 rectangle "scripts/run_tachometer_profile.sh\n0 local shell edges\n3 external tools" as shell_scripts_run_tachometer_profile_sh #DBEAFE
 rectangle "scripts/run_traction_control_job.sh\n0 local shell edges\n0 external tools" as shell_scripts_run_traction_control_job_sh #DBEAFE
 rectangle "scripts/setup_keepass_snowbridge.sh\n0 local shell edges\n11 external tools" as shell_scripts_setup_keepass_snowbridge_sh #DBEAFE
-rectangle "scripts/tachometer_disk_pressure_agentic.sh\n0 local shell edges\n16 external tools" as shell_scripts_tachometer_disk_pressure_agentic_sh #DBEAFE
-rectangle "scripts/template_consolidation_agentic.sh\n0 local shell edges\n10 external tools" as shell_scripts_template_consolidation_agentic_sh #DBEAFE
+rectangle "scripts/tachometer_disk_pressure_agentic.sh\n0 local shell edges\n18 external tools" as shell_scripts_tachometer_disk_pressure_agentic_sh #DBEAFE
+rectangle "scripts/template_consolidation_agentic.sh\n0 local shell edges\n12 external tools" as shell_scripts_template_consolidation_agentic_sh #DBEAFE
 rectangle "scripts/unmount_snowbridge.sh\n0 local shell edges\n2 external tools" as shell_scripts_unmount_snowbridge_sh #DBEAFE
 rectangle "tests/containers/air-primary/run-test.sh\n0 local shell edges\n6 external tools" as shell_tests_containers_air_primary_run_test_sh #DBEAFE
 rectangle "tests/containers/sidecar-real/run-real-sidecar-test.sh\n0 local shell edges\n8 external tools" as shell_tests_containers_sidecar_real_run_real_sidecar_test_sh #DBEAFE
@@ -53,6 +59,7 @@ rectangle "tests/test_install_podman_runtime.sh\n0 local shell edges\n5 external
 rectangle "tests/test_install_traction_control_agents.sh\n0 local shell edges\n15 external tools" as shell_tests_test_install_traction_control_agents_sh #DBEAFE
 rectangle "tests/test_install_traction_control_agents_containers.sh\n0 local shell edges\n6 external tools" as shell_tests_test_install_traction_control_agents_containers_sh #DBEAFE
 rectangle "tests/test_install_traction_control_agents_vagrant.sh\n0 local shell edges\n1 external tool" as shell_tests_test_install_traction_control_agents_vagrant_sh #DBEAFE
+rectangle "tests/test_main_branch_guard.sh\n0 local shell edges\n4 external tools" as shell_tests_test_main_branch_guard_sh #DBEAFE
 rectangle "tests/test_portfolio_sidecar_containers.sh\n0 local shell edges\n2 external tools" as shell_tests_test_portfolio_sidecar_containers_sh #DBEAFE
 rectangle "tests/test_portfolio_sidecar_quadlet_generator_podman.sh\n0 local shell edges\n8 external tools" as shell_tests_test_portfolio_sidecar_quadlet_generator_podman_sh #DBEAFE
 rectangle "tests/test_portfolio_sidecar_real_podman.sh\n0 local shell edges\n6 external tools" as shell_tests_test_portfolio_sidecar_real_podman_sh #DBEAFE
@@ -66,6 +73,8 @@ rectangle "tests/vagrant/render_live_light.sh\n0 local shell edges\n0 external t
 rectangle "tests/vagrant/render_live_test_unit.sh\n0 local shell edges\n2 external tools" as shell_tests_vagrant_render_live_test_unit_sh #DBEAFE
 rectangle "tests/vagrant/test_live_systemd_activation_guest.sh\n0 local shell edges\n7 external tools" as shell_tests_vagrant_test_live_systemd_activation_guest_sh #DBEAFE
 cloud "agentic" as tool_agentic #FEF3C7
+cloud "agentic_checkout_busy" as tool_agentic_checkout_busy #FEF3C7
+cloud "agentic_defer_if_busy" as tool_agentic_defer_if_busy #FEF3C7
 cloud "archility" as tool_archility #FEF3C7
 cloud "archility-daily" as tool_archility_daily #FEF3C7
 cloud "archility-weekly" as tool_archility_weekly #FEF3C7
@@ -75,6 +84,7 @@ cloud "baseline" as tool_baseline #FEF3C7
 cloud "basic" as tool_basic #FEF3C7
 cloud "brew" as tool_brew #FEF3C7
 cloud "bug-sweep-agentic" as tool_bug_sweep_agentic #FEF3C7
+cloud "busy_count" as tool_busy_count #FEF3C7
 cloud "calendar" as tool_calendar #FEF3C7
 cloud "candidate_count" as tool_candidate_count #FEF3C7
 cloud "capture" as tool_capture #FEF3C7
@@ -90,6 +100,7 @@ cloud "copilot" as tool_copilot #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "create" as tool_create #FEF3C7
 cloud "credit" as tool_credit #FEF3C7
+cloud "cut" as tool_cut #FEF3C7
 cloud "declare" as tool_declare #FEF3C7
 cloud "diff" as tool_diff #FEF3C7
 cloud "dirty_count" as tool_dirty_count #FEF3C7
@@ -109,6 +120,10 @@ cloud "generate-keys" as tool_generate_keys #FEF3C7
 cloud "gh" as tool_gh #FEF3C7
 cloud "git" as tool_git #FEF3C7
 cloud "grep" as tool_grep #FEF3C7
+cloud "guard_allowed" as tool_guard_allowed #FEF3C7
+cloud "guard_chain" as tool_guard_chain #FEF3C7
+cloud "guard_protected_branch" as tool_guard_protected_branch #FEF3C7
+cloud "guard_refuse" as tool_guard_refuse #FEF3C7
 cloud "has_provider" as tool_has_provider #FEF3C7
 cloud "has_refs_count" as tool_has_refs_count #FEF3C7
 cloud "host_pressure_count" as tool_host_pressure_count #FEF3C7
@@ -131,6 +146,7 @@ cloud "line_number" as tool_line_number #FEF3C7
 cloud "linux" as tool_linux #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "log" as tool_log #FEF3C7
+cloud "main" as tool_main #FEF3C7
 cloud "managed_index" as tool_managed_index #FEF3C7
 cloud "masked" as tool_masked #FEF3C7
 cloud "match_count" as tool_match_count #FEF3C7
@@ -168,10 +184,12 @@ cloud "reset" as tool_reset #FEF3C7
 cloud "rm" as tool_rm #FEF3C7
 cloud "rmdir" as tool_rmdir #FEF3C7
 cloud "run" as tool_run #FEF3C7
+cloud "run_codex" as tool_run_codex #FEF3C7
 cloud "runner-command" as tool_runner_command #FEF3C7
 cloud "runtime" as tool_runtime #FEF3C7
 cloud "samba" as tool_samba #FEF3C7
 cloud "second-value" as tool_second_value #FEF3C7
+cloud "section" as tool_section #FEF3C7
 cloud "sed" as tool_sed #FEF3C7
 cloud "selected_repo_count" as tool_selected_repo_count #FEF3C7
 cloud "sha256sum" as tool_sha256sum #FEF3C7
@@ -190,6 +208,7 @@ cloud "systemctl" as tool_systemctl #FEF3C7
 cloud "systemd" as tool_systemd #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tachometer-disk-pressure-agentic" as tool_tachometer_disk_pressure_agentic #FEF3C7
+cloud "tail" as tool_tail #FEF3C7
 cloud "target_id" as tool_target_id #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
 cloud "template-consolidation-agentic" as tool_template_consolidation_agentic #FEF3C7
@@ -204,6 +223,7 @@ cloud "username" as tool_username #FEF3C7
 cloud "vagrant" as tool_vagrant #FEF3C7
 cloud "wc" as tool_wc #FEF3C7
 cloud "weekly" as tool_weekly #FEF3C7
+cloud "xargs" as tool_xargs #FEF3C7
 shell_containers_portfolio_sidecar_sftp_start_sftp_target_sh --> tool_chmod
 shell_containers_portfolio_sidecar_sftp_start_sftp_target_sh --> tool_chown
 shell_containers_portfolio_sidecar_sftp_start_sftp_target_sh --> tool_install
@@ -217,6 +237,8 @@ shell_scripts_archility_weekly_sh --> tool_ln
 shell_scripts_archility_weekly_sh --> tool_mkdir
 shell_scripts_archility_weekly_sh --> tool_sort
 shell_scripts_archility_weekly_sh --> tool_tee
+shell_scripts_bug_sweep_agentic_sh --> tool_agentic_defer_if_busy
+shell_scripts_bug_sweep_agentic_sh --> tool_busy_count
 shell_scripts_bug_sweep_agentic_sh --> tool_candidate_count
 shell_scripts_bug_sweep_agentic_sh --> tool_cat
 shell_scripts_bug_sweep_agentic_sh --> tool_claude
@@ -238,12 +260,15 @@ shell_scripts_check_github_push_ci_sh --> tool_no_ci_count
 shell_scripts_check_github_push_ci_sh --> tool_sleep
 shell_scripts_check_github_push_ci_sh --> tool_success_count
 shell_scripts_check_github_push_ci_sh --> tool_timeout_count
+shell_scripts_ci_repair_agentic_repair_sh --> tool_agentic_defer_if_busy
 shell_scripts_ci_repair_agentic_repair_sh --> tool_cat
 shell_scripts_ci_repair_agentic_repair_sh --> tool_claude
 shell_scripts_ci_repair_agentic_repair_sh --> tool_copilot
 shell_scripts_ci_repair_agentic_repair_sh --> tool_ln
 shell_scripts_ci_repair_agentic_repair_sh --> tool_mkdir
 shell_scripts_ci_repair_agentic_repair_sh --> tool_tee
+shell_scripts_ci_repair_agentic_sh --> tool_agentic_defer_if_busy
+shell_scripts_ci_repair_agentic_sh --> tool_busy_count
 shell_scripts_ci_repair_agentic_sh --> tool_candidate_count
 shell_scripts_ci_repair_agentic_sh --> tool_cat
 shell_scripts_ci_repair_agentic_sh --> tool_claude
@@ -272,6 +297,19 @@ shell_scripts_deploy_secret_scan_sh --> tool_event_aware
 shell_scripts_deploy_secret_scan_sh --> tool_git
 shell_scripts_deploy_secret_scan_sh --> tool_mkdir
 shell_scripts_deploy_secret_scan_sh --> tool_weekly
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_cat
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_git
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_grep
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_main
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_next
+shell_scripts_git_hooks_main_branch_guard_sh --> tool_section
+shell_scripts_git_hooks_pre_commit --> tool_git
+shell_scripts_git_hooks_pre_commit --> tool_guard_allowed
+shell_scripts_git_hooks_pre_commit --> tool_guard_chain
+shell_scripts_git_hooks_pre_commit --> tool_guard_refuse
+shell_scripts_git_hooks_pre_push --> tool_guard_allowed
+shell_scripts_git_hooks_pre_push --> tool_guard_protected_branch
+shell_scripts_git_hooks_pre_push --> tool_guard_refuse
 shell_scripts_harden_firewalld_high_ports_sh --> tool_cat
 shell_scripts_harden_firewalld_high_ports_sh --> tool_chmod
 shell_scripts_harden_firewalld_high_ports_sh --> tool_firewall_cmd
@@ -299,6 +337,9 @@ shell_scripts_install_ci_repair_agentic_systemd_sh --> tool_cat
 shell_scripts_install_ci_repair_agentic_systemd_sh --> tool_systemctl
 shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_cat
 shell_scripts_install_github_ci_email_monitor_systemd_sh --> tool_systemctl
+shell_scripts_install_main_branch_guard_sh --> tool_git
+shell_scripts_install_main_branch_guard_sh --> tool_install
+shell_scripts_install_main_branch_guard_sh --> tool_mkdir
 shell_scripts_install_no_auto_suspend_sh --> tool_cat
 shell_scripts_install_no_auto_suspend_sh --> tool_rm
 shell_scripts_install_no_auto_suspend_sh --> tool_systemctl
@@ -351,8 +392,8 @@ shell_scripts_install_traction_control_agents_sh --> tool_selected_repo_count
 shell_scripts_install_traction_control_agents_sh --> tool_systemctl
 shell_scripts_install_traction_control_agents_sh --> tool_systemd
 shell_scripts_install_traction_control_agents_sh --> tool_unit
+shell_scripts_lib_agentic_provider_sh --> tool_cat
 shell_scripts_lib_agentic_provider_sh --> tool_claude
-shell_scripts_lib_agentic_provider_sh --> tool_codex
 shell_scripts_lib_agentic_provider_sh --> tool_copilot
 shell_scripts_lib_agentic_provider_sh --> tool_credit
 shell_scripts_lib_agentic_provider_sh --> tool_fail
@@ -363,10 +404,16 @@ shell_scripts_lib_agentic_provider_sh --> tool_log
 shell_scripts_lib_agentic_provider_sh --> tool_model
 shell_scripts_lib_agentic_provider_sh --> tool_quota
 shell_scripts_lib_agentic_provider_sh --> tool_rate
+shell_scripts_lib_agentic_provider_sh --> tool_rm
+shell_scripts_lib_agentic_provider_sh --> tool_run_codex
+shell_scripts_lib_agentic_provider_sh --> tool_sort
+shell_scripts_lib_agentic_provider_sh --> tool_stat
+shell_scripts_lib_agentic_provider_sh --> tool_tail
 shell_scripts_lib_agentic_provider_sh --> tool_temporarily
 shell_scripts_lib_agentic_provider_sh --> tool_too
 shell_scripts_lib_agentic_provider_sh --> tool_tr
 shell_scripts_lib_agentic_provider_sh --> tool_usage
+shell_scripts_lib_agentic_provider_sh --> tool_xargs
 shell_scripts_mount_snowbridge_sh --> tool_grep
 shell_scripts_mount_snowbridge_sh --> tool_mkdir
 shell_scripts_portfolio_audit_sh --> tool_grep
@@ -374,6 +421,16 @@ shell_scripts_portfolio_audit_sh --> tool_ln
 shell_scripts_portfolio_audit_sh --> tool_mkdir
 shell_scripts_portfolio_audit_sh --> tool_repo_index
 shell_scripts_portfolio_audit_sh --> tool_sort
+shell_scripts_portfolio_purge_sh --> tool_ln
+shell_scripts_portfolio_purge_sh --> tool_mkdir
+shell_scripts_portfolio_purge_sh --> tool_tee
+shell_scripts_realign_rewritten_checkouts_sh --> tool_cat
+shell_scripts_realign_rewritten_checkouts_sh --> tool_cut
+shell_scripts_realign_rewritten_checkouts_sh --> tool_grep
+shell_scripts_realign_rewritten_checkouts_sh --> tool_rm
+shell_scripts_realign_rewritten_checkouts_sh --> tool_sort
+shell_scripts_refs_audit_agentic_sh --> tool_agentic_defer_if_busy
+shell_scripts_refs_audit_agentic_sh --> tool_busy_count
 shell_scripts_refs_audit_agentic_sh --> tool_cat
 shell_scripts_refs_audit_agentic_sh --> tool_claude
 shell_scripts_refs_audit_agentic_sh --> tool_copilot
@@ -411,6 +468,8 @@ shell_scripts_setup_keepass_snowbridge_sh --> tool_profile
 shell_scripts_setup_keepass_snowbridge_sh --> tool_share
 shell_scripts_setup_keepass_snowbridge_sh --> tool_subpaths
 shell_scripts_setup_keepass_snowbridge_sh --> tool_username
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_agentic_defer_if_busy
+shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_busy_count
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_cat
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_claude
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_clean_count
@@ -427,6 +486,8 @@ shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_skip_count
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_sort
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_tee
 shell_scripts_tachometer_disk_pressure_agentic_sh --> tool_tr
+shell_scripts_template_consolidation_agentic_sh --> tool_agentic_checkout_busy
+shell_scripts_template_consolidation_agentic_sh --> tool_agentic_defer_if_busy
 shell_scripts_template_consolidation_agentic_sh --> tool_cat
 shell_scripts_template_consolidation_agentic_sh --> tool_claude
 shell_scripts_template_consolidation_agentic_sh --> tool_copilot
@@ -519,6 +580,10 @@ shell_tests_test_install_traction_control_agents_sh --> tool_sort
 shell_tests_test_install_traction_control_agents_sh --> tool_tachometer_disk_pressure_agentic
 shell_tests_test_install_traction_control_agents_sh --> tool_wc
 shell_tests_test_install_traction_control_agents_vagrant_sh --> tool_vagrant
+shell_tests_test_main_branch_guard_sh --> tool_chmod
+shell_tests_test_main_branch_guard_sh --> tool_git
+shell_tests_test_main_branch_guard_sh --> tool_mkdir
+shell_tests_test_main_branch_guard_sh --> tool_rm
 shell_tests_test_portfolio_sidecar_containers_sh --> tool_podman
 shell_tests_test_portfolio_sidecar_containers_sh --> tool_rm
 shell_tests_test_portfolio_sidecar_quadlet_generator_podman_sh --> tool_capture
@@ -557,8 +622,8 @@ shell_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_mkdir
 shell_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_rm
 shell_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_systemctl
 note as shellGraphSummary
-Scanned 60 shell scripts.
+Scanned 67 shell scripts.
 Detected 0 local shell edges.
-Detected 139 external tools.
+Detected 152 external tools.
 end note
 @enduml
