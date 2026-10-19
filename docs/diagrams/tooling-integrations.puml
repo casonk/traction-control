@@ -12,13 +12,16 @@ rectangle "containers/portfolio-sidecar-sftp/sftp-target-healthcheck.sh\n0 detec
 rectangle "containers/portfolio-sidecar-sftp/start-sftp-target.sh\n5 detected tools" as source_containers_portfolio_sidecar_sftp_start_sftp_target_sh #E0F2FE
 rectangle "scripts/archility-daily.sh\n4 detected tools" as source_scripts_archility_daily_sh #E0F2FE
 rectangle "scripts/archility-weekly.sh\n4 detected tools" as source_scripts_archility_weekly_sh #E0F2FE
-rectangle "scripts/bug_sweep_agentic.sh\n13 detected tools" as source_scripts_bug_sweep_agentic_sh #E0F2FE
+rectangle "scripts/bug_sweep_agentic.sh\n15 detected tools" as source_scripts_bug_sweep_agentic_sh #E0F2FE
 rectangle "scripts/check_github_push_ci.sh\n8 detected tools" as source_scripts_check_github_push_ci_sh #E0F2FE
 rectangle "scripts/check_portfolio_privacy.sh\n0 detected tools" as source_scripts_check_portfolio_privacy_sh #E0F2FE
-rectangle "scripts/ci_repair_agentic.sh\n19 detected tools" as source_scripts_ci_repair_agentic_sh #E0F2FE
-rectangle "scripts/ci_repair_agentic_repair.sh\n6 detected tools" as source_scripts_ci_repair_agentic_repair_sh #E0F2FE
+rectangle "scripts/ci_repair_agentic.sh\n21 detected tools" as source_scripts_ci_repair_agentic_sh #E0F2FE
+rectangle "scripts/ci_repair_agentic_repair.sh\n7 detected tools" as source_scripts_ci_repair_agentic_repair_sh #E0F2FE
 rectangle "scripts/create_private_github_repo.sh\n2 detected tools" as source_scripts_create_private_github_repo_sh #E0F2FE
 rectangle "scripts/deploy-secret-scan.sh\n7 detected tools" as source_scripts_deploy_secret_scan_sh #E0F2FE
+rectangle "scripts/git-hooks/main-branch-guard.sh\n6 detected tools" as source_scripts_git_hooks_main_branch_guard_sh #E0F2FE
+rectangle "scripts/git-hooks/pre-commit\n4 detected tools" as source_scripts_git_hooks_pre_commit #E0F2FE
+rectangle "scripts/git-hooks/pre-push\n3 detected tools" as source_scripts_git_hooks_pre_push #E0F2FE
 rectangle "scripts/harden_firewalld_high_ports.sh\n5 detected tools" as source_scripts_harden_firewalld_high_ports_sh #E0F2FE
 rectangle "scripts/harden_firewalld_service_zones.sh\n7 detected tools" as source_scripts_harden_firewalld_service_zones_sh #E0F2FE
 rectangle "scripts/install_archility_daily_systemd.sh\n2 detected tools" as source_scripts_install_archility_daily_systemd_sh #E0F2FE
@@ -28,6 +31,7 @@ rectangle "scripts/install_ci_repair_agentic_discovery_systemd.sh\n2 detected to
 rectangle "scripts/install_ci_repair_agentic_repair_systemd.sh\n3 detected tools" as source_scripts_install_ci_repair_agentic_repair_systemd_sh #E0F2FE
 rectangle "scripts/install_ci_repair_agentic_systemd.sh\n2 detected tools" as source_scripts_install_ci_repair_agentic_systemd_sh #E0F2FE
 rectangle "scripts/install_github_ci_email_monitor_systemd.sh\n2 detected tools" as source_scripts_install_github_ci_email_monitor_systemd_sh #E0F2FE
+rectangle "scripts/install_main_branch_guard.sh\n3 detected tools" as source_scripts_install_main_branch_guard_sh #E0F2FE
 rectangle "scripts/install_no_auto_suspend.sh\n3 detected tools" as source_scripts_install_no_auto_suspend_sh #E0F2FE
 rectangle "scripts/install_podman_runtime.sh\n3 detected tools" as source_scripts_install_podman_runtime_sh #E0F2FE
 rectangle "scripts/install_portfolio_audit_systemd.sh\n2 detected tools" as source_scripts_install_portfolio_audit_systemd_sh #E0F2FE
@@ -35,16 +39,18 @@ rectangle "scripts/install_refs_audit_agentic_systemd.sh\n5 detected tools" as s
 rectangle "scripts/install_tachometer_disk_pressure_agentic_systemd.sh\n2 detected tools" as source_scripts_install_tachometer_disk_pressure_agentic_systemd_sh #E0F2FE
 rectangle "scripts/install_template_consolidation_agentic_systemd.sh\n2 detected tools" as source_scripts_install_template_consolidation_agentic_systemd_sh #E0F2FE
 rectangle "scripts/install_traction_control_agents.sh\n36 detected tools" as source_scripts_install_traction_control_agents_sh #E0F2FE
-rectangle "scripts/lib/agentic_provider.sh\n16 detected tools" as source_scripts_lib_agentic_provider_sh #E0F2FE
+rectangle "scripts/lib/agentic_provider.sh\n22 detected tools" as source_scripts_lib_agentic_provider_sh #E0F2FE
 rectangle "scripts/mount_snowbridge.sh\n2 detected tools" as source_scripts_mount_snowbridge_sh #E0F2FE
 rectangle "scripts/portfolio-audit.sh\n5 detected tools" as source_scripts_portfolio_audit_sh #E0F2FE
-rectangle "scripts/refs_audit_agentic.sh\n14 detected tools" as source_scripts_refs_audit_agentic_sh #E0F2FE
+rectangle "scripts/portfolio-purge.sh\n3 detected tools" as source_scripts_portfolio_purge_sh #E0F2FE
+rectangle "scripts/realign_rewritten_checkouts.sh\n5 detected tools" as source_scripts_realign_rewritten_checkouts_sh #E0F2FE
+rectangle "scripts/refs_audit_agentic.sh\n16 detected tools" as source_scripts_refs_audit_agentic_sh #E0F2FE
 rectangle "scripts/render_private_bundle_overlay.sh\n9 detected tools" as source_scripts_render_private_bundle_overlay_sh #E0F2FE
 rectangle "scripts/run_tachometer_profile.sh\n3 detected tools" as source_scripts_run_tachometer_profile_sh #E0F2FE
 rectangle "scripts/run_traction_control_job.sh\n0 detected tools" as source_scripts_run_traction_control_job_sh #E0F2FE
 rectangle "scripts/setup_keepass_snowbridge.sh\n12 detected tools" as source_scripts_setup_keepass_snowbridge_sh #E0F2FE
-rectangle "scripts/tachometer_disk_pressure_agentic.sh\n16 detected tools" as source_scripts_tachometer_disk_pressure_agentic_sh #E0F2FE
-rectangle "scripts/template_consolidation_agentic.sh\n10 detected tools" as source_scripts_template_consolidation_agentic_sh #E0F2FE
+rectangle "scripts/tachometer_disk_pressure_agentic.sh\n18 detected tools" as source_scripts_tachometer_disk_pressure_agentic_sh #E0F2FE
+rectangle "scripts/template_consolidation_agentic.sh\n12 detected tools" as source_scripts_template_consolidation_agentic_sh #E0F2FE
 rectangle "scripts/unmount_snowbridge.sh\n2 detected tools" as source_scripts_unmount_snowbridge_sh #E0F2FE
 rectangle "tests/containers/Containerfile\n4 detected tools" as source_tests_containers_containerfile #E0F2FE
 rectangle "tests/containers/air-primary/Containerfile\n7 detected tools" as source_tests_containers_air_primary_containerfile #E0F2FE
@@ -58,6 +64,7 @@ rectangle "tests/test_install_podman_runtime.sh\n6 detected tools" as source_tes
 rectangle "tests/test_install_traction_control_agents.sh\n16 detected tools" as source_tests_test_install_traction_control_agents_sh #E0F2FE
 rectangle "tests/test_install_traction_control_agents_containers.sh\n6 detected tools" as source_tests_test_install_traction_control_agents_containers_sh #E0F2FE
 rectangle "tests/test_install_traction_control_agents_vagrant.sh\n1 detected tool" as source_tests_test_install_traction_control_agents_vagrant_sh #E0F2FE
+rectangle "tests/test_main_branch_guard.sh\n5 detected tools" as source_tests_test_main_branch_guard_sh #E0F2FE
 rectangle "tests/test_portfolio_sidecar_containers.sh\n2 detected tools" as source_tests_test_portfolio_sidecar_containers_sh #E0F2FE
 rectangle "tests/test_portfolio_sidecar_quadlet_generator_podman.sh\n8 detected tools" as source_tests_test_portfolio_sidecar_quadlet_generator_podman_sh #E0F2FE
 rectangle "tests/test_portfolio_sidecar_real_podman.sh\n6 detected tools" as source_tests_test_portfolio_sidecar_real_podman_sh #E0F2FE
@@ -71,6 +78,8 @@ rectangle "tests/vagrant/render_live_light.sh\n0 detected tools" as source_tests
 rectangle "tests/vagrant/render_live_test_unit.sh\n2 detected tools" as source_tests_vagrant_render_live_test_unit_sh #E0F2FE
 rectangle "tests/vagrant/test_live_systemd_activation_guest.sh\n7 detected tools" as source_tests_vagrant_test_live_systemd_activation_guest_sh #E0F2FE
 cloud "agentic" as tool_agentic #FEF3C7
+cloud "agentic_checkout_busy" as tool_agentic_checkout_busy #FEF3C7
+cloud "agentic_defer_if_busy" as tool_agentic_defer_if_busy #FEF3C7
 cloud "apt-get" as tool_apt_get #FEF3C7
 cloud "archility" as tool_archility #FEF3C7
 cloud "archility-daily" as tool_archility_daily #FEF3C7
@@ -82,6 +91,7 @@ cloud "bash" as tool_bash #FEF3C7
 cloud "basic" as tool_basic #FEF3C7
 cloud "brew" as tool_brew #FEF3C7
 cloud "bug-sweep-agentic" as tool_bug_sweep_agentic #FEF3C7
+cloud "busy_count" as tool_busy_count #FEF3C7
 cloud "calendar" as tool_calendar #FEF3C7
 cloud "candidate_count" as tool_candidate_count #FEF3C7
 cloud "capture" as tool_capture #FEF3C7
@@ -99,6 +109,7 @@ cloud "copilot" as tool_copilot #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "create" as tool_create #FEF3C7
 cloud "credit" as tool_credit #FEF3C7
+cloud "cut" as tool_cut #FEF3C7
 cloud "declare" as tool_declare #FEF3C7
 cloud "diff" as tool_diff #FEF3C7
 cloud "dirty_count" as tool_dirty_count #FEF3C7
@@ -119,6 +130,10 @@ cloud "generate-keys" as tool_generate_keys #FEF3C7
 cloud "gh" as tool_gh #FEF3C7
 cloud "git" as tool_git #FEF3C7
 cloud "grep" as tool_grep #FEF3C7
+cloud "guard_allowed" as tool_guard_allowed #FEF3C7
+cloud "guard_chain" as tool_guard_chain #FEF3C7
+cloud "guard_protected_branch" as tool_guard_protected_branch #FEF3C7
+cloud "guard_refuse" as tool_guard_refuse #FEF3C7
 cloud "has_provider" as tool_has_provider #FEF3C7
 cloud "has_refs_count" as tool_has_refs_count #FEF3C7
 cloud "host_pressure_count" as tool_host_pressure_count #FEF3C7
@@ -141,6 +156,7 @@ cloud "line_number" as tool_line_number #FEF3C7
 cloud "linux" as tool_linux #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "log" as tool_log #FEF3C7
+cloud "main" as tool_main #FEF3C7
 cloud "managed_index" as tool_managed_index #FEF3C7
 cloud "masked" as tool_masked #FEF3C7
 cloud "match_count" as tool_match_count #FEF3C7
@@ -180,10 +196,12 @@ cloud "reset" as tool_reset #FEF3C7
 cloud "rm" as tool_rm #FEF3C7
 cloud "rmdir" as tool_rmdir #FEF3C7
 cloud "run" as tool_run #FEF3C7
+cloud "run_codex" as tool_run_codex #FEF3C7
 cloud "runner-command" as tool_runner_command #FEF3C7
 cloud "runtime" as tool_runtime #FEF3C7
 cloud "samba" as tool_samba #FEF3C7
 cloud "second-value" as tool_second_value #FEF3C7
+cloud "section" as tool_section #FEF3C7
 cloud "sed" as tool_sed #FEF3C7
 cloud "selected_repo_count" as tool_selected_repo_count #FEF3C7
 cloud "setcap" as tool_setcap #FEF3C7
@@ -203,6 +221,7 @@ cloud "systemctl" as tool_systemctl #FEF3C7
 cloud "systemd" as tool_systemd #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tachometer-disk-pressure-agentic" as tool_tachometer_disk_pressure_agentic #FEF3C7
+cloud "tail" as tool_tail #FEF3C7
 cloud "target_id" as tool_target_id #FEF3C7
 cloud "tee" as tool_tee #FEF3C7
 cloud "template-consolidation-agentic" as tool_template_consolidation_agentic #FEF3C7
@@ -218,6 +237,7 @@ cloud "username" as tool_username #FEF3C7
 cloud "vagrant" as tool_vagrant #FEF3C7
 cloud "wc" as tool_wc #FEF3C7
 cloud "weekly" as tool_weekly #FEF3C7
+cloud "xargs" as tool_xargs #FEF3C7
 source_github_workflows_ci_yml --> tool_casonk_github_github_workflows_python_ci_yml
 source_github_workflows_secret_scan_yml --> tool_casonk_github_github_workflows_secret_scan_yml
 source_containers_portfolio_sidecar_sftp_containerfile --> tool_apt_get
@@ -240,6 +260,8 @@ source_scripts_archility_weekly_sh --> tool_ln
 source_scripts_archility_weekly_sh --> tool_mkdir
 source_scripts_archility_weekly_sh --> tool_sort
 source_scripts_archility_weekly_sh --> tool_tee
+source_scripts_bug_sweep_agentic_sh --> tool_agentic_defer_if_busy
+source_scripts_bug_sweep_agentic_sh --> tool_busy_count
 source_scripts_bug_sweep_agentic_sh --> tool_candidate_count
 source_scripts_bug_sweep_agentic_sh --> tool_cat
 source_scripts_bug_sweep_agentic_sh --> tool_claude
@@ -261,6 +283,8 @@ source_scripts_check_github_push_ci_sh --> tool_no_ci_count
 source_scripts_check_github_push_ci_sh --> tool_sleep
 source_scripts_check_github_push_ci_sh --> tool_success_count
 source_scripts_check_github_push_ci_sh --> tool_timeout_count
+source_scripts_ci_repair_agentic_sh --> tool_agentic_defer_if_busy
+source_scripts_ci_repair_agentic_sh --> tool_busy_count
 source_scripts_ci_repair_agentic_sh --> tool_candidate_count
 source_scripts_ci_repair_agentic_sh --> tool_cat
 source_scripts_ci_repair_agentic_sh --> tool_claude
@@ -280,6 +304,7 @@ source_scripts_ci_repair_agentic_sh --> tool_skipped_count
 source_scripts_ci_repair_agentic_sh --> tool_sort
 source_scripts_ci_repair_agentic_sh --> tool_tee
 source_scripts_ci_repair_agentic_sh --> tool_tr
+source_scripts_ci_repair_agentic_repair_sh --> tool_agentic_defer_if_busy
 source_scripts_ci_repair_agentic_repair_sh --> tool_cat
 source_scripts_ci_repair_agentic_repair_sh --> tool_claude
 source_scripts_ci_repair_agentic_repair_sh --> tool_copilot
@@ -295,6 +320,19 @@ source_scripts_deploy_secret_scan_sh --> tool_event_aware
 source_scripts_deploy_secret_scan_sh --> tool_git
 source_scripts_deploy_secret_scan_sh --> tool_mkdir
 source_scripts_deploy_secret_scan_sh --> tool_weekly
+source_scripts_git_hooks_main_branch_guard_sh --> tool_cat
+source_scripts_git_hooks_main_branch_guard_sh --> tool_git
+source_scripts_git_hooks_main_branch_guard_sh --> tool_grep
+source_scripts_git_hooks_main_branch_guard_sh --> tool_main
+source_scripts_git_hooks_main_branch_guard_sh --> tool_next
+source_scripts_git_hooks_main_branch_guard_sh --> tool_section
+source_scripts_git_hooks_pre_commit --> tool_git
+source_scripts_git_hooks_pre_commit --> tool_guard_allowed
+source_scripts_git_hooks_pre_commit --> tool_guard_chain
+source_scripts_git_hooks_pre_commit --> tool_guard_refuse
+source_scripts_git_hooks_pre_push --> tool_guard_allowed
+source_scripts_git_hooks_pre_push --> tool_guard_protected_branch
+source_scripts_git_hooks_pre_push --> tool_guard_refuse
 source_scripts_harden_firewalld_high_ports_sh --> tool_cat
 source_scripts_harden_firewalld_high_ports_sh --> tool_chmod
 source_scripts_harden_firewalld_high_ports_sh --> tool_firewall_cmd
@@ -322,6 +360,9 @@ source_scripts_install_ci_repair_agentic_systemd_sh --> tool_cat
 source_scripts_install_ci_repair_agentic_systemd_sh --> tool_systemctl
 source_scripts_install_github_ci_email_monitor_systemd_sh --> tool_cat
 source_scripts_install_github_ci_email_monitor_systemd_sh --> tool_systemctl
+source_scripts_install_main_branch_guard_sh --> tool_git
+source_scripts_install_main_branch_guard_sh --> tool_install
+source_scripts_install_main_branch_guard_sh --> tool_mkdir
 source_scripts_install_no_auto_suspend_sh --> tool_cat
 source_scripts_install_no_auto_suspend_sh --> tool_rm
 source_scripts_install_no_auto_suspend_sh --> tool_systemctl
@@ -375,8 +416,8 @@ source_scripts_install_traction_control_agents_sh --> tool_selected_repo_count
 source_scripts_install_traction_control_agents_sh --> tool_systemctl
 source_scripts_install_traction_control_agents_sh --> tool_systemd
 source_scripts_install_traction_control_agents_sh --> tool_unit
+source_scripts_lib_agentic_provider_sh --> tool_cat
 source_scripts_lib_agentic_provider_sh --> tool_claude
-source_scripts_lib_agentic_provider_sh --> tool_codex
 source_scripts_lib_agentic_provider_sh --> tool_copilot
 source_scripts_lib_agentic_provider_sh --> tool_credit
 source_scripts_lib_agentic_provider_sh --> tool_fail
@@ -387,10 +428,16 @@ source_scripts_lib_agentic_provider_sh --> tool_log
 source_scripts_lib_agentic_provider_sh --> tool_model
 source_scripts_lib_agentic_provider_sh --> tool_quota
 source_scripts_lib_agentic_provider_sh --> tool_rate
+source_scripts_lib_agentic_provider_sh --> tool_rm
+source_scripts_lib_agentic_provider_sh --> tool_run_codex
+source_scripts_lib_agentic_provider_sh --> tool_sort
+source_scripts_lib_agentic_provider_sh --> tool_stat
+source_scripts_lib_agentic_provider_sh --> tool_tail
 source_scripts_lib_agentic_provider_sh --> tool_temporarily
 source_scripts_lib_agentic_provider_sh --> tool_too
 source_scripts_lib_agentic_provider_sh --> tool_tr
 source_scripts_lib_agentic_provider_sh --> tool_usage
+source_scripts_lib_agentic_provider_sh --> tool_xargs
 source_scripts_mount_snowbridge_sh --> tool_grep
 source_scripts_mount_snowbridge_sh --> tool_mkdir
 source_scripts_portfolio_audit_sh --> tool_grep
@@ -398,6 +445,16 @@ source_scripts_portfolio_audit_sh --> tool_ln
 source_scripts_portfolio_audit_sh --> tool_mkdir
 source_scripts_portfolio_audit_sh --> tool_repo_index
 source_scripts_portfolio_audit_sh --> tool_sort
+source_scripts_portfolio_purge_sh --> tool_ln
+source_scripts_portfolio_purge_sh --> tool_mkdir
+source_scripts_portfolio_purge_sh --> tool_tee
+source_scripts_realign_rewritten_checkouts_sh --> tool_cat
+source_scripts_realign_rewritten_checkouts_sh --> tool_cut
+source_scripts_realign_rewritten_checkouts_sh --> tool_grep
+source_scripts_realign_rewritten_checkouts_sh --> tool_rm
+source_scripts_realign_rewritten_checkouts_sh --> tool_sort
+source_scripts_refs_audit_agentic_sh --> tool_agentic_defer_if_busy
+source_scripts_refs_audit_agentic_sh --> tool_busy_count
 source_scripts_refs_audit_agentic_sh --> tool_cat
 source_scripts_refs_audit_agentic_sh --> tool_claude
 source_scripts_refs_audit_agentic_sh --> tool_copilot
@@ -436,6 +493,8 @@ source_scripts_setup_keepass_snowbridge_sh --> tool_profile
 source_scripts_setup_keepass_snowbridge_sh --> tool_share
 source_scripts_setup_keepass_snowbridge_sh --> tool_subpaths
 source_scripts_setup_keepass_snowbridge_sh --> tool_username
+source_scripts_tachometer_disk_pressure_agentic_sh --> tool_agentic_defer_if_busy
+source_scripts_tachometer_disk_pressure_agentic_sh --> tool_busy_count
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_cat
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_claude
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_clean_count
@@ -452,6 +511,8 @@ source_scripts_tachometer_disk_pressure_agentic_sh --> tool_skip_count
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_sort
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_tee
 source_scripts_tachometer_disk_pressure_agentic_sh --> tool_tr
+source_scripts_template_consolidation_agentic_sh --> tool_agentic_checkout_busy
+source_scripts_template_consolidation_agentic_sh --> tool_agentic_defer_if_busy
 source_scripts_template_consolidation_agentic_sh --> tool_cat
 source_scripts_template_consolidation_agentic_sh --> tool_claude
 source_scripts_template_consolidation_agentic_sh --> tool_copilot
@@ -558,6 +619,11 @@ source_tests_test_install_traction_control_agents_containers_sh --> tool_moderat
 source_tests_test_install_traction_control_agents_containers_sh --> tool_podman
 source_tests_test_install_traction_control_agents_containers_sh --> tool_rm
 source_tests_test_install_traction_control_agents_vagrant_sh --> tool_vagrant
+source_tests_test_main_branch_guard_sh --> tool_bash
+source_tests_test_main_branch_guard_sh --> tool_chmod
+source_tests_test_main_branch_guard_sh --> tool_git
+source_tests_test_main_branch_guard_sh --> tool_mkdir
+source_tests_test_main_branch_guard_sh --> tool_rm
 source_tests_test_portfolio_sidecar_containers_sh --> tool_podman
 source_tests_test_portfolio_sidecar_containers_sh --> tool_rm
 source_tests_test_portfolio_sidecar_quadlet_generator_podman_sh --> tool_capture
@@ -597,7 +663,7 @@ source_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_mkdir
 source_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_rm
 source_tests_vagrant_test_live_systemd_activation_guest_sh --> tool_systemctl
 note as toolingGraphSummary
-Scanned 65 tooling entrypoints.
-Detected 148 third-party tools.
+Scanned 72 tooling entrypoints.
+Detected 161 third-party tools.
 end note
 @enduml
