@@ -12,6 +12,23 @@
 
 ## Lessons
 
+### 2026-10-20 — Benchmark local models against portfolio task outcomes
+
+- Keep inference speed benchmarks and task-quality evaluations distinct. A
+  faster model is useful only when it meets the workflow's accuracy and
+  failure-boundary requirements on representative, reviewed cases.
+- Decision models can route or classify work, while coding agents must be
+  evaluated through isolated repository edits and executable tests. Use
+  deterministic rules as a baseline, measure false negatives and abstentions,
+  and keep consequential actions behind existing policy gates.
+- Record model, quantization, runtime version, prompt, dataset version, and
+  hardware with each run so changes in a score can be explained.
+- Check the complete agent runtime before a benchmark. A reachable Ollama HTTP
+  service does not prove a coding CLI can use it; on this host, Codex's local
+  provider refused to start without a host Ollama installation even though
+  crew-chief's containerized Ollama endpoint was healthy. Use a working local
+  agent path and count setup failures separately from model failures.
+
 ### 2026-10-20 — Keep chat-directed deletion exact and local
 
 - Match a self-termination request to the exact provider thread ID supplied by

@@ -16,6 +16,19 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-20] **Expand portfolio-specific local model evaluations.**
+  The first test-based coding-agent pilot is in crew-chief: each model repairs
+  the same seeded failure in an isolated checkout, then the original test suite
+  determines pass/fail and the local HTML report shows duration. Add reviewed
+  tasks for other code repositories and repeat each task enough times to
+  estimate pass rate. Keep read-only routing and classification evaluations
+  separate: compare a deterministic rules baseline with local decision models,
+  scoring accuracy, false negatives, abstentions, latency, and GPU use.
+  Consider Promptfoo for prompt/decision datasets and self-hosted Langfuse if
+  traces and experiment comparison justify operating another service.
+  Validate Ollama support before trying Tev1, and keep existing policy gates
+  on consequential actions.
+
 - [ ] [manual:2026-10-17] **Publish the system-level tools as Fedora RPMs.**
   PyPI covers the Python packages; an RPM in the `casonk/tools` COPR project
   adds what pip cannot: systemd units, files in `/etc`, and system package
