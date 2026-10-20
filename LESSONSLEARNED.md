@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-10-20 — Preserve SELinux web labels when staging static files
+
+- Copying a report from `/tmp` with `cp -a` preserves its `user_tmp_t` label.
+  Caddy can list that file in a served directory but returns HTTP 403 for the
+  file itself; an unreadable symlink index falls back to directory browsing.
+  Write generated reports directly into the served directory or copy without
+  preserving the temporary SELinux context, then run `restorecon` and verify
+  authenticated HTTP status and `Content-Type` for the index and report links.
+
 ### 2026-10-20 — Benchmark local models against portfolio task outcomes
 
 - Keep inference speed benchmarks and task-quality evaluations distinct. A
