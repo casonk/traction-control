@@ -91,6 +91,20 @@ Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 - Provider metadata may not identify agent-started top-level CLI sessions.
   Do not infer human ownership from the absence of a subagent badge.
 
+## Chat-Directed Session Termination
+
+- When a user clearly commands the current Codex chat to end and be deleted,
+  such as “kill this session,” “delete this session,” or “destroy this session,”
+  run `session-control terminate-current`, report the result briefly, and end
+  the turn. Quoted examples and requests to discuss or implement the command
+  are not termination commands.
+- The command requires Codex's exact `CODEX_THREAD_ID`. It moves local provider
+  files into restorable trash, which expires separately from metadata-only
+  category and repository coverage records. It cannot close a hosted chat
+  thread or remove remote records.
+- Use `session-control rotate --dry-run` to review expiry. The private Coverage
+  page reports category and repository totals without session summaries.
+
 ## Repository Landscape
 
 Do not maintain a tracked, name-by-name portfolio inventory here. A tracked

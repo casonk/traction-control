@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-10-20 — Keep chat-directed deletion exact and local
+
+- Match a self-termination request to the exact provider thread ID supplied by
+  its environment, and never infer it from a title or current workspace.
+  Moving a local transcript to trash does not stop a hosted chat process or
+  erase remote records; end the turn and describe that boundary accurately.
+- Preserve only category and repository coverage in the dashboard. Rotate
+  restorable raw files and metadata-only records under separate policies.
+
 ### 2026-10-20 — Review short child sessions without assuming they are disposable
 
 - Persistent subagent sessions can consume tokens and accumulate local storage
