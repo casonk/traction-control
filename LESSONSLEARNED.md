@@ -270,6 +270,11 @@ Up-integrated from `clockwork` and `wiring-harness`.
 - `gh` is already the global HTTPS credential helper, so fetch without touching
   remotes or config:
   `git -c url."https://github.com/".insteadOf="git@github.com:" fetch --all --prune`.
+- `git worktree add -b <branch> <dir> origin/main` starts from the
+  remote-tracking ref, which a failing SSH fetch leaves stale, even right after
+  a merge pulled over HTTPS. Fetch over HTTPS first and check
+  `git -C <dir> log --oneline -1` before editing, or the branch silently
+  starts several merges behind.
 - A cross-machine sync must also compare the hosted inventory
   (`gh repo list`) against local clones. Work done elsewhere may live in
   repositories this machine has never cloned, which a local-only ahead/behind
