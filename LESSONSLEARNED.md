@@ -283,6 +283,15 @@ Up-integrated from `clockwork` and `wiring-harness`.
   Its fail-closed generation check exposes stale owner-local catalog state
   before a misleading aggregate view is used for triage.
 
+### 2026-10-20 — `find /mnt -xdev` never enters the other data disks
+
+- Each disk under `/mnt` (`4tb-m2`, `4tb-sata`, `16tb-sata`, `setup`, ...) is its
+  own filesystem, so `find /mnt -xdev` stops at the mount points and reports
+  "not found" for files that exist. A search for the user's documents missed
+  their private university-applications folder this way.
+- List the mounts (`ls /mnt` or `findmnt -l`) and run one bounded `find` per
+  disk, with `-xdev` inside each to avoid crossing into nested mounts.
+
 ### 2026-10-11 — A locked SSH key should not block a portfolio fetch; rewrite to HTTPS per command
 
 - When every repo fails with `Permission denied (publickey)`, check for a
