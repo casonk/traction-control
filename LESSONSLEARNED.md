@@ -12,6 +12,17 @@
 
 ## Lessons
 
+### 2026-10-20 — Review short child sessions without assuming they are disposable
+
+- Persistent subagent sessions can consume tokens and accumulate local storage
+  after brief tasks. Prefer existing tools for one-shot checks, carry useful
+  child results into the parent, and use `session-control`'s short-subagent
+  filter or scoped prune dry run for cleanup review.
+- Provider provenance and event timestamps are incomplete: a short span is a
+  candidate signal, not proof of process exit or lack of value, and an
+  agent-started top-level session may have no subagent label. Keep cleanup
+  reversible and apply an age threshold before moving files to trash.
+
 ### 2026-10-15 — GitHub repository settings have no file form; guard private repos locally
 
 - A repository's description, topics, and branch rules exist only in the GitHub

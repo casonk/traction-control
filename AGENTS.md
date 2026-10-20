@@ -79,6 +79,18 @@ find "$PORTFOLIO_ROOT" -maxdepth 4 -type d -name .git | sort
 
 Repo-level `AGENTS.md` files override this document for repo-specific behavior.
 
+## Child Session Hygiene
+
+- Use an existing tool for a one-shot check when a persistent child conversation
+  is unnecessary. When spawning a subagent, carry its useful result back into
+  the parent session so the child can be reviewed independently.
+- `session-control` marks recognized Codex and Claude Code subagents, including
+  short ones, and offers a short-subagent filter and scoped dry-run pruning.
+  Review the result before deletion; a short recorded event span does not prove
+  the work is disposable or that the process exited.
+- Provider metadata may not identify agent-started top-level CLI sessions.
+  Do not infer human ownership from the absence of a subagent badge.
+
 ## Repository Landscape
 
 Do not maintain a tracked, name-by-name portfolio inventory here. A tracked
