@@ -17,7 +17,8 @@
 - Match a self-termination request to the exact provider thread ID supplied by
   its environment, and never infer it from a title or current workspace.
   Moving a local transcript to trash does not stop a hosted chat process or
-  erase remote records; end the turn and describe that boundary accurately.
+  erase remote records; tell the user to close or delete the hosted chat
+  manually, then end the turn. Never describe local removal as chat termination.
 - Preserve only category and repository coverage in the dashboard. Rotate
   restorable raw files and metadata-only records under separate policies.
 
