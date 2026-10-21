@@ -21,6 +21,12 @@
   Record both commit IDs, selected test paths, test-patch hash, model/runtime,
   time budget, and final test result. Separate tool-use failures and timeouts
   from completed attempts that fail tests before comparing model quality.
+- Before spending a full coding-agent budget on a local model, probe one
+  structured tool call with the exact installed tag. Some installed models
+  return Ollama HTTP 400 for tool calling; others call the named tool with
+  malformed arguments. Record that capability separately from test outcomes.
+  Prefer historical cases where later tests fail by assertion on old source;
+  a collection error gives less precise evidence of behavioral compliance.
 
 ### 2026-10-20 — Preserve SELinux web labels when staging static files
 
