@@ -1852,3 +1852,4 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   `contents: read` and `pull-requests: read`. Treat any failed required check as
   blocking even on a docs-only first PR; confirm every check passed before
   merging.
+- **Benchmark local inference only on an idle GPU, and compare like with like.** A long-running GPU job (an upscaler, a transcode) halves generation speed without changing memory use, and a model that does not fit is silently split onto the CPU by Ollama: `qwen3:32b` measured 7 tok/s on Ollama defaults and 29.7 on a configuration that fits. Reserving GPU memory does not reserve compute. Record GPU memory, placement, and the other GPU processes with every result.
