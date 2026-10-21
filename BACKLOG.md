@@ -19,9 +19,12 @@ with a `README.md` pointing back here. The item names its id as
 - [ ] [manual:2026-10-20] **Expand portfolio-specific local model evaluations.**
   The first test-based coding-agent pilot is in crew-chief: each model repairs
   the same seeded failure in an isolated checkout, then the original test suite
-  determines pass/fail and the local HTML report shows duration. Add reviewed
-  tasks for other code repositories and repeat each task enough times to
-  estimate pass rate. Keep read-only routing and classification evaluations
+  determines pass/fail and the local HTML report shows duration. Historical
+  replay now reviews two crew-chief before/after test additions with green-old,
+  red-old-with-new-tests, and green-reference checks. Add reviewed historical
+  cases for other code repositories, compare cold-start and provided-failure
+  context, and repeat each case enough times to estimate pass rate. Keep
+  read-only routing and classification evaluations
   separate: compare a deterministic rules baseline with local decision models,
   scoring accuracy, false negatives, abstentions, latency, and GPU use.
   Consider Promptfoo for prompt/decision datasets and self-hosted Langfuse if

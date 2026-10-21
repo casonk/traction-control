@@ -12,6 +12,16 @@
 
 ## Lessons
 
+### 2026-10-21 — Benchmark historical test adoption without leaking the fix
+
+- For a repository-evolution coding benchmark, prove the old suite passes at
+  the before commit, the selected later tests fail against old source, and the
+  same suite passes at the after commit. Give agents only the old checkout and
+  new test changes; keep the historical source fix out of their working tree.
+  Record both commit IDs, selected test paths, test-patch hash, model/runtime,
+  time budget, and final test result. Separate tool-use failures and timeouts
+  from completed attempts that fail tests before comparing model quality.
+
 ### 2026-10-20 — Preserve SELinux web labels when staging static files
 
 - Copying a report from `/tmp` with `cp -a` preserves its `user_tmp_t` label.
