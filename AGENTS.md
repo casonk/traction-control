@@ -182,6 +182,28 @@ For periodic content review, use [the baseline content review guide](docs/baseli
 - Use tracked `LESSONSLEARNED.md` for durable lessons that should survive across local chat-history rotations.
 - A lesson that applies beyond its repo belongs in `traction-control/LESSONSLEARNED.md`. If the same rule is already written into two sibling repos, neither owns it and the copies drift — up-integrate it here and leave the repo-level copy only where the repo genuinely narrows it. `scripts/find_duplicate_lessons.py` surfaces these candidates.
 
+## Local Model Serving Governance
+
+Which engine serves a local model, and with what settings, is a governed
+decision, not a per-session choice. Measured on one RTX 3090, `qwen3:14b` ran
+equally on Ollama and llama.cpp while `qwen3:32b` ran four times faster on
+llama.cpp, because Ollama's defaults left part of it on the CPU: the right
+backend depends on the model and on whether it fits.
+
+- `./util-repos/crew-chief` owns the policy data:
+  `config/serving-policy.toml` records each pulled model's backend, context
+  window, KV-cache type, measured GPU memory, status (`default`, `beta`,
+  `unreviewed`, `retired`), and the benchmark evidence behind it.
+- Change an entry only in a pull request that adds or cites evidence committed
+  under crew-chief's `results/`, measured on an idle GPU. A `default` or
+  `beta` entry without evidence and a reviewed date fails the check.
+- Pulling a new model requires at least an `unreviewed` entry.
+- Tools serve a model the way its entry says (`crew-chief code` does); an
+  explicit override is allowed for experiments and is reported, never silent.
+- `scripts/portfolio-audit.sh` runs `crew-chief policy check --live` and
+  counts errors (unlisted pulls, missing evidence) as governance gaps; it
+  skips the check, without counting it, when Ollama is not reachable.
+
 ## Reusable Workflow Strategy
 
 Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). Build and CI action version pins live in that repo and Dependabot keeps them current. PyPI trusted publishing requires the upload job in the calling repository, so `actions/download-artifact` and `pypa/gh-action-pypi-publish` are the two caller-local exceptions; review their versions across package callers.

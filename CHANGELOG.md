@@ -4,6 +4,12 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add local model serving governance: AGENTS.md now makes the backend and
+  settings each local model is served with a reviewed, evidence-backed
+  decision held in crew-chief's serving policy, and `scripts/portfolio-audit.sh`
+  runs `crew-chief policy check --live` to report drift between that policy
+  and the models actually pulled.
+
 - Fix the main-branch guard printing `cd: null directory` and `this operation
   must be run in a work tree` on every push from a bare repository: it now
   locates a bare repository by its Git directory, so bare clones outside

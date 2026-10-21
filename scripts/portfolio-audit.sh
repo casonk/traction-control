@@ -11,6 +11,8 @@
 #     (sudo boundary, portfolio standards backlink, session-memory boundary,
 #     local CI verification) — see check_agents_md.py
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
+#   - local-model serving drift: crew-chief's serving policy against the models
+#     actually pulled (crew-chief policy check --live)
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -349,11 +351,62 @@ else
     warn "  this run proves nothing about private-name disclosure in public repos"
 fi
 
+# ── local-model serving policy ───────────────────────────────────────────────
+# Which engine serves each local model is a reviewed, evidence-backed decision
+# kept in crew-chief's config/serving-policy.toml. A model pulled without an
+# entry, a cited benchmark that is missing, or a reviewed entry without
+# evidence is a governance gap like a missing baseline file.
+log ""
+log "=== serving policy ==="
+POLICY_COUNT=0
+CREW_CHIEF_REPO=""
+for repo in "${REPO_DIRS[@]}"; do
+    case "$(git -C "${repo}" remote get-url origin 2>/dev/null || true)" in
+        */crew-chief|*/crew-chief.git) CREW_CHIEF_REPO="${repo}"; break ;;
+    esac
+done
+if [[ -z "${CREW_CHIEF_REPO}" ]]; then
+    log "serving policy SKIPPED: no crew-chief checkout found"
+elif [[ ! -f "${CREW_CHIEF_REPO}/config/serving-policy.toml" ]]; then
+    log "serving policy SKIPPED: ${CREW_CHIEF_REPO#${PORTFOLIO_ROOT}/} has no config/serving-policy.toml on its checked-out branch"
+else
+    set +e
+    policy_output="$(
+        PYTHONPATH="${CREW_CHIEF_REPO}/src" \
+            CREW_CHIEF_SERVING_POLICY="${CREW_CHIEF_REPO}/config/serving-policy.toml" \
+            python3 -m crew_chief policy check --live 2>&1
+    )"
+    policy_status=$?
+    set -e
+    case "${policy_status}" in
+        0)
+            while IFS= read -r line; do
+                [[ "${line}" == warning:* ]] && warn "serving policy: ${line#warning: }"
+            done <<< "${policy_output}"
+            log "serving policy matches the pulled models"
+            ;;
+        1)
+            while IFS= read -r line; do
+                case "${line}" in
+                    error:*) warn "serving policy: ${line#error: }"; POLICY_COUNT=$(( POLICY_COUNT + 1 )) ;;
+                    warning:*) warn "serving policy: ${line#warning: }" ;;
+                esac
+            done <<< "${policy_output}"
+            ;;
+        *)
+            # Ollama down or the policy unreadable: report, but do not count it
+            # as drift — this run cannot see what is pulled.
+            warn "serving policy check could not run: $(tail -1 <<< "${policy_output}")"
+            ;;
+    esac
+fi
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
 log "total gaps     : ${GAP_COUNT}"
 log "disclosures    : ${DISCLOSURE_COUNT}"
+log "serving policy : ${POLICY_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -362,7 +415,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
