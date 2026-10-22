@@ -20,9 +20,9 @@ with a `README.md` pointing back here. The item names its id as
   The first test-based coding-agent pilot is in crew-chief: each model repairs
   the same seeded failure in an isolated checkout, then the original test suite
   determines pass/fail and the local HTML report shows duration. Historical
-  replay now reviews two crew-chief before/after test additions with green-old,
-  red-old-with-new-tests, and green-reference checks. Add reviewed historical
-  cases for other code repositories, compare cold-start and provided-failure
+  replay now reviews two crew-chief and two archility before/after test additions
+  with green-old, red-old-with-new-tests, and green-reference checks. Add
+  reviewed historical cases for other code repositories, compare cold-start and provided-failure
   context, and repeat each case enough times to estimate pass rate. Keep
   read-only routing and classification evaluations
   separate: compare a deterministic rules baseline with local decision models,
@@ -31,6 +31,11 @@ with a `README.md` pointing back here. The item names its id as
   traces and experiment comparison justify operating another service.
   Validate Ollama support before trying Tev1, and keep existing policy gates
   on consequential actions.
+  A public PR candidate discovery and review sweep now generates ignored draft
+  manifests and accepts only green-old/red-new/green-reference cases. Continue
+  with repeated trials, prompt-context comparisons, and a separate workflow
+  for authoring genuinely new regression assertions when a reviewed behavior
+  specification exists.
 
 - [ ] [manual:2026-10-17] **Publish the system-level tools as Fedora RPMs.**
   PyPI covers the Python packages; an RPM in the `casonk/tools` COPR project
