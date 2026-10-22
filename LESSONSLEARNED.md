@@ -27,6 +27,18 @@
   malformed arguments. Record that capability separately from test outcomes.
   Prefer historical cases where later tests fail by assertion on old source;
   a collection error gives less precise evidence of behavioral compliance.
+- A passing reference commit or CI job proves the code passed tests, not which
+  model originally wrote it. Keep origin-model attribution unknown until a
+  contemporaneous run record ties an exact model, source change, and passing
+  test command together. Record a seeded benchmark pass separately from the
+  historical author's identity. Keep that evidence owner-only instead of
+  adding per-artifact attribution to tracked portfolio files.
+- Derive replay candidates from the visibility registry and catalog, and keep
+  generated tasks unreviewed until a disposable old/new/reference preflight
+  passes. If catalog initialization finds conflicting checkout remotes, leave
+  the ambiguity unresolved; an explicit, registry-verified public checkout
+  selection can support a narrower sweep without treating the checkout as a
+  valid catalog mapping.
 
 ### 2026-10-20 — Preserve SELinux web labels when staging static files
 

@@ -33,6 +33,10 @@ renderers without activating them.
    - `scripts/repository_visibility.py` observes `github.com`, records an
      explicitly reviewed manual visibility/rename transition, and rejects
      private names in a public Git index.
+   - `scripts/discover_test_replays.py` reads the same private/public authority
+     and portfolio catalog to find public test-bearing PR candidates. It writes
+     ignored owner-only draft tasks, calls crew-chief's historical preflight on
+     request, and emits a reviewed suite without changing target checkouts.
    - Git/GitHub effects remain a fail-closed saga. Future quorum authority owns
      ACID intent, approvals, leases, and outbox state; WireGuard proximity does
      not choose a writer.
