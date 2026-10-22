@@ -138,6 +138,59 @@ class ReplayDiscoveryTests(unittest.TestCase):
             ):
                 replays.explicit_checkouts(root, pair, ["util-repos/private"])
 
+    def test_scan_public_checkouts_skips_conflicts_and_private_repos(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "portfolio"
+            for name, origin in (
+                ("public", "https://github.com/example/public.git"),
+                ("conflict", "https://github.com/example/conflict.git"),
+                ("private", "https://github.com/example/private.git"),
+            ):
+                repo = root / "util-repos" / name
+                repo.mkdir(parents=True)
+                git(repo, "init", "-q")
+                (repo / "README.md").write_text(name)
+                git(repo, "add", ".")
+                git(
+                    repo,
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.invalid",
+                    "commit",
+                    "-qm",
+                    "base",
+                )
+                git(repo, "remote", "add", "origin", origin)
+            git(
+                root / "util-repos" / "conflict",
+                "remote",
+                "add",
+                "other",
+                "https://github.com/example/other.git",
+            )
+            pair = SimpleNamespace(
+                public=SimpleNamespace(
+                    repositories=(
+                        replays.visibility.RepositoryEntry("R_PUBLIC", "example/public"),
+                        replays.visibility.RepositoryEntry("R_CONFLICT", "example/conflict"),
+                    )
+                )
+            )
+            checkouts, skipped = replays.scan_public_checkouts(root, pair)
+            self.assertEqual(
+                [(slug, path) for slug, path, _ in checkouts],
+                [("example/public", "util-repos/public")],
+            )
+            self.assertEqual(len(skipped), 1)
+            self.assertEqual(skipped[0]["path"], "util-repos/conflict")
+            self.assertIn("remote identity mismatch", skipped[0]["reason"])
+
+            output = root / "report"
+            replays.write_candidates(output, [], {}, skipped)
+            index = json.loads((output / "index.json").read_text())
+            self.assertEqual(index["skipped_public_checkouts"], skipped)
+
 
 if __name__ == "__main__":
     unittest.main()

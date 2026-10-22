@@ -20,9 +20,9 @@ with a `README.md` pointing back here. The item names its id as
   The first test-based coding-agent pilot is in crew-chief: each model repairs
   the same seeded failure in an isolated checkout, then the original test suite
   determines pass/fail and the local HTML report shows duration. Historical
-  replay now reviews two crew-chief and two archility before/after test additions
+  replay now has a wider local review of historical before/after test additions
   with green-old, red-old-with-new-tests, and green-reference checks. Add
-  reviewed historical cases for other code repositories, compare cold-start and provided-failure
+  reviewed historical cases for more code repositories, compare cold-start and provided-failure
   context, and repeat each case enough times to estimate pass rate. Keep
   read-only routing and classification evaluations
   separate: compare a deterministic rules baseline with local decision models,
