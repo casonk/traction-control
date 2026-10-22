@@ -35,7 +35,10 @@
   A memory lease alone does not reserve GPU compute, and a process outside the
   consumer registry can still contaminate a trial. Confirm actual device
   inventory and lease coverage before describing the system as balancing work
-  across devices.
+  across devices. Register interactive workloads with activity tokens for their
+  full lifetime; yield explicitly named background consumers. Keep unattended
+  media upscaling background-priority, while user-requested renders enter the
+  foreground queue and yield background rendering at a saved chunk boundary.
 
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
