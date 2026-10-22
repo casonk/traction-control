@@ -39,6 +39,10 @@
   full lifetime; yield explicitly named background consumers. Keep unattended
   media upscaling background-priority, while user-requested renders enter the
   foreground queue and yield background rendering at a saved chunk boundary.
+  Use ecu's current process-based activity schema for GPU work, and
+  acquire a separate lease for each render so request priority can change
+  between episodes. Do not register a queue coordinator as a consumer of its
+  own per-render lease.
 
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
