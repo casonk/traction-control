@@ -1540,6 +1540,7 @@ ${REPO_ROOT}/scripts/archility-weekly.sh
     HOME="${TEST_ROOT}/wrapper-home" \
     PORTFOLIO_ROOT="${sample_portfolio}" \
     LOG_DIR="${TEST_ROOT}/logs/archility-weekly" \
+    ARCHILITY_PR_DEPLOY=0 \
     ARCHILITY_CMD=/usr/bin/true \
     /bin/bash "${REPO_ROOT}/scripts/archility-weekly.sh"
   assert_status 0 "archility weekly executes safely under /bin/bash"

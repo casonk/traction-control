@@ -208,6 +208,17 @@ Across the portfolio, the starter architecture surface should now be consistent:
 `archility` is the standard place to generate and render that layout.
 Its deterministic programmatic path creates the baseline starter strictly from code/layout markers, and its agentic path is where an AI agent should inspect a repository in depth and then author a unique architecture from that understanding.
 
+The scheduled weekly run audits discovered checkouts, then reads the owner-only
+visibility registry and portfolio catalog before preparing diagram pull
+requests. It verifies each GitHub repository ID, visibility, archive state,
+and default branch; renders in a disposable clone; and stages only
+`docs/diagrams/`. It leaves source checkouts and default branches untouched,
+and skips a repository while an Archility diagram PR is open. GitHub CLI auth
+and write access to each eligible remote are required; the GitHub CLI supplies
+HTTPS credentials for isolated clones and branch pushes. Set
+`ARCHILITY_PR_DEPLOY=0` to disable PR creation for a manual run; merges remain
+reviewer-controlled.
+
 ## Contributing
 
 See `CONTRIBUTING.md`.

@@ -12,6 +12,11 @@
 
 ## Lessons
 
+- Scheduled cross-repository diagram publication must use the authoritative
+  visibility registry and portfolio catalog, render in an isolated clone, and
+  stage only generated diagram paths; never let the scheduler write into a
+  potentially dirty source checkout or push directly to its default branch.
+
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
 - For a repository-evolution coding benchmark, prove the old suite passes at
