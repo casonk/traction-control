@@ -39,6 +39,11 @@
   the ambiguity unresolved; an explicit, registry-verified public checkout
   selection can support a narrower sweep without treating the checkout as a
   valid catalog mapping.
+- A broader replay scan should record verified public checkout coverage and
+  every registered checkout it skipped. Recheck socket-dependent preflights
+  with local socket access before rejecting them: an old suite can fail under
+  sandbox restrictions even when the historical test replay is valid. Count
+  only the rerun's green-old, assertion-red, green-reference cases as reviewed.
 
 ### 2026-10-20 — Preserve SELinux web labels when staging static files
 

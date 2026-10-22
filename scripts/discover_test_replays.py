@@ -142,6 +142,44 @@ def explicit_checkouts(
     return checkouts
 
 
+def scan_public_checkouts(
+    root: Path, pair: visibility.RegistryPair
+) -> tuple[list[tuple[str, str, Path]], list[dict[str, str]]]:
+    """Find local public checkouts without trusting directory names as identity."""
+    public = {entry.slug.casefold(): entry for entry in pair.public.repositories}
+    checkouts = []
+    skipped = []
+    candidates = []
+    for group in root.iterdir():
+        if not group.is_dir() or group.name == "archive-repos":
+            continue
+        candidates.extend([group, *group.iterdir()])
+    for repo in candidates:
+        if not (repo / ".git" / "HEAD").is_file():
+            continue
+        try:
+            remote = git(repo, "remote", "get-url", "origin")
+        except ValueError:
+            continue
+        slug = visibility._normalize_github_remote(remote)
+        registered = public.get(slug.casefold()) if slug else None
+        if registered is None:
+            continue
+        relative_path = repo.relative_to(root).as_posix()
+        try:
+            materializer._validate_relative_path(relative_path)
+            _validate_public_checkout(repo, root, registered)
+        except (ValueError, materializer.MaterializerError) as exc:
+            skipped.append({"path": relative_path, "reason": str(exc)})
+            continue
+        checkouts.append((registered.slug, relative_path, repo))
+    slugs = [slug.casefold() for slug, _, _ in checkouts]
+    if len(slugs) != len(set(slugs)):
+        raise ValueError("multiple local checkouts claim one public identity")
+    checkouts.sort(key=lambda entry: entry[0])
+    return checkouts, skipped
+
+
 def _write_owner_only(path: Path, payload: dict) -> None:
     data = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     descriptor, pending_name = tempfile.mkstemp(
@@ -198,7 +236,10 @@ def _evidence_ledger(path: Path, cases: list[dict]) -> dict:
 
 
 def write_candidates(
-    output: Path, cases: list[dict], locations: dict[str, str]
+    output: Path,
+    cases: list[dict],
+    locations: dict[str, str],
+    skipped: list[dict[str, str]] | None = None,
 ) -> None:
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     if output.is_symlink() or output.stat().st_mode & 0o077:
@@ -239,6 +280,7 @@ def write_candidates(
             "created_at": datetime.now(timezone.utc).isoformat(),
             "status": "unreviewed_candidates",
             "cases": cases,
+            "skipped_public_checkouts": skipped or [],
             "note": "Test commands and prompts are drafts; run historical preflight before benchmarking.",
         },
     )
@@ -338,13 +380,23 @@ def main() -> int:
         action="append",
         help="Explicit public checkout path relative to portfolio root when no catalog is present",
     )
+    parser.add_argument(
+        "--scan-public-checkouts",
+        action="store_true",
+        help="Find all registry-verified public checkouts under the portfolio root",
+    )
     args = parser.parse_args()
     if min(args.max_commits, args.review_limit, args.test_timeout) < 1:
         parser.error("max commits, review limit, and test timeout must be positive")
     root = args.portfolio_root.resolve()
     pair = visibility.load_pair(args.private, args.public)
+    if args.scan_public_checkouts and args.checkout:
+        parser.error("--scan-public-checkouts and --checkout are mutually exclusive")
+    skipped = []
     if args.checkout:
         checkouts = explicit_checkouts(root, pair, args.checkout)
+    elif args.scan_public_checkouts:
+        checkouts, skipped = scan_public_checkouts(root, pair)
     else:
         if not args.catalog.exists():
             parser.error(
@@ -364,10 +416,12 @@ def main() -> int:
         locations[slug] = relative_path
         cases.extend(discover(repo, slug, args.max_commits))
     cases.sort(key=lambda case: (case["repository"], case["after"]))
-    write_candidates(args.output_dir.resolve(), cases, locations)
+    write_candidates(args.output_dir.resolve(), cases, locations, skipped)
     print(
         f"Scanned {len(locations)} public checkouts; found {len(cases)} unreviewed cases."
     )
+    if skipped:
+        print(f"Skipped {len(skipped)} public checkout(s) that failed verification.")
     print(f"Candidate index: {args.output_dir.resolve() / 'index.json'}")
     if args.review:
         summary = review_candidates(

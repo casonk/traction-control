@@ -26,6 +26,21 @@ python3 scripts/discover_test_replays.py \
   --max-commits 100 --review
 ```
 
+For a wider local sweep without maintaining a path list, scan the portfolio
+root for checkouts and verify each candidate against the public registry:
+
+```bash
+python3 scripts/discover_test_replays.py \
+  --scan-public-checkouts --max-commits 300 --review --review-limit 100
+```
+
+The scan excludes `archive-repos/`, ignores unregistered checkouts, and skips
+registered public checkouts whose remotes or repository state fail verification.
+Those skips and their reasons appear in the ignored `index.json`; inspect them
+before interpreting the sweep's coverage. Review may need local socket access
+for suites that bind localhost ports. A socket permission failure is an
+environment result, not a model score.
+
 The script finds first-parent commits with a PR number in their subject and
 changes to both `tests/test_*.py` and existing `src/*.py` files. It writes
 draft crew-chief task manifests, an index, and an origin-model evidence ledger
