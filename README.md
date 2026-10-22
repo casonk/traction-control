@@ -108,6 +108,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/create_private_github_repo.sh`: fail-closed private repository creation and post-create visibility verification
 - `scripts/repository_visibility.py`: secure private/public registry validation, observed-transition reconciliation, hosted audit, and staged private-name disclosure gate
 - `scripts/portfolio_materializer.py`: master registered-portfolio catalog, safe clone/fetch planning, additive registry-generation reconciliation, and checkout audit
+- `scripts/discover_test_replays.py`: public PR test-change discovery, owner-only draft manifests, and optional crew-chief historical preflight; see [the replay discovery guide](docs/test-replay-discovery.md)
 - `scripts/portfolio_lifecycle_review.py`: read-only dependency evidence and proposed privacy/archive/retirement review
 - `scripts/job_guard.py`: start condition and time limit for scheduled jobs, installed as systemd drop-ins; defers jobs while the machine is hot or busy and runs heavy jobs one at a time (`docs/job-guard.md`)
 - `scripts/portfolio_purge.py`: remove stale local git state across the portfolio — merged branches and finished, unlocked worktrees, plus (opt-in, `--expire-backups-after-days`) `legacy/` backup branches past their retention age — as a dry run unless `--apply` is given; `scripts/portfolio-purge.sh` is its logging wrapper, scheduled weekly by `config/clockwork/portfolio-purge.toml`
