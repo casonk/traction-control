@@ -12,6 +12,48 @@
 
 ## Lessons
 
+### 2026-10-21 — Benchmark historical test adoption without leaking the fix
+
+- For a repository-evolution coding benchmark, prove the old suite passes at
+  the before commit, the selected later tests fail against old source, and the
+  same suite passes at the after commit. Give agents only the old checkout and
+  new test changes; keep the historical source fix out of their working tree.
+  Record both commit IDs, selected test paths, test-patch hash, model/runtime,
+  time budget, and final test result. Separate tool-use failures and timeouts
+  from completed attempts that fail tests before comparing model quality.
+- Before spending a full coding-agent budget on a local model, probe one
+  structured tool call with the exact installed tag. Some installed models
+  return Ollama HTTP 400 for tool calling; others call the named tool with
+  malformed arguments. Record that capability separately from test outcomes.
+  Prefer historical cases where later tests fail by assertion on old source;
+  a collection error gives less precise evidence of behavioral compliance.
+
+### 2026-10-20 — Preserve SELinux web labels when staging static files
+
+- Copying a report from `/tmp` with `cp -a` preserves its `user_tmp_t` label.
+  Caddy can list that file in a served directory but returns HTTP 403 for the
+  file itself; an unreadable symlink index falls back to directory browsing.
+  Write generated reports directly into the served directory or copy without
+  preserving the temporary SELinux context, then run `restorecon` and verify
+  authenticated HTTP status and `Content-Type` for the index and report links.
+
+### 2026-10-20 — Benchmark local models against portfolio task outcomes
+
+- Keep inference speed benchmarks and task-quality evaluations distinct. A
+  faster model is useful only when it meets the workflow's accuracy and
+  failure-boundary requirements on representative, reviewed cases.
+- Decision models can route or classify work, while coding agents must be
+  evaluated through isolated repository edits and executable tests. Use
+  deterministic rules as a baseline, measure false negatives and abstentions,
+  and keep consequential actions behind existing policy gates.
+- Record model, quantization, runtime version, prompt, dataset version, and
+  hardware with each run so changes in a score can be explained.
+- Check the complete agent runtime before a benchmark. A reachable Ollama HTTP
+  service does not prove a coding CLI can use it; on this host, Codex's local
+  provider refused to start without a host Ollama installation even though
+  crew-chief's containerized Ollama endpoint was healthy. Use a working local
+  agent path and count setup failures separately from model failures.
+
 ### 2026-10-20 — Keep chat-directed deletion exact and local
 
 - Match a self-termination request to the exact provider thread ID supplied by
