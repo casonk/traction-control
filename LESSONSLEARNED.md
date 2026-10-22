@@ -21,6 +21,12 @@
   the decision, confidence, fallback reason, routing time, and full end-to-end
   time. Compare a router against fixed-model baselines on held-out cases at the
   same agent budget; a longer timeout is a separate capability tier.
+- On a shared GPU host, enter timing trials through central-ecu's lease path and
+  check for unregistered compute processes after registered consumers yield.
+  A memory lease alone does not reserve GPU compute, and a process outside the
+  consumer registry can still contaminate a trial. Confirm actual device
+  inventory and lease coverage before describing the system as balancing work
+  across devices.
 
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
