@@ -21,6 +21,16 @@
   explicit init option, and have scheduled automations skip catalog paths
   without a materialized local checkout before contacting GitHub.
 
+### 2026-10-22 — Evaluate model routers with pre-run evidence and full latency
+
+- A model choosing a coding agent may see only information available before the
+  attempt: task instructions, eligible models, test command, and allowed paths.
+  Keep historical reference fixes and trial outcomes out of the routing input.
+  Gate invalid or low-confidence choices to an eligible fallback, and record
+  the decision, confidence, fallback reason, routing time, and full end-to-end
+  time. Compare a router against fixed-model baselines on held-out cases at the
+  same agent budget; a longer timeout is a separate capability tier.
+
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
 - For a repository-evolution coding benchmark, prove the old suite passes at
