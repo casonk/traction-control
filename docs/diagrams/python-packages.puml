@@ -1,11 +1,13 @@
-@startuml packages_traction-control
+@startuml packages_checkout
 set namespaceSeparator none
 top to bottom direction
 skinparam componentStyle rectangle
+rectangle "archility_pr_deploy\n1 python file" as archility_pr_deploy
 rectangle "branch_inventory\n1 python file" as branch_inventory
 rectangle "check_agents_md\n1 python file" as check_agents_md
 rectangle "check_repository_quality\n1 python file" as check_repository_quality
 rectangle "check_security_md\n1 python file" as check_security_md
+rectangle "discover_test_replays\n1 python file" as discover_test_replays
 rectangle "find_duplicate_lessons\n1 python file" as find_duplicate_lessons
 rectangle "job_guard\n1 python file" as job_guard
 rectangle "monitor_github_ci_emails\n1 python file" as monitor_github_ci_emails
@@ -19,6 +21,10 @@ rectangle "render_portfolio_sidecar_quadlets\n1 python file" as render_portfolio
 rectangle "repo_settings\n1 python file" as repo_settings
 rectangle "repository_visibility\n1 python file" as repository_visibility
 rectangle "run_traction_control_job\n1 python file" as run_traction_control_job
+archility_pr_deploy --> portfolio_materializer
+archility_pr_deploy --> repository_visibility
+discover_test_replays --> portfolio_materializer
+discover_test_replays --> repository_visibility
 portfolio_lifecycle_review --> portfolio_materializer
 portfolio_lifecycle_review --> repository_visibility
 portfolio_materializer --> repository_visibility
