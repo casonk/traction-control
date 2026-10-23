@@ -112,6 +112,11 @@ renderers without activating them.
    - `scripts/install_refs_audit_agentic_systemd.sh` and
      `config/clockwork/refs-audit-agentic.toml.template` complete the Linux
      installer surface for the moderate REFS job.
+   - The twice-weekly Archility job validates the ignored visibility registry
+     and portfolio catalog, renders each eligible active checkout in a
+     disposable clone, stages only `docs/diagrams/`, and opens a review PR.
+     It leaves source checkouts and default branches untouched, and skips a
+     repo while an Archility diagram PR is already open.
 6. Portfolio-boundary layer (`../..`)
    - This repo does not audit itself as the whole workspace.
    - Cross-repo work begins by scanning the portfolio root two levels up and

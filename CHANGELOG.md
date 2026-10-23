@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Make the twice-weekly Archility job render diagrams in isolated clones and
+  open diagram-only pull requests for registry-verified active repositories.
+  Dirty checkouts are left untouched, existing Archility PRs are not
+  duplicated, and merges remain manual.
+
 - Add local model serving governance: AGENTS.md now makes the backend and
   settings each local model is served with a reviewed, evidence-backed
   decision held in crew-chief's serving policy, and `scripts/portfolio-audit.sh`

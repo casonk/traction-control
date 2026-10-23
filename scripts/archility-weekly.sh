@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# archility-weekly.sh — twice-weekly architecture audit + render across the
-# portfolio
+# archility-weekly.sh — twice-weekly architecture audit + diagram PRs across
+# the registered portfolio
 #
 # Discovers all git repos under PORTFOLIO_ROOT, runs:
 #   archility audit  — drift report for every repo
-#   archility render — refresh diagram renders for every repo
+#   archility PR deploy — render eligible registered repos in isolated clones,
+#                         then push diagram-only branches and open pull requests
 #
 # Logs are written to LOG_DIR (default: ~/.local/share/archility-weekly/).
 # Run once manually to verify: bash /path/to/archility-weekly.sh
@@ -21,6 +22,9 @@ ARCHILITY_CMD="${ARCHILITY_CMD:-archility}"
 ARCHILITY_REPO_FALLBACK="${SCRIPT_DIR}/../../archility"
 LOG_DIR="${LOG_DIR:-${HOME}/.local/share/archility-weekly}"
 MAX_DEPTH=4   # how deep to search for .git dirs below PORTFOLIO_ROOT
+PRIVATE_REGISTRY="${TRACTION_CONTROL_PRIVATE_REPOS_CONFIG:-${SCRIPT_DIR}/../config/repository-visibility/private.local.json}"
+PUBLIC_REGISTRY="${TRACTION_CONTROL_PUBLIC_REPOS_CONFIG:-${SCRIPT_DIR}/../config/repository-visibility/public.local.json}"
+PORTFOLIO_CATALOG="${TRACTION_CONTROL_PORTFOLIO_CATALOG:-${SCRIPT_DIR}/../config/portfolio/portfolio.local.json}"
 # ─────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -78,25 +82,32 @@ if [[ $AUDIT_FAIL -ne 0 ]]; then
 fi
 log ""
 
-# ── render each repo ─────────────────────────────────────────────────────────
-log "--- RENDER ---"
-RENDER_FAIL=0
-for repo in "${REPO_DIRS[@]}"; do
-    log "rendering: ${repo}"
-    "${ARCHILITY_COMMAND[@]}" render "${repo}" 2>&1 | tee -a "${LOG_FILE}" || {
-        log "WARNING: render failed for ${repo} (exit $?)"
-        RENDER_FAIL=$(( RENDER_FAIL + 1 ))
-    }
-done
+# ── render registered repos in isolation and open diagram PRs ─────────────────
+log "--- DIAGRAM PR DEPLOYMENT ---"
+PR_FAIL=0
+if [[ "${ARCHILITY_PR_DEPLOY:-1}" == "1" ]]; then
+    python3 "${SCRIPT_DIR}/archility_pr_deploy.py" \
+        --portfolio-root "${PORTFOLIO_ROOT}" \
+        --private-registry "${PRIVATE_REGISTRY}" \
+        --public-registry "${PUBLIC_REGISTRY}" \
+        --catalog "${PORTFOLIO_CATALOG}" \
+        --archility-command "${ARCHILITY_COMMAND[@]}" \
+        2>&1 | tee -a "${LOG_FILE}" || PR_FAIL=$?
+else
+    log "diagram PR deployment disabled by ARCHILITY_PR_DEPLOY"
+fi
+if [[ $PR_FAIL -ne 0 ]]; then
+    log "WARNING: diagram PR deployment exited with code ${PR_FAIL}"
+fi
 log ""
 
 # ── summary ───────────────────────────────────────────────────────────────────
 log "=== done ==="
 log "repos audited  : ${#REPO_DIRS[@]}"
-log "render failures: ${RENDER_FAIL}"
+log "PR deploy error: ${PR_FAIL}"
 log ""
 
 # keep a stable symlink to the most recent log
 ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 
-exit $(( AUDIT_FAIL + RENDER_FAIL > 0 ? 1 : 0 ))
+exit $(( AUDIT_FAIL + PR_FAIL > 0 ? 1 : 0 ))
