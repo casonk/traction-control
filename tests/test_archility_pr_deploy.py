@@ -87,6 +87,21 @@ class ArchilityPrDeployTests(unittest.TestCase):
             [("R_private", "private"), ("R_public", "public")],
         )
 
+    def test_deployer_skips_catalog_entry_without_local_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(deploy, "_remote_urls") as remote_urls:
+                result = deploy._deploy_one(
+                    portfolio_root=Path(temporary),
+                    catalog_entry=self._catalog_entry("R_private"),
+                    visibility_name="private",
+                    registry_entry=self.private_entry,
+                    gh_command="gh",
+                    archility_command=("archility",),
+                )
+
+        self.assertEqual(result, "skipped")
+        remote_urls.assert_not_called()
+
     def test_github_metadata_must_match_registry_and_has_valid_default_branch(self):
         with mock.patch.object(
             deploy,

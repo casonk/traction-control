@@ -956,9 +956,17 @@ def initialize_catalog(
     pair: visibility.RegistryPair,
     catalog_path: Path,
     root: Path,
+    *,
+    skip_linked_worktrees: bool = False,
+    skip_unverified_checkouts: bool = False,
 ) -> CatalogDocument:
     root = root.resolve()
-    mappings = _discover_registered_mappings(pair, root)
+    mappings = _discover_registered_mappings(
+        pair,
+        root,
+        skip_linked_worktrees=skip_linked_worktrees,
+        skip_unverified_checkouts=skip_unverified_checkouts,
+    )
     used_paths = {path.casefold() for path in mappings.values()}
     for _, entry in pair.entries:
         if entry.repository_id in mappings:
@@ -986,6 +994,9 @@ def initialize_catalog(
 def _discover_registered_mappings(
     pair: visibility.RegistryPair,
     root: Path,
+    *,
+    skip_linked_worktrees: bool = False,
+    skip_unverified_checkouts: bool = False,
 ) -> dict[str, str]:
     lookup_by_slug = {
         entry.slug.casefold(): entry
@@ -1012,8 +1023,20 @@ def _discover_registered_mappings(
             raise MaterializerError(
                 f"cannot initialize from mixed remote identities: {repository}"
             )
+        if skip_linked_worktrees and _is_linked_worktree(repository):
+            continue
         registry_entry = next(iter(registered_identities.values()))
-        verify_checkout(repository, registry_entry, require_clean=False)
+        try:
+            verify_checkout(repository, registry_entry, require_clean=False)
+        except MaterializerError:
+            if not skip_unverified_checkouts:
+                raise
+            print(
+                "warning: skipped a registered checkout whose remote "
+                "identity could not be verified",
+                file=sys.stderr,
+            )
+            continue
         repository_id = registry_entry.repository_id
         relative_path = repository.resolve().relative_to(root).as_posix()
         _validate_relative_path(relative_path)
@@ -1023,6 +1046,23 @@ def _discover_registered_mappings(
             )
         mappings[repository_id] = relative_path
     return mappings
+
+
+def _is_linked_worktree(repository: Path) -> bool:
+    if not (repository / ".git").is_file():
+        return False
+    git_dir = _run(
+        ["git", "-C", str(repository), "rev-parse", "--absolute-git-dir"]
+    )
+    common_dir = _run(
+        ["git", "-C", str(repository), "rev-parse", "--git-common-dir"]
+    )
+    if git_dir.returncode != 0 or common_dir.returncode != 0:
+        return False
+    shared_dir = Path(common_dir.stdout.strip())
+    if not shared_dir.is_absolute():
+        shared_dir = repository / shared_dir
+    return Path(git_dir.stdout.strip()).resolve() != shared_dir.resolve()
 
 
 def reconcile_catalog(
@@ -1337,6 +1377,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Create a secure catalog from existing checkouts and deterministic defaults.",
     )
     _add_common_arguments(init_parser)
+    init_parser.add_argument(
+        "--skip-linked-worktrees",
+        action="store_true",
+        help=(
+            "Ignore registered linked worktrees during local path discovery; "
+            "they receive the normal proposed path."
+        ),
+    )
+    init_parser.add_argument(
+        "--skip-unverified-checkouts",
+        action="store_true",
+        help=(
+            "Ignore registered checkouts whose remotes cannot be safely "
+            "bound; they receive the normal proposed path."
+        ),
+    )
 
     reconcile_parser = subparsers.add_parser(
         "reconcile",
@@ -1391,7 +1447,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         pair = _load_pair(args.private, args.public)
         root = _safe_root(args.portfolio_root)
         if args.command == "init":
-            catalog = initialize_catalog(pair, Path(args.catalog), root)
+            catalog = initialize_catalog(
+                pair,
+                Path(args.catalog),
+                root,
+                skip_linked_worktrees=args.skip_linked_worktrees,
+                skip_unverified_checkouts=args.skip_unverified_checkouts,
+            )
             print(
                 f"initialized catalog generation {catalog.catalog_generation}: "
                 f"{len(catalog.repositories)} repositories"
