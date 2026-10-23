@@ -53,6 +53,13 @@ python3 scripts/portfolio_materializer.py init \
   --portfolio-root ../..
 ```
 
+If the workspace contains registered Git linked worktrees, add
+`--skip-linked-worktrees` to ignore them during path discovery. If a discovered
+checkout has remotes that cannot be bound safely, keep the default fail-closed
+behavior unless you have reviewed it; `--skip-unverified-checkouts` then leaves
+it unmapped and assigns the normal proposed path. Portfolio automations skip
+catalog entries whose checkout is not present locally.
+
 Review the proposed `clone`, `fetch`, `manual`, and `absent` operations before
 materializing anything:
 

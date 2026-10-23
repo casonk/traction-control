@@ -786,6 +786,39 @@ class PortfolioMaterializerHardeningTests(unittest.TestCase):
             },
         )
 
+    def test_init_can_skip_registered_linked_worktrees(self) -> None:
+        seed_checkout = self.root / "seed-checkout"
+        self._clone_checkout(self.PRIVATE_SLUG, seed_checkout)
+        linked_checkout = self.portfolio / "linked" / "private-synthetic"
+        linked_checkout.parent.mkdir(parents=True)
+        self._git(
+            "-C",
+            str(seed_checkout),
+            "worktree",
+            "add",
+            "--detach",
+            str(linked_checkout),
+            "HEAD",
+        )
+        initialized_path = self.registry / "initialized.local.json"
+
+        initialized = materializer.initialize_catalog(
+            self.pair,
+            initialized_path,
+            self.portfolio,
+            skip_linked_worktrees=True,
+        )
+
+        self.assertTrue(linked_checkout.is_dir())
+        self.assertTrue((linked_checkout / ".git").is_file())
+        self.assertEqual(
+            {
+                entry.repository_id: entry.relative_path
+                for entry in initialized.repositories
+            }[self.PRIVATE_ID],
+            "github/synthetic-owner/private-synthetic",
+        )
+
     def test_init_rejects_registered_checkout_with_unclassified_backup(
         self,
     ) -> None:
@@ -811,6 +844,20 @@ class PortfolioMaterializerHardeningTests(unittest.TestCase):
                 self.portfolio,
             )
         self.assertFalse(initialized_path.exists())
+
+        initialized = materializer.initialize_catalog(
+            self.pair,
+            initialized_path,
+            self.portfolio,
+            skip_unverified_checkouts=True,
+        )
+        self.assertEqual(
+            {
+                entry.repository_id: entry.relative_path
+                for entry in initialized.repositories
+            }[self.PRIVATE_ID],
+            "github/synthetic-owner/private-synthetic",
+        )
 
     def test_reconcile_ignores_no_remote_but_rejects_mixed_backup(
         self,

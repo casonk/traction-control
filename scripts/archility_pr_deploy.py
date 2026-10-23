@@ -293,6 +293,9 @@ def _deploy_one(
         registry_entry.slug if visibility_name == "public" else "registered private repository"
     )
     checkout = materializer._target_path(portfolio_root, catalog_entry.relative_path)
+    if not checkout.is_dir():
+        print(f"skip {display_name}: no local checkout is present")
+        return "skipped"
     fetch_url, push_url = _remote_urls(checkout, registry_entry)
     remote_visibility, base = _repository_metadata(gh_command, registry_entry)
     if remote_visibility != visibility_name:

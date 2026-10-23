@@ -16,6 +16,10 @@
   visibility registry and portfolio catalog, render in an isolated clone, and
   stage only generated diagram paths; never let the scheduler write into a
   potentially dirty source checkout or push directly to its default branch.
+- Portfolio catalog initialization can encounter registered Git linked
+  worktrees in an otherwise valid workspace. Skip those only through an
+  explicit init option, and have scheduled automations skip catalog paths
+  without a materialized local checkout before contacting GitHub.
 
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
