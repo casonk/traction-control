@@ -21,6 +21,22 @@
   explicit init option, and have scheduled automations skip catalog paths
   without a materialized local checkout before contacting GitHub.
 
+### 2026-10-24 — Check private site routing, certificate SANs, and backend separately
+
+- When a private hostname fails during TLS but its backend answers locally,
+  compare the merged site registry with the live Caddy site blocks and server
+  certificate SANs. A repo-owned Caddy drop-in must be registered as
+  `ingress = "repo-caddy"` with `access_mode = "shared-mtls"`; a `direct` /
+  `vpn-only-direct` entry is omitted from the shared certificate even if a
+  sibling UI links to the hostname on port 443. After correcting the ignored
+  registry, refresh the server certificate, install the drop-in, restart Caddy,
+  and verify with a client certificate. A listening backend or correct DNS
+  answer alone does not establish that the HTTPS route works.
+- If a push and pull request produce no hosted runs while workflow files and
+  workflow states look active, check the repository's Actions permissions.
+  `enabled: false` suppresses runs entirely; report local verification
+  separately instead of treating absent checks as a pass.
+
 ### 2026-10-22 — Evaluate model routers with pre-run evidence and full latency
 
 - A model choosing a coding agent may see only information available before the
