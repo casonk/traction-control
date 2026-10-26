@@ -2,8 +2,16 @@
   "schema_version": 1,
   "common_words": [
     {
-      "name": "example-private-repository",
-      "reason": "Synthetic example. The name is also an ordinary word in public course notes."
+      "name": "career",
+      "reason": "Ordinary English word used in public job-search and recruiting documentation."
+    },
+    {
+      "name": "chassis",
+      "reason": "Ordinary engineering term used in hardware and DMI field names."
+    },
+    {
+      "name": "ignition",
+      "reason": "Ordinary engineering term used in hardware, startup, and engine context."
     }
   ]
 }

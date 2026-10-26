@@ -80,7 +80,7 @@ rm "${repo}/.git/hooks/pre-commit"
 pass "repo-local pre-commit hook is chained"
 
 remote="${TEST_ROOT}/remote.git"
-git init -q --bare -b main "${remote}"
+git -c safe.bareRepository=all init -q --bare -b main "${remote}"
 git -C "${repo}" remote add origin "${remote}"
 git -C "${repo}" push -q origin main 2>/dev/null || fail "creating the remote main should be allowed"
 pass "initial push creates remote main"
@@ -101,17 +101,17 @@ git -C "${repo}" push -q origin :main 2>/dev/null && fail "deleting remote main 
 pass "deleting remote main refused"
 
 bare="${TEST_ROOT}/bare.git"
-git clone -q --bare "${remote}" "${bare}"
-git -C "${bare}" remote add github https://github.com/owner/plain.git
-git -C "${bare}" config core.hooksPath "${HOOKS}"
-err="$(git -C "${bare}" push -q "${remote}" feat/x:refs/heads/from-bare 2>&1)" ||
+git -c safe.bareRepository=all clone -q --bare "${remote}" "${bare}"
+git -c safe.bareRepository=all -C "${bare}" remote add github https://github.com/owner/plain.git
+git -c safe.bareRepository=all -C "${bare}" config core.hooksPath "${HOOKS}"
+err="$(git -c safe.bareRepository=all -C "${bare}" push -q "${remote}" feat/x:refs/heads/from-bare 2>&1)" ||
   fail "push of a feature branch from a bare repository should be allowed: ${err}"
 [ -z "${err}" ] || fail "guard should be silent in a bare repository: ${err}"
-err="$(git -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" &&
+err="$(git -c safe.bareRepository=all -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" &&
   fail "push to main from a bare repository should be refused"
 case "${err}" in *main-branch-guard:*) ;; *) fail "unexpected bare-repository refusal: ${err}" ;; esac
 case "${err}" in *"work tree"* | *"null directory"*) fail "bare-repository refusal has errors: ${err}" ;; esac
-err="$(MAIN_BRANCH_GUARD_IN_TMP=0 git -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" ||
+err="$(MAIN_BRANCH_GUARD_IN_TMP=0 git -c safe.bareRepository=all -C "${bare}" push -q -f "${remote}" refs/heads/feat/x:refs/heads/main 2>&1)" ||
   fail "a bare repository in a temporary directory should not be guarded: ${err}"
 [ -z "${err}" ] || fail "guard should be silent for a temporary bare repository: ${err}"
 pass "bare repositories are guarded without errors"

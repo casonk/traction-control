@@ -67,6 +67,10 @@ pin passes on rules the newer CI version rejects.
   sessions work in this repo.
 - `REFS-LOCAL.md` — gitignored machine-specific reference notes.
 - `REFS-PUBLIC.md` — tracked public references.
+- Clockwork's shared **To Code** list (`/to-code`, linked from its Home page)
+  — portfolio-wide backlog entry and tracking UI. Assign every item to its
+  repository family and exact repository; reconcile this view with the
+  repository's canonical `BACKLOG.md` when work is completed.
 
 Before final reporting for meaningful work, either add any durable lesson
 discovered during the request or explicitly state why no durable lesson was
