@@ -16,6 +16,18 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-23] **Re-enable GitHub Actions after billing and batch safeguards are ready.**
+  Restore the per-repository Actions settings from the local attachment and
+  preserve each repository’s recorded prior state. Before re-enabling, set and
+  verify a personal Actions budget of $5/month with stop-usage enforcement,
+  review any already-accrued usage, and add a hard per-run repository cap plus
+  a CI workload/quota preflight. Re-enable one repository as a canary, verify
+  the expected checks, then resume gradually. Leave Actions disabled if the
+  budget or safeguards cannot be confirmed. Audit self-hosted runners registered
+  to the account and its organizations, identify their hosts, and confirm no
+  runner can accept jobs before restoring Actions.
+  attachment: actions-reenable-2026-10-23
+
 - [ ] [manual:2026-10-20] **Expand portfolio-specific local model evaluations.**
   The first test-based coding-agent pilot is in crew-chief: each model repairs
   the same seeded failure in an isolated checkout, then the original test suite
@@ -93,25 +105,26 @@ with a `README.md` pointing back here. The item names its id as
   entries. Keep this repo-specific, since the 47-checkout scan found no
   justification for a portfolio-wide changelog rewrite.
 
-- [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — three
+- [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — four
   history rewrites have left old commits reachable on GitHub by hash and
   through the read-only `refs/pull/*` refs of earlier pull requests:
   2026-10-11 (a live WireGuard listen port), 2026-10-14 (private repository
-  names, nine public repositories) and 2026-10-15 (per-commit AI attribution
-  trailers, every portfolio repository that carried them). Open one ticket at
-  <https://support.github.com/request> ("Remove sensitive data"). The first
-  two sets are the sensitive ones; list them first and add the 2026-10-15 set
-  in the same ticket. The draft ticket, every old and new commit ID, and the
-  pull-request descriptions as they were before their footers were removed
-  are in the local attachment (attachment: `2026-10-15-github-support-purge`,
-  on the Fedora desktop); do not paste hashes or removed values into a public
-  issue. After Support confirms, check that an old hash returns 404, mark the
-  matching item in each repository's backlog done, then delete the
-  attachment and the pre-rewrite bundles in the `history-rewrite-*` folders.
-  Every other clone must be moved with `scripts/realign_rewritten_checkouts.sh`
-  or re-cloned and must never push old history back; its
-  `legacy/pre-rewrite-*` branches stay local.
-
+  names, nine public repositories), 2026-10-15 (per-commit AI attribution
+  trailers) and 2026-10-24 (private repository names, three repositories).
+  Open one ticket at <https://support.github.com/request> ("Remove sensitive
+  data"). Prioritize the 2026-10-11, 2026-10-14 and 2026-10-24 sets, and
+  include the 2026-10-15 set in the same ticket. The updated draft request,
+  old and new commit IDs, and the pull-request descriptions as they were before
+  their footers were removed are in the local attachment
+  (`2026-10-15-github-support-purge`). The 2026-10-24 pre-rewrite bundles,
+  commit maps, and ref snapshots are in the local `history-rewrite-20261024`
+  backup. Do not paste hashes or removed values into a public issue. After
+  Support confirms, check that an old hash returns 404, mark the matching item
+  in each repository's backlog done, then delete the attachment and the
+  pre-rewrite bundles in the `history-rewrite-*` folders. Every other clone
+  must be moved with `scripts/realign_rewritten_checkouts.sh` or re-cloned and
+  must never push old history back; its `legacy/pre-rewrite-*` branches stay
+  local.
 ### Network Exposure Hardening
 
 - [ ] [manual:2026-06-26] **Server-side SSH hardening against DoS/brute-force** — On the

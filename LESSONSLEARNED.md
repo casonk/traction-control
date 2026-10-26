@@ -21,6 +21,45 @@
   explicit init option, and have scheduled automations skip catalog paths
   without a materialized local checkout before contacting GitHub.
 
+### 2026-10-24 — Check private site routing, certificate SANs, and backend separately
+
+- When a private hostname fails during TLS but its backend answers locally,
+  compare the merged site registry with the live Caddy site blocks and server
+  certificate SANs. A repo-owned Caddy drop-in must be registered as
+  `ingress = "repo-caddy"` with `access_mode = "shared-mtls"`; a `direct` /
+  `vpn-only-direct` entry is omitted from the shared certificate even if a
+  sibling UI links to the hostname on port 443. After correcting the ignored
+  registry, refresh the server certificate, install the drop-in, restart Caddy,
+  and verify with a client certificate. A listening backend or correct DNS
+  answer alone does not establish that the HTTPS route works.
+- If a push and pull request produce no hosted runs while workflow files and
+  workflow states look active, check the repository's Actions permissions.
+  `enabled: false` suppresses runs entirely; report local verification
+  separately instead of treating absent checks as a pass.
+
+### 2026-10-22 — Evaluate model routers with pre-run evidence and full latency
+
+- A model choosing a coding agent may see only information available before the
+  attempt: task instructions, eligible models, test command, and allowed paths.
+  Keep historical reference fixes and trial outcomes out of the routing input.
+  Gate invalid or low-confidence choices to an eligible fallback, and record
+  the decision, confidence, fallback reason, routing time, and full end-to-end
+  time. Compare a router against fixed-model baselines on held-out cases at the
+  same agent budget; a longer timeout is a separate capability tier.
+- On a shared GPU host, enter timing trials through ecu's lease path and
+  check for unregistered compute processes after registered consumers yield.
+  A memory lease alone does not reserve GPU compute, and a process outside the
+  consumer registry can still contaminate a trial. Confirm actual device
+  inventory and lease coverage before describing the system as balancing work
+  across devices. Register interactive workloads with activity tokens for their
+  full lifetime; yield explicitly named background consumers. Keep unattended
+  media upscaling background-priority, while user-requested renders enter the
+  foreground queue and yield background rendering at a saved chunk boundary.
+  Use ecu's current process-based activity schema for GPU work, and
+  acquire a separate lease for each render so request priority can change
+  between episodes. Do not register a queue coordinator as a consumer of its
+  own per-render lease.
+
 ### 2026-10-21 — Benchmark historical test adoption without leaking the fix
 
 - For a repository-evolution coding benchmark, prove the old suite passes at
