@@ -1,4 +1,4 @@
-@startuml classes_traction-control
+@startuml classes_checkout
 set namespaceSeparator none
 class "AirConfig" as render_air_primary.AirConfig {
   air_address : str
@@ -128,6 +128,8 @@ class "Deployment" as render_portfolio_sidecar_quadlets.Deployment {
   target_set_id : str | None
   target_topology_sha256 : str | None
   targets : tuple[TargetSpec, ...]
+}
+class "<color:red>DeploymentError</color>" as archility_pr_deploy.DeploymentError {
 }
 class "<color:red>DirtyCheckoutError</color>" as portfolio_lifecycle_review.DirtyCheckoutError {
 }
