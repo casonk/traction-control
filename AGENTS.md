@@ -126,7 +126,7 @@ These utility repositories are the portfolio-standard implementation homes for c
 - `./util-repos/archility`: architecture toolchain bootstrap/render orchestration, Graphviz-capable diagram support, deterministic starter-layout generation, agentic architecture authoring, architecture inventory, and architecture-documentation drift checks
 - `./util-repos/auto-pass`: password management and KeePassXC-backed secret retrieval/update flows
 - `./util-repos/bit-byte-block`: local Bitcoin mining ingress via transparent Stratum proxying, upstream failover, and Solo CKPool status inspection
-- `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, and install guidance
+- `./util-repos/clockwork`: shared cron and systemd scheduler manifest rendering, unit-file generation, install guidance, and the portfolio backlog UI at `/to-code`
 - `./util-repos/tachometer`: shared repo and resource profiling, profiled command runs, repo-local manifest loading, local JSON summary generation, and disk-pressure signals that route to traction-control remediation
 - `./util-repos/nordility`: NordVPN-based VPN switching and connection orchestration
 - `./util-repos/shock-relay`: external messaging across supported providers such as Signal, Telegram, Twilio SMS, WhatsApp, and Gmail IMAP
@@ -148,12 +148,14 @@ Current strong baseline across the portfolio:
 - every repo should have `REFS-PUBLIC.md` (tracked, public external references) and `REFS-LOCAL.md` (gitignored, machine-specific local paths)
 - every repo-level `AGENTS.md` should point back to `./util-repos/traction-control` for portfolio-wide standards and baseline conventions
 - every tracked `AGENTS.md` should include the standard "Sudo Boundary" note that agents cannot run `sudo` and must hand exact elevated commands to the user
-- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, unified test bench utilities, and local LLM inference
+- every repo-level `AGENTS.md` should also mention the shared utility repos available for architecture toolchain bootstrap/rendering, Graphviz-backed diagram support, deterministic architecture scaffolding, agentic architecture authoring, password management, shared cron and systemd scheduling, portfolio backlog tracking, repo and resource profiling, VPN switching, WireGuard VPN setup, external messaging, SMB-based file sharing, unified test bench utilities, and local LLM inference
 - repo-root `LESSONSLEARNED.md` is the tracked durable-lessons file everywhere
 - new repos should seed `LESSONSLEARNED.md` from `./util-repos/traction-control/docs/templates/LESSONSLEARNED.md` instead of leaving only a placeholder entry
 - repo-root `REFS-PUBLIC.md` documents public external dependencies; `REFS-LOCAL.md` is gitignored and holds machine-specific paths
 - repo-root `CHATHISTORY.md` is the standard local handoff file everywhere
 - repo-root `BACKLOG.md` is the tracked work-item backlog everywhere; seed from `./util-repos/traction-control/docs/templates/BACKLOG.md`
+- use Clockwork's shared **To Code** list (`/to-code`, linked from the Clockwork Home page) to add and track backlog items across the portfolio; always assign each item to its repository family and exact repository
+- keep each repository's tracked `BACKLOG.md` as its canonical, reviewable repo-local record; reconcile it when completing To Code items, and do not assume the shared UI automatically writes back to repository files
 - pre-commit coverage is now portfolio-wide
 - every repo should keep the shared architecture starter layout under `docs/`:
   - `docs/contributor-architecture-blueprint.md`

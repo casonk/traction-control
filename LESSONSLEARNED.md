@@ -12,6 +12,10 @@
 
 ## Lessons
 
+- Runtime artifacts and generated files must be removed from the Git index as
+  well as the working tree. A stale `__pycache__` or compiled `.pyc` entry is a
+  tracked repository gap even when the filesystem copy is deleted, and the
+  quality check reads the index rather than the live directory state.
 - Scheduled cross-repository diagram publication must use the authoritative
   visibility registry and portfolio catalog, render in an isolated clone, and
   stage only generated diagram paths; never let the scheduler write into a
@@ -20,6 +24,31 @@
   worktrees in an otherwise valid workspace. Skip those only through an
   explicit init option, and have scheduled automations skip catalog paths
   without a materialized local checkout before contacting GitHub.
+- Distinguish real scheduler regressions from environment-gated jobs. Services
+  like `pf-weekly-refresh.service` and the `pf-intraday-snapshot@*.service`
+  were not broken at the systemd layer: their browser/OAuth steps failed because
+  the host lacks a usable X server and interactive TTY flow for Playwright and
+  Schwab OAuth. The correct response is to fail fast with a clear environment
+  error or to run the job in a headed/session-aware context, not to assume the
+  timer or service manager is broken. Conversely, the weekly blog wrapper was
+  actually fixed by validating the real Codex exec path and installing the
+  service-local SSH key instead of falling back to the personal GitHub key.
+
+### 2026-10-26 — Keep service-local SSH and file execution checks separate from the scheduler
+
+- A systemd user job can fail with a git worktree or remote-auth error even when
+  the scheduler itself is healthy. Check the exact service environment, SSH
+  config, and Git remotes before blaming the timer. For `weekly-blog-agentic`,
+  the real issue was the service-specific Git remote path, not a broken timer; the
+  service-specific SSH config and `GIT_SSH_COMMAND` were required, and the job
+  succeeds when the wrapper is invoked with those environment settings and the
+  correct Codex `exec` syntax.
+- Browser-heavy finance jobs are not valid checks for scheduler health unless
+  they are run in an X-capable, interactive TTY environment. A missing `$DISPLAY`
+  or the lack of a TTY is a local execution constraint, not an automation-system
+  outage. Treat those as environment prerequisites, and keep the service's
+  targeted failure output clear enough to tell the user whether to fix the
+  session or the code path.
 
 ### 2026-10-24 — Check private site routing, certificate SANs, and backend separately
 
@@ -386,6 +415,10 @@ Up-integrated from `clockwork` and `wiring-harness`.
   repository's canonical `BACKLOG.md`. Before reporting the work complete,
   update that originating backlog and its local handoff; otherwise a portfolio
   rollup reintroduces already-landed work as a new priority.
+- Use Clockwork's shared To Code list to add and track portfolio backlog work,
+  tagged with the repository family and exact repo. It is a coordination view,
+  not a write-through replacement for each repo's canonical `BACKLOG.md`;
+  reconcile both when the work is completed.
 - Re-render the local portfolio index after merged work and registry changes.
   Its fail-closed generation check exposes stale owner-local catalog state
   before a misleading aggregate view is used for triage.
