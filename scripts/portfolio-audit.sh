@@ -11,6 +11,8 @@
 #     (sudo boundary, portfolio standards backlink, session-memory boundary,
 #     local CI verification) — see check_agents_md.py
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
+#   - GitHub descriptions in .github/repository.toml that are empty, open with
+#     filler ("Repository for ..."), or are scaffold text (check_repo_description.py)
 #   - local-model serving drift: crew-chief's serving policy against the models
 #     actually pulled (crew-chief policy check --live)
 #   - KeePass vault access: every vault auto-pass is configured for must be
@@ -192,6 +194,38 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
                 ;;
         esac
     fi
+
+    # GitHub description: flag only filler wording and scaffold text. Advisory
+    # warnings are logged but do not count; whether the description still matches
+    # the repository is the agentic REFS audit's review, not a regex's.
+    description_status=0
+    set +e
+    description_output="$(
+        python3 "${SCRIPT_DIR}/check_repo_description.py" \
+            --repo "${repo}" \
+            --repo-rel "${rel}" 2>&1
+    )"
+    description_status=$?
+    set -e
+    case "${description_status}" in
+        0|1)
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] || continue
+                if [[ "${line}" == warning:* ]]; then
+                    warn "${rel}: repository description ${line}"
+                else
+                    missing+=("repository description: ${line}")
+                fi
+            done <<< "${description_output}"
+            ;;
+        *)
+            warn "${rel}: repository description checker error"
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] && warn "  checker: ${line}"
+            done <<< "${description_output}"
+            exit 2
+            ;;
+    esac
 
     # CHATHISTORY.md must be gitignored
     if ! grep -q "CHATHISTORY.md" "${repo}/.gitignore" 2>/dev/null; then

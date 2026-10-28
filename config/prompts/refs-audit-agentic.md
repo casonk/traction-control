@@ -6,6 +6,12 @@ Goal:
 - Identify gaps (missing references) and staleness (entries for things no longer used).
 - Update `REFS-PUBLIC.md` when the gap is unambiguous and the correct entry is clear.
 - Report findings across all repos in a concise summary.
+- Also compare each repo's GitHub description (`.github/repository.toml`, the
+  `description` key) with its README summary and `AGENTS.md` scope. Report a
+  description that is stale, generic, or overstates the repo's scope, or that
+  names a private repository. Do not edit it: a description change goes through
+  a pull request and `scripts/repo_settings.py`. Stay conservative; a harmless
+  wording difference is not a finding.
 
 Working rules:
 - Read `AGENTS.md`, `LESSONSLEARNED.md`, and `CHATHISTORY.md` in `traction-control` first.

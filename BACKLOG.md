@@ -16,18 +16,6 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
-- [ ] [manual:2026-10-26] **Add agentic repo-description fidelity checks.**
-  Extend the portfolio audit and agentic sweep so each repository's
-  `.github/repository.toml` description is reviewed against the repo's current
-  purpose, README summary, AGENTS.md scope, and GitHub-visible behavior. Flag
-  stale, generic, or misleading descriptions such as "utility repo",
-  "repository for ...", or labels that overstate scope or leak private details.
-  Keep the signal conservative: only report real drift or low-information
-  wording, not harmless wording changes. Wire the check into
-  `scripts/portfolio-audit.sh` or a dedicated crew-chief review so the description
-  remains representative across the portfolio rather than only being manually
-  cleaned during one-off audits.
-
 - [ ] [manual:2026-10-23] **Re-enable GitHub Actions after billing and batch safeguards are ready.**
   Restore the per-repository Actions settings from the local attachment and
   preserve each repository’s recorded prior state. Before re-enabling, set and
@@ -229,6 +217,16 @@ with a `README.md` pointing back here. The item names its id as
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-10-26] **Add agentic repo-description fidelity checks.**
+  `scripts/check_repo_description.py` runs in `portfolio-audit.sh` and counts an
+  empty description, filler wording ("Repository for ..."), or scaffold text as a
+  gap; a self-named opener, template or fork wording, and an over-long
+  description are advisory warnings. The weekly REFS audit prompt also reports
+  descriptions that no longer match the README or `AGENTS.md` scope, without
+  editing them. A lexical README-overlap score was tried and rejected as too
+  noisy. Descriptions still change only through `repository.toml` and
+  `repo_settings.py`.
 
 - [x] [manual:2026-10-16] **Repair empty Python distributions before PyPI
   release.** These repositories ship scripts and data, not a package, so each of

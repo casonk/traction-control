@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/check_repo_description.py` and a "repository description" check to
+  `portfolio-audit.sh`: an empty description, filler wording such as "Repository
+  for ...", or scaffold text is a gap, and a self-named opener, template or fork
+  wording, or an over-long description is an advisory warning. The weekly REFS
+  audit prompt now also reports descriptions that no longer match the README or
+  `AGENTS.md` scope, without editing them. Replace this repository's own stale
+  description.
+
 - Add a "vault access" phase to `portfolio-audit.sh` that calls
   `auto-pass check-access` and counts every KeePass vault the login cannot read
   or write as a gap.
