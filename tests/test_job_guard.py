@@ -243,6 +243,31 @@ class InstallTests(TempDirCase):
         self.assertNotIn("TimeoutStartSec", body)
         self.assertIn("own limit kept", report[0])
 
+    def test_a_unit_that_already_carries_the_check_is_not_checked_twice(self) -> None:
+        # clockwork renders `start_condition` into the unit itself.
+        self.unit(
+            "native.service",
+            "[Service]\nType=oneshot\n"
+            f"ExecCondition=/usr/bin/python3 {self.script} check --unit %n\n"
+            "ExecStart=/bin/true\n",
+        )
+        self.unit("native.timer", "[Timer]\nOnCalendar=daily\n")
+        self.unit(
+            "other.service",
+            "[Service]\nType=oneshot\nExecCondition=/usr/bin/test -f /ready\nExecStart=/bin/true\n",
+        )
+        self.unit("other.timer", "[Timer]\nOnCalendar=daily\n")
+
+        report = self.install()
+
+        native = (self.units / "native.service.d" / guard.DROPIN_NAME).read_text()
+        self.assertNotIn("ExecCondition", native)
+        self.assertIn("TimeoutStartSec=3h", native)
+        self.assertTrue(any("native.service" in r and "own check kept" in r for r in report))
+        # An unrelated condition is not this guard, so the guard is still added.
+        other = (self.units / "other.service.d" / guard.DROPIN_NAME).read_text()
+        self.assertIn(f"ExecCondition=/usr/bin/python3 {self.script} check --unit %n", other)
+
     def test_template_instances_and_per_unit_policy(self) -> None:
         self.unit("snap@.service")
         self.unit("snap@noon.timer", "[Timer]\nOnCalendar=12:00\n")
