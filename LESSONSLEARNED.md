@@ -12,6 +12,13 @@
 
 ## Lessons
 
+- Before landing a long-lived uncommitted working tree, rebase it onto the
+  current default branch and diff the result for *removals*, not just
+  additions. A working copy that drifted behind silently reverts work merged
+  since (tests, docs, lessons, backlog entries) and still passes its own test
+  suite. Ship only the files and hunks that belong together, from a clean
+  worktree, and restore anything the diff deletes that the change did not mean
+  to delete.
 - Runtime artifacts and generated files must be removed from the Git index as
   well as the working tree. A stale `__pycache__` or compiled `.pyc` entry is a
   tracked repository gap even when the filesystem copy is deleted, and the
