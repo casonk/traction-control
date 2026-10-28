@@ -12,6 +12,15 @@
 
 ## Lessons
 
+- A portfolio runtime-upgrade sweep must validate dependency resolution and
+  package builds separately from running source-tree tests: a green suite can
+  coexist with an unbuildable `pyproject.toml`, an undeclared local dependency,
+  or a declared dependency that has no wheel/source support for the new runtime.
+  For Unix-socket and owner-only-path tests, use a deliberately short,
+  owner-only pytest `--basetemp` below `$XDG_RUNTIME_DIR`; `/tmp` can trigger
+  security guards, while long pytest paths can exceed `sockaddr_un`. Re-run
+  socket-dependent failures with normal local socket permissions before calling
+  them runtime regressions.
 - A vault that reports "not readable" is usually a file-permission change, not
   a locked database or a bad password. A sync service running as another account
   can rewrite a KeePass file so it is owned by that account with no ACL entry for
