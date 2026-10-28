@@ -19,6 +19,8 @@
 #     readable and writable by this login (auto-pass check-access)
 #   - checkout currency: a checkout on its default branch must not be behind
 #     origin, and a checkout on a work branch must not hold unpushed commits
+#   - open pull requests: any PR the account authored that has sat open for more
+#     than STALE_PR_DAYS (default 3) days
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -519,6 +521,36 @@ for repo in "${REPO_DIRS[@]+"${REPO_DIRS[@]}"}"; do
 done
 (( STALE_COUNT > 0 )) || log "every scanned checkout is current or fully pushed"
 
+# ── open pull requests ───────────────────────────────────────────────────────
+# Generated PRs (architecture diagrams, REFS refreshes) are merged by hand, and on
+# 2026-10-28 thirty-nine had piled up unmerged. A PR left open this long is
+# either ready to merge or stale and should be closed.
+log ""
+log "=== open pull requests ==="
+STALE_PR_COUNT=0
+STALE_PR_DAYS="${STALE_PR_DAYS:-3}"
+if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+    log "open pull requests SKIPPED: gh is not installed or not authenticated"
+else
+    stale_cutoff="$(python3 -c "import datetime as d,sys; print((d.date.today()-d.timedelta(days=int(sys.argv[1]))).isoformat())" "${STALE_PR_DAYS}")"
+    set +e
+    stale_prs="$(gh search prs --author @me --state open --created "<${stale_cutoff}" --limit 100 \
+        --json repository,number,title,createdAt \
+        -q '.[] | "\(.repository.nameWithOwner)#\(.number) \(.title) (opened \(.createdAt[0:10]))"' 2>&1)"
+    stale_status=$?
+    set -e
+    if (( stale_status != 0 )); then
+        warn "open pull requests check could not run: $(tail -1 <<< "${stale_prs}")"
+    else
+        while IFS= read -r line; do
+            [[ -n "${line}" ]] || continue
+            warn "open for over ${STALE_PR_DAYS} days: ${line}"
+            STALE_PR_COUNT=$(( STALE_PR_COUNT + 1 ))
+        done <<< "${stale_prs}"
+        (( STALE_PR_COUNT > 0 )) || log "no pull request has been open for over ${STALE_PR_DAYS} days"
+    fi
+fi
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
@@ -527,6 +559,7 @@ log "disclosures    : ${DISCLOSURE_COUNT}"
 log "serving policy : ${POLICY_COUNT}"
 log "vault access   : ${VAULT_COUNT}"
 log "stale checkouts: ${STALE_COUNT}"
+log "stale open PRs : ${STALE_PR_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -535,7 +568,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi

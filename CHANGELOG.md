@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add an "open pull requests" phase to `portfolio-audit.sh`: a PR the account
+  authored that has been open for more than `STALE_PR_DAYS` (default 3) days is a
+  gap, so generated diagram and REFS PRs cannot pile up unmerged again.
+
 - Add a "checkout currency" phase to `portfolio-audit.sh`: a checkout on its
   default branch that is behind origin, or on a work branch holding commits that
   are on no remote, is a gap. The REFS audit prompt now edits in a worktree and
