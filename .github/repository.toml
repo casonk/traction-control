@@ -3,7 +3,7 @@
 
 [repository]
 # One line shown on GitHub. Keep it free of private repository names and local paths.
-description = "Store the portfolio-wide AGENTS.md used for cross-repo maintenance work. Store the portfolio-wide CHATHISTORY.md used for local session continuity. Define the baseline conventions for repositories under the portfolio root. Act as the home repo for future cross-repo automation or inventory tooling."
+description = "Portfolio control plane: shared agent standards, repository visibility and lifecycle registry, portfolio audits, and scheduled agentic maintenance."
 
 [main_branch]
 # Direct commits and pushes to main are refused unless this is true.
