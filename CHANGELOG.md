@@ -4,6 +4,12 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add a "checkout currency" phase to `portfolio-audit.sh`: a checkout on its
+  default branch that is behind origin, or on a work branch holding commits that
+  are on no remote, is a gap. The REFS audit prompt now edits in a worktree and
+  no longer leaves checkouts on local-only branches, which had stranded work in
+  nineteen repositories.
+
 - Add `scripts/check_repo_description.py` and a "repository description" check to
   `portfolio-audit.sh`: an empty description, filler wording such as "Repository
   for ...", or scaffold text is a gap, and a self-named opener, template or fork

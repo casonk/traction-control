@@ -28,6 +28,11 @@ Working rules:
   the correct content is clear. Do not speculate about resources not visible in the code.
 - Do not invent entries. Only add references that are traceable to actual code or config.
 - Preserve existing structure and formatting conventions in `REFS-PUBLIC.md` files.
+- Never leave a repo's checkout on a work branch. Make each edit in a git worktree of
+  `origin/main` outside the checkout, commit there, push the branch and open a pull
+  request when push access works (otherwise leave the branch in the worktree and list
+  it in the summary), then remove the worktree. A checkout left on an unpushed branch
+  drifts behind `main` and is reported by the portfolio audit.
 - After editing a repo, run its local CI gate from `AGENTS.md` (typically `pre-commit run --all-files`).
 - If the CI gate passes, stage and commit the changes with a concise commit message.
 - Update `traction-control/CHATHISTORY.md` with a one-line entry per repo modified.
