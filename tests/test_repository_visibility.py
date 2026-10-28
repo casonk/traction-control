@@ -1140,6 +1140,15 @@ class RepositoryVisibilityTests(unittest.TestCase):
         )
         return path
 
+    def test_tracked_common_words_example_stays_synthetic(self) -> None:
+        # The real list names private repositories, so it lives in the ignored
+        # common-words.local.json. The tracked example ships in public history
+        # and must only ever carry placeholder names.
+        example = REPO_ROOT / "config" / "repository-visibility" / "common-words.example.json"
+        names = [entry["name"] for entry in json.loads(example.read_text())["common_words"]]
+        self.assertTrue(names)
+        self.assertTrue(all(name.startswith("example-") for name in names), names)
+
     def test_common_word_names_match_only_as_repository_references(self) -> None:
         self._write_pair(
             private=[

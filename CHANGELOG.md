@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Restore `common-words.example.json` to a synthetic placeholder and add a test
+  that it stays one. The real list names private repositories and belongs in the
+  ignored `common-words.local.json`; the privacy hook caught the leak.
+
 - Make the twice-weekly Archility job render diagrams in isolated clones and
   open diagram-only pull requests for registry-verified active repositories.
   Dirty checkouts are left untouched, existing Archility PRs are not
