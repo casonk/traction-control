@@ -89,13 +89,6 @@ with a `README.md` pointing back here. The item names its id as
   though its project JSON endpoint returned 404. Suggested distribution name:
   `casonk-auto-pass` (no project record on 2026-10-18). Keep its import name;
   confirm the replacement name in PyPI's publisher form before release.
-- [ ] [manual:2026-10-16] **Repair empty Python distributions before PyPI
-  release.** The current wheels for `short-circuit`, `shock-relay`,
-  `snowbridge`, `wiring-harness`, `citegres`, `fred-public-data`, and
-  `zillow-public-data` contain no Python module or CLI. Either package the
-  intended reusable interface and test a clean installation, or remove
-  package/publish metadata that implies a usable distribution.
-
 - [ ] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
   Use `docs/baseline-content-review.md` and the ignored audit log. Resolve the
   remaining agent-convention, security-policy, and missing `.editorconfig`
@@ -111,12 +104,6 @@ with a `README.md` pointing back here. The item names its id as
   checks found none. Keep that branch and its unpublished content out of
   public pushes; review whether the legacy branch is still needed before
   retiring it through the existing branch lifecycle process.
-- [ ] [manual:2026-10-15] **Align release notes with published tags.** Review
-  `sonetsim` and `snowbridge` tags, version metadata, and release contents;
-  replace their unreleased-only changelog history with accurate versioned
-  entries. Keep this repo-specific, since the 47-checkout scan found no
-  justification for a portfolio-wide changelog rewrite.
-
 - [ ] [manual:2026-10-15] **Ask GitHub Support to purge rewritten history** — four
   history rewrites have left old commits reachable on GitHub by hash and
   through the read-only `refs/pull/*` refs of earlier pull requests:
@@ -242,6 +229,19 @@ with a `README.md` pointing back here. The item names its id as
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-10-16] **Repair empty Python distributions before PyPI
+  release.** These repositories ship scripts and data, not a package, so each of
+  `short-circuit`, `shock-relay`, `snowbridge`, `wiring-harness`, `citegres`,
+  `fred-public-data`, and `zillow-public-data` now carries the
+  `Private :: Do Not Upload` classifier and PyPI rejects an upload of its empty
+  wheel. Packaging a real interface remains an option per repository.
+
+- [x] [manual:2026-10-15] **Align release notes with published tags.**
+  `sonetsim` has versioned changelog entries for its three published releases and
+  a note on its release-title/tag mismatch. `snowbridge` has no tags of its own
+  on GitHub (its local tags are vendored upstream File Browser tags), so its
+  unreleased-only changelog is accurate; never push those tags.
 
 - [x] [manual:2026-10-11] **Native guard fields in clockwork.** Clockwork
   manifests accept `start_condition` and `time_limit`, rendered as
