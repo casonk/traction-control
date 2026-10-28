@@ -8,6 +8,10 @@ All notable changes to `traction-control` are documented here.
   that it stays one. The real list names private repositories and belongs in the
   ignored `common-words.local.json`; the privacy hook caught the leak.
 
+- Let `job_guard.py install` leave a unit alone that already carries the guard's
+  `ExecCondition=` (as rendered by clockwork's new `start_condition`), so the
+  check does not run twice.
+
 - Make the twice-weekly Archility job render diagrams in isolated clones and
   open diagram-only pull requests for registry-verified active repositories.
   Dirty checkouts are left untouched, existing Archility PRs are not

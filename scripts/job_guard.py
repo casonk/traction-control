@@ -422,6 +422,17 @@ def _declares_timeout(unit_dir: Path, unit: str) -> bool:
     )
 
 
+def _declares_guard(unit_dir: Path, unit: str) -> bool:
+    """True when the unit already carries this guard, e.g. rendered by clockwork."""
+    return bool(
+        re.search(
+            r"^\s*ExecCondition\s*=.*\bjob_guard\.py\s+check\b",
+            _unit_text(unit_dir, unit),
+            re.M,
+        )
+    )
+
+
 def _is_oneshot(unit_dir: Path, unit: str) -> bool:
     types = re.findall(r"^\s*Type\s*=\s*(\S+)", _unit_text(unit_dir, unit), re.M)
     return bool(types) and types[-1] == "oneshot"
@@ -434,13 +445,14 @@ def render_dropin(
     *,
     keep_own_timeout: bool,
     oneshot: bool = True,
+    keep_own_condition: bool = False,
 ) -> str:
     lines = [
         "# Managed by traction-control scripts/job_guard.py; do not edit.",
         "# Remove every such drop-in with: job_guard.py install --remove",
         "[Service]",
     ]
-    if policy.job_class != "exempt":
+    if policy.job_class != "exempt" and not keep_own_condition:
         lines.append(f"ExecCondition=/usr/bin/python3 {script} check --unit %n")
     if policy.timeout and not keep_own_timeout:
         # A oneshot job is "starting" for as long as it runs, so TimeoutStartSec
@@ -471,11 +483,19 @@ def install(
     for unit in timer_driven_services(unit_dir):
         policy = config.policy(unit)
         own = _declares_timeout(unit_dir, unit)
+        native = _declares_guard(unit_dir, unit)
         body = render_dropin(
-            unit, policy, script, keep_own_timeout=own, oneshot=_is_oneshot(unit_dir, unit)
+            unit,
+            policy,
+            script,
+            keep_own_timeout=own,
+            oneshot=_is_oneshot(unit_dir, unit),
+            keep_own_condition=native,
         )
         limit = "own limit kept" if own else (policy.timeout or "no limit")
-        report.append(f"{unit}: {policy.job_class}, {limit}")
+        report.append(
+            f"{unit}: {policy.job_class}, {limit}" + (", own check kept" if native else "")
+        )
         recorded[unit] = policy.job_class
         if dry_run:
             continue

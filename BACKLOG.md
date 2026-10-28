@@ -187,10 +187,6 @@ with a `README.md` pointing back here. The item names its id as
   jobs with a wrapper that runs the same `check` before the real command and
   reschedules itself, plus macOS readings for temperature and load. Until then
   scheduled jobs on the Mac run unguarded and without a time limit.
-- [ ] [manual:2026-10-11] **Native guard fields in clockwork** — Teach clockwork
-  manifests a start-condition and time-limit field so rendered units carry the
-  guard themselves instead of through drop-ins that must be re-installed after
-  every render.
 - [ ] [manual:2026-10-11] **Investigate workstation process crashes under load** — On
   2026-10-11 the Fedora desktop logged 25 core dumps in one day (`python3.14`, the
   VS Code server `node`, and `rg`) while the load average sat near 26 during the
@@ -246,6 +242,12 @@ with a `README.md` pointing back here. The item names its id as
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-10-11] **Native guard fields in clockwork.** Clockwork
+  manifests accept `start_condition` and `time_limit`, rendered as
+  `ExecCondition=` and `TimeoutStartSec=`/`RuntimeMaxSec=`; `job_guard.py install`
+  leaves a unit that already carries the check alone. Adopting the fields in each
+  repo's manifests is a separate, per-repo change.
 
 - [x] [manual:2026-10-10] **Purge stale local git state on a schedule.**
   `scripts/portfolio_purge.py` removes merged or redundant branches and

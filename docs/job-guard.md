@@ -55,7 +55,10 @@ python3 scripts/job_guard.py status              # readings and per-job verdict
 python3 scripts/job_guard.py install --remove    # take the drop-ins out again
 ```
 
-Re-run `install` after adding, removing, or re-rendering scheduled units.
+Re-run `install` after adding or removing scheduled units. A unit rendered by
+clockwork with `start_condition` and `time_limit` already carries the check and
+its limit; `install` leaves those alone (`own check kept`, `own limit kept`) and
+still records the unit's class.
 
 Policy is optional and local. Copy
 [`config/job-guard/config.example.toml`](../config/job-guard/config.example.toml)
