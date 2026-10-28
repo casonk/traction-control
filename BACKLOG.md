@@ -16,6 +16,13 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-28] **Disposition intake's private-name disclosure findings.**
+  The portfolio audit flags four indexed files in intake on its current main (an
+  email module and its test whose names match a private repository as a path
+  segment, the settings example, and the changelog). Decide per file whether to
+  rename, reword, or record the ordinary-word use as intended; do not weaken the
+  audit.
+
 - [ ] [manual:2026-10-23] **Re-enable GitHub Actions after billing and batch safeguards are ready.**
   Restore the per-repository Actions settings from the local attachment and
   preserve each repository’s recorded prior state. Before re-enabling, set and
@@ -77,15 +84,6 @@ with a `README.md` pointing back here. The item names its id as
   though its project JSON endpoint returned 404. Suggested distribution name:
   `casonk-auto-pass` (no project record on 2026-10-18). Keep its import name;
   confirm the replacement name in PyPI's publisher form before release.
-- [ ] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
-  Use `docs/baseline-content-review.md` and the ignored audit log. Resolve the
-  remaining agent-convention, security-policy, and missing `.editorconfig`
-  and `REFS-PUBLIC.md` findings in their owning repositories. The
-  current-default-branch contribution-disclosure gaps were resolved on
-  2026-10-15; a local legacy branch may still report a historical match.
-  Verify each fix against the repo's current behavior and local CI; do not
-  bulk-copy templates or treat age alone as a failure. Re-run the portfolio
-  audit after the sweep, including its disclosure phase.
 - [ ] [manual:2026-10-15] **Disposition the local legacy-branch disclosure
   findings in `intake`.** The portfolio audit found 12 matching indexed files
   in a pre-rewrite local branch, while the local `main` and `origin/main`
@@ -217,6 +215,12 @@ with a `README.md` pointing back here. The item names its id as
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
+  A full `portfolio-audit.sh` run on 2026-10-28 over 50 checkouts reports zero
+  baseline gaps (agent conventions, security policy, editorconfig, REFS-PUBLIC,
+  repository descriptions, vault access, checkout currency). Its only open
+  findings are private-name disclosures, tracked in the intake item.
 
 - [x] [manual:2026-10-26] **Add agentic repo-description fidelity checks.**
   `scripts/check_repo_description.py` runs in `portfolio-audit.sh` and counts an
