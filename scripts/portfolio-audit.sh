@@ -13,6 +13,8 @@
 #   - SECURITY.md files that exist but miss portfolio best-practice guidance
 #   - local-model serving drift: crew-chief's serving policy against the models
 #     actually pulled (crew-chief policy check --live)
+#   - KeePass vault access: every vault auto-pass is configured for must be
+#     readable and writable by this login (auto-pass check-access)
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -401,12 +403,55 @@ else
     esac
 fi
 
+# ── KeePass vault access ─────────────────────────────────────────────────────
+# A sync service that rewrites a vault under another account leaves it
+# unreadable for this login, and every consumer then fails with a misleading
+# "not readable". auto-pass names each such vault and the fix.
+log ""
+log "=== vault access ==="
+VAULT_COUNT=0
+AUTO_PASS_REPO=""
+for repo in "${REPO_DIRS[@]}"; do
+    case "$(git -C "${repo}" remote get-url origin 2>/dev/null || true)" in
+        */auto-pass|*/auto-pass.git) AUTO_PASS_REPO="${repo}"; break ;;
+    esac
+done
+if [[ -z "${AUTO_PASS_REPO}" ]]; then
+    log "vault access SKIPPED: no auto-pass checkout found"
+elif [[ ! -f "${AUTO_PASS_REPO}/config/auto-pass.env.local" ]]; then
+    log "vault access SKIPPED: ${AUTO_PASS_REPO#${PORTFOLIO_ROOT}/} has no config/auto-pass.env.local"
+else
+    set +e
+    vault_output="$(
+        cd "${AUTO_PASS_REPO}" && PYTHONPATH="${AUTO_PASS_REPO}/src" \
+            python3 -m auto_pass --env-file config/auto-pass.env.local check-access 2>&1
+    )"
+    vault_status=$?
+    set -e
+    case "${vault_status}" in
+        0) log "${vault_output#ok: }" ;;
+        1)
+            while IFS= read -r line; do
+                [[ "${line}" == error:* ]] || continue
+                warn "vault access: ${line#error: }"
+                VAULT_COUNT=$(( VAULT_COUNT + 1 ))
+            done <<< "${vault_output}"
+            ;;
+        *)
+            # An older auto-pass without the command, or a broken setup: say so
+            # without counting it as drift, since this run cannot see the vaults.
+            warn "vault access check could not run: $(tail -1 <<< "${vault_output}")"
+            ;;
+    esac
+fi
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
 log "total gaps     : ${GAP_COUNT}"
 log "disclosures    : ${DISCLOSURE_COUNT}"
 log "serving policy : ${POLICY_COUNT}"
+log "vault access   : ${VAULT_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -415,7 +460,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi

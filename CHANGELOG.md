@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add a "vault access" phase to `portfolio-audit.sh` that calls
+  `auto-pass check-access` and counts every KeePass vault the login cannot read
+  or write as a gap.
+
 - Restore `common-words.example.json` to a synthetic placeholder and add a test
   that it stays one. The real list names private repositories and belongs in the
   ignored `common-words.local.json`; the privacy hook caught the leak.

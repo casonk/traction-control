@@ -12,6 +12,17 @@
 
 ## Lessons
 
+- A vault that reports "not readable" is usually a file-permission change, not
+  a locked database or a bad password. A sync service running as another account
+  can rewrite a KeePass file so it is owned by that account with no ACL entry for
+  the login, which breaks every consumer at once (SSH key loading, mail
+  listeners, provisioning). Run `auto-pass check-access` first; the portfolio
+  audit reports it as "vault access". `--fix-acl` adds a default ACL entry on a
+  directory you own so later rewrites stay readable, but repairing the current
+  file owned by someone else needs a `sudo setfacl` the user must run. The
+  provisioning allowlist is per repository and the caller is inferred from the
+  working directory, so run `provision-get` from the repository that holds the
+  grant.
 - Before landing a long-lived uncommitted working tree, rebase it onto the
   current default branch and diff the result for *removals*, not just
   additions. A working copy that drifted behind silently reverts work merged
