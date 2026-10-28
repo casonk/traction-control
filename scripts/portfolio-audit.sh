@@ -17,6 +17,8 @@
 #     actually pulled (crew-chief policy check --live)
 #   - KeePass vault access: every vault auto-pass is configured for must be
 #     readable and writable by this login (auto-pass check-access)
+#   - checkout currency: a checkout on its default branch must not be behind
+#     origin, and a checkout on a work branch must not hold unpushed commits
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -479,6 +481,44 @@ else
     esac
 fi
 
+# ── checkout currency ────────────────────────────────────────────────────────
+# A checkout that has drifted behind origin runs old code, and commits left on a
+# local-only work branch are stranded: on 2026-10-28 nineteen checkouts sat on
+# unpushed audit branches, some holding real work. Dirty trees are another
+# session's in-flight edits and are not counted. A failed fetch (no SSH agent
+# under a timer, offline) is reported and the last-fetched refs are used.
+log ""
+log "=== checkout currency ==="
+STALE_COUNT=0
+for repo in "${REPO_DIRS[@]+"${REPO_DIRS[@]}"}"; do
+    rel="${repo#${PORTFOLIO_ROOT}/}"
+    git -C "${repo}" remote get-url origin >/dev/null 2>&1 || continue
+    branch="$(git -C "${repo}" branch --show-current 2>/dev/null || true)"
+    [[ -n "${branch}" ]] || continue
+    if ! timeout 20 git -C "${repo}" fetch -q --prune origin >/dev/null 2>&1; then
+        warn "${rel}: currency check could not fetch origin; using last-fetched refs"
+    fi
+    default_ref="$(git -C "${repo}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+    default_ref="${default_ref:-origin/main}"
+    git -C "${repo}" rev-parse -q --verify "${default_ref}" >/dev/null 2>&1 || continue
+    counts="$(git -C "${repo}" rev-list --left-right --count "HEAD...${default_ref}" 2>/dev/null || true)"
+    [[ -n "${counts}" ]] || continue
+    read -r _ahead behind <<< "${counts}"
+    if [[ "${branch}" == "${default_ref#origin/}" ]]; then
+        if (( behind > 0 )); then
+            warn "${rel}: ${branch} is ${behind} commit(s) behind ${default_ref}"
+            STALE_COUNT=$(( STALE_COUNT + 1 ))
+        fi
+    else
+        unpushed="$(git -C "${repo}" rev-list --count HEAD --not --remotes 2>/dev/null || echo 0)"
+        if (( unpushed > 0 )); then
+            warn "${rel}: on '${branch}' with ${unpushed} commit(s) not on any remote"
+            STALE_COUNT=$(( STALE_COUNT + 1 ))
+        fi
+    fi
+done
+(( STALE_COUNT > 0 )) || log "every scanned checkout is current or fully pushed"
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
@@ -486,6 +526,7 @@ log "total gaps     : ${GAP_COUNT}"
 log "disclosures    : ${DISCLOSURE_COUNT}"
 log "serving policy : ${POLICY_COUNT}"
 log "vault access   : ${VAULT_COUNT}"
+log "stale checkouts: ${STALE_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -494,7 +535,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
