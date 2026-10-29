@@ -12,6 +12,12 @@
 
 ## Lessons
 
+- A privacy refactor that replaces a tracked private checkout path with a
+  neutral placeholder is an operational migration, not only a code cleanup.
+  Update ignored host manifests and installed service environments in the same
+  rollout, restart the consumer, and probe it against the real producer
+  artifact; otherwise a healthy service can silently fall back to the
+  placeholder and report missing data.
 - Treat a cross-repository virtual-environment upgrade as a live service
   cutover. Stop every dependent service and timer, preserve the old environment
   outside the checkout, and create the replacement at its final path because
