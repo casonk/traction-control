@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import random
 import sys
 import tempfile
@@ -123,6 +124,8 @@ class CheckTests(TempDirCase):
         self.assertEqual(retries, [])
         self.assertIn("next scheduled run", message)
         self.assertEqual(guard.read_state(self.state, "job.service"), {})
+        events = [json.loads(x) for x in (self.state / "events.jsonl").read_text().splitlines()]
+        self.assertEqual([(e["kind"], e["unit"]) for e in events], [("dropped", "job.service")])
 
     def test_heavy_job_defers_to_a_recorded_heavy_peer_but_not_a_light_one(self) -> None:
         self.state.mkdir()

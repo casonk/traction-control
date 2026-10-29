@@ -149,12 +149,10 @@ with a `README.md` pointing back here. The item names its id as
 
 ### Other
 
-- [ ] [manual:2026-10-11] **Job guard notifications** — Tell the owner when the guard
-  drops a job after its deferral cap, and when the machine stays hot or busy long
-  enough that jobs keep deferring. Today that is only visible in the journal and
-  in `job_guard.py status`. Route it through crew-chief (which already listens on
-  the shock-relay channels) rather than giving the guard its own messaging path,
-  and de-duplicate so one hot evening is one message, not one per job.
+- [ ] [manual:2026-10-11] **Enable job guard notifications.** `job_guard_notify.py`
+  and its Clockwork template exist; set `JOB_GUARD_NOTIFY_*_TARGET` in
+  `~/.config/traction-control/job-guard-notify.env`, install the timer, and
+  rerun `job_guard.py install`. Telegram needs the bot token first.
 - [ ] [manual:2026-10-11] **Job guard on macOS** — The guard depends on systemd's
   `ExecCondition=` and transient timers, and launchd has neither. Cover launchd
   jobs with a wrapper that runs the same `check` before the real command and

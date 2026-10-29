@@ -66,6 +66,29 @@ to `~/.config/portfolio-job-guard/config.toml` to change thresholds or to mark
 a unit `light` or `exempt`. Deferral counts live under
 `~/.local/state/portfolio-job-guard/`.
 
+## Notifications
+
+`check` appends an event to `~/.local/state/portfolio-job-guard/events.jsonl`
+when it drops a job after `max_deferrals`; the guard never sends anything
+itself. `scripts/job_guard_notify.py` reads those events and the per-unit
+deferral state and sends at most one message per run, to Signal, Telegram and
+Gmail through shock-relay (`--channels` narrows it):
+
+- **dropped**: every job dropped since the last message, listed together;
+- **pressure**: every job that has been deferring for `--pressure-minutes`
+  (default 120) or more, repeated after `--renotify-hours` (default 6) while it
+  lasts. When it clears it is forgotten, so a new episode notifies at once.
+
+One hot evening is one message, not one per job. Targets are
+`JOB_GUARD_NOTIFY_{SIGNAL,TELEGRAM,GMAIL}_TARGET` (optional `..._CONFIG`) in
+`~/.config/traction-control/job-guard-notify.env`; a channel without a target is
+reported and skipped, and state is committed only when a channel delivered, so a
+failed send is retried on the next run. `JOB_GUARD_SHOCK_RELAY_ROOT` overrides
+the shock-relay checkout. Preview with `job_guard_notify.py --dry-run`. The
+notifier's own unit is never guarded (`install` skips it), so it still runs
+when every other job is deferred. Install the timer from
+`config/clockwork/job-guard-notify.toml.template` (every 15 minutes).
+
 ## Limits
 
 - Linux with a systemd user instance only. launchd has no equivalent of
@@ -74,5 +97,3 @@ a unit `light` or `exempt`. Deferral counts live under
 - "Another heavy job is running" is a check, not a lock: two jobs released in
   the same instant are ordered deterministically, but a job started by hand is
   not seen as a peer unless it is one of the guarded units.
-- A deferred run that is dropped after `max_deferrals` is only visible in the
-  journal and in `status`; there is no notification yet.

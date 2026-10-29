@@ -48,6 +48,7 @@ from pathlib import Path
 
 RUN, DEFER = 0, 75  # 75 is EX_TEMPFAIL; any 1-254 makes systemd skip the unit.
 DROPIN_NAME = "50-portfolio-job-guard.conf"
+NOTIFY_UNIT = "job-guard-notify.service"
 CLASSES = ("heavy", "light", "exempt")
 _TIMEOUT = re.compile(r"^[1-9][0-9]*(s|min|h)$")
 _UNIT = re.compile(r"^[A-Za-z0-9:_.@\\-]+\.service$")
@@ -329,6 +330,14 @@ def write_state(state_dir: Path, unit: str, state: dict | None) -> None:
     path.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def record_event(state_dir: Path, event: dict) -> None:
+    """Append one event for ``job_guard_notify.py``; the guard itself never messages."""
+    with contextlib.suppress(OSError):
+        state_dir.mkdir(parents=True, exist_ok=True)
+        with (state_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+
+
 def guarded_units(state_dir: Path) -> dict[str, str]:
     """Unit name -> class, as recorded by the last ``install``."""
     with contextlib.suppress(Exception):
@@ -372,6 +381,16 @@ def check(
         # Stop chasing this trigger; the unit's own timer will fire again on
         # schedule. Running anyway would defeat the point of the guard.
         write_state(state_dir, unit, None)
+        record_event(
+            state_dir,
+            {
+                "t": now or time.time(),
+                "kind": "dropped",
+                "unit": unit,
+                "deferrals": config.limits.max_deferrals,
+                "reason": reason,
+            },
+        )
         return DEFER, (
             f"{unit}: skipped after {config.limits.max_deferrals} deferrals ({reason}); "
             "waiting for its next scheduled run"
@@ -402,6 +421,8 @@ def timer_driven_services(unit_dir: Path) -> list[str]:
                 target = line.split("=", 1)[1].strip()
         target = target or timer.name.removesuffix(".timer") + ".service"
         template = re.sub(r"@[^.]*\.service$", "@.service", target)
+        if target == NOTIFY_UNIT:
+            continue  # the notifier must still run when every other job is deferred
         if _UNIT.match(target) and ((unit_dir / target).exists() or (unit_dir / template).exists()):
             services.add(target)
     return sorted(services)
