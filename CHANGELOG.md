@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/job_guard_notify.py`: one Signal, Telegram and Gmail message when the
+  job guard drops a job after its deferral cap or jobs keep deferring for two hours,
+  de-duplicated across jobs and over time. The guard records `dropped` events; the
+  notifier is exempt from guarding. Clockwork template `job-guard-notify`.
+
 - Add a repo-root `conftest.py` that moves pytest temp files to a private directory
   under the user cache when `/tmp` is the default, so a bare `pytest tests` no longer
   fails 79 sidecar and quadlet tests.

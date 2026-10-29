@@ -1,0 +1,17 @@
+[[jobs]]
+name = "job-guard-notify"
+description = "Tell the owner when the job guard drops a job or deferrals persist; one message per run"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "/usr/bin/python3 __REPO_ROOT__/scripts/job_guard_notify.py"
+environment_files = ["-%h/.config/traction-control/job-guard-notify.env"]
+standard_output = "journal"
+standard_error = "journal"
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "10min"
+on_unit_active_sec = "15min"
+persistent = true
+randomized_delay_sec = "60"
