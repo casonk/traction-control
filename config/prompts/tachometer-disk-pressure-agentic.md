@@ -43,8 +43,10 @@ Working rules:
 - Audit staged diffs for secrets, local-only personal identifiers, account
   numbers, and raw data before committing.
 - Run the target repo's local verification gate from `AGENTS.md` before commit.
-- Commit and push each modified target repo only after local validation passes.
-  After each push, verify hosted CI when the repo has GitHub Actions.
+- Commit each modified target repo on a branch in a git worktree of `origin/main` outside
+  the checkout, never on the default branch, and push it with a pull request only after local
+  validation passes. After the pull request merges, verify hosted CI when the repo has GitHub
+  Actions.
 - Do not rewrite history or revert unrelated user changes.
 
 Outcome:
