@@ -87,7 +87,11 @@ failed send is retried on the next run. `JOB_GUARD_SHOCK_RELAY_ROOT` overrides
 the shock-relay checkout. Preview with `job_guard_notify.py --dry-run`. The
 notifier's own unit is never guarded (`install` skips it), so it still runs
 when every other job is deferred. Install the timer from
-`config/clockwork/job-guard-notify.toml.template` (every 15 minutes).
+`config/clockwork/job-guard-notify.toml.template` (every 15 minutes): substitute
+`__REPO_ROOT__`, run `python3 -m clockwork install --manifest FILE --target
+systemd-user --unit-dir ~/.config/systemd/user` from the sibling clockwork
+checkout, then `systemctl --user enable --now job-guard-notify.timer`. The Telegram
+route stays skipped until its bot token exists.
 
 ## Limits
 
