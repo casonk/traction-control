@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Keep the repository-visibility CI test tree under the user cache (0700) instead of
+  `/tmp`: the sidecar and quadlet checks refuse a working directory with a
+  group- or world-writable ancestor, so 74 tests failed on any machine whose
+  default temp directory is `/tmp`.
+
 - Make the `ci-repair-agentic` and `tachometer-disk-pressure-agentic` prompts work
   in a worktree on a branch and open a pull request instead of pushing the default
   branch, which the main-branch guard refuses.
