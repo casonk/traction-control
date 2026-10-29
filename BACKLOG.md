@@ -149,10 +149,6 @@ with a `README.md` pointing back here. The item names its id as
 
 ### Other
 
-- [ ] [manual:2026-10-11] **Enable job guard notifications.** `job_guard_notify.py`
-  and its Clockwork template exist; set `JOB_GUARD_NOTIFY_*_TARGET` in
-  `~/.config/traction-control/job-guard-notify.env`, install the timer, and
-  rerun `job_guard.py install`. Telegram needs the bot token first.
 - [ ] [manual:2026-10-11] **Job guard on macOS** — The guard depends on systemd's
   `ExecCondition=` and transient timers, and launchd has neither. Cover launchd
   jobs with a wrapper that runs the same `check` before the real command and
