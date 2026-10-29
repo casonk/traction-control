@@ -6,14 +6,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REGISTRY_DIR="${REPO_ROOT}/config/repository-visibility"
-TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/repository-visibility-ci.XXXXXX")"
+# The sidecar and quadlet checks refuse a working directory with a group- or
+# world-writable ancestor, and /tmp is one, so keep the test tree under the
+# user's cache instead of wherever TMPDIR points.
+TEMP_BASE="${XDG_CACHE_HOME:-${HOME}/.cache}/traction-control-tests"
+mkdir -p "${TEMP_BASE}"
+chmod 700 "${TEMP_BASE}"
+TEST_ROOT="$(mktemp -d "${TEMP_BASE}/repository-visibility-ci.XXXXXX")"
 
 cleanup() {
   case "${TEST_ROOT}" in
-    "${TMPDIR:-/tmp}"/repository-visibility-ci.*) rm -rf "${TEST_ROOT}" ;;
+    "${TEMP_BASE}"/repository-visibility-ci.*) rm -rf "${TEST_ROOT}" ;;
   esac
 }
 trap cleanup EXIT HUP INT TERM
+
+# Point every child's temp files at the private (0700) directory made above.
+export TMPDIR="${TEST_ROOT}"
 
 cd "${REPO_ROOT}"
 
