@@ -12,6 +12,16 @@
 
 ## Lessons
 
+- Treat a cross-repository virtual-environment upgrade as a live service
+  cutover. Stop every dependent service and timer, preserve the old environment
+  outside the checkout, and create the replacement at its final path because
+  virtual environments embed absolute interpreter paths and are not safely
+  relocatable. Reinstall from declared/local dependencies, assert both the
+  runtime version and `sys._jit.is_enabled()` when JIT is intended, run each
+  repository's own suite, then verify effective systemd `ExecStart`/environment
+  values and loopback health before restoring schedules. Keep the distro-owned
+  system interpreter unchanged and use reversible per-user drop-ins for units
+  that previously bypassed their repository environment.
 - A portfolio runtime-upgrade sweep must validate dependency resolution and
   package builds separately from running source-tree tests: a green suite can
   coexist with an unbuildable `pyproject.toml`, an undeclared local dependency,
