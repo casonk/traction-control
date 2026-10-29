@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add a repo-root `conftest.py` that moves pytest temp files to a private directory
+  under the user cache when `/tmp` is the default, so a bare `pytest tests` no longer
+  fails 79 sidecar and quadlet tests.
+
 - Keep the repository-visibility CI test tree under the user cache (0700) instead of
   `/tmp`: the sidecar and quadlet checks refuse a working directory with a
   group- or world-writable ancestor, so 74 tests failed on any machine whose
