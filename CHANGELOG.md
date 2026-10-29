@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Make the `ci-repair-agentic` and `tachometer-disk-pressure-agentic` prompts work
+  in a worktree on a branch and open a pull request instead of pushing the default
+  branch, which the main-branch guard refuses.
+
 - Add an "open pull requests" phase to `portfolio-audit.sh`: a PR the account
   authored that has been open for more than `STALE_PR_DAYS` (default 3) days is a
   gap, so generated diagram and REFS PRs cannot pile up unmerged again.

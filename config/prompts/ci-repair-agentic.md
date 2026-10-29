@@ -12,9 +12,13 @@ Working rules:
 - Before editing a target repo, confirm its worktree is still clean. If it is dirty, skip it and document why.
 - Inspect the failing run(s) with `gh` or equivalent GitHub tooling before changing code.
 - Prefer the smallest fix that addresses the actual hosted CI failure.
+- Never commit or push to the default branch. Make each fix in a git worktree of `origin/main`
+  outside the checkout, on a new branch, and open a pull request. The default branch is
+  protected, so a direct push is refused; merge the pull request once its checks pass, then
+  remove the worktree and the branch.
 - Run the repo-local verification gate from `AGENTS.md` before any push.
 - If you commit or push, use Conventional Commits.
-- After pushing a fix, check the resulting hosted workflow run(s) and continue until the repo is green or clearly blocked.
+- After merging a fix, check the resulting hosted workflow run(s) on the default branch and continue until the repo is green or clearly blocked.
 - Do not rewrite history or revert unrelated user changes.
 - Update local `CHATHISTORY.md` in `traction-control` and in each repo you changed.
 - Add a durable lesson to repo-local or control-plane `LESSONSLEARNED.md` when new guidance generalizes.
