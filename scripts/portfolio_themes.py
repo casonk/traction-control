@@ -49,6 +49,7 @@ CONFIG_DIR = (
     / "traction-control"
 )
 LOCAL_PATH = CONFIG_DIR / "themes.local.toml"
+LIBRARY_PATH = ROOT / "themes" / "library.toml"
 RENDERED_DIR = CONFIG_DIR / "themes" / "rendered"
 STORE_SHARED = CONFIG_DIR / "sites" / "_shared"
 PUBLISHED = {
@@ -87,6 +88,30 @@ def local_path() -> Path:
 def rendered_for(store: Path) -> Path:
     """Where the rendered files go for a site store: beside it, in ``themes/rendered``."""
     return store.parent / "themes" / "rendered"
+
+
+def load_library(path: Path = LIBRARY_PATH) -> dict[str, list[dict[str, str]]]:
+    """The tracked global colour and emoji library, validated: what an editor offers to pick from."""
+    document = tomllib.loads(path.read_text(encoding="utf-8"))
+    colours, emoji = document.get("colours", []), document.get("emoji", [])
+    seen: set[tuple[str, str]] = set()
+    for kind, rows, key in (("colours", colours, "hex"), ("emoji", emoji, "glyph")):
+        for row in rows:
+            name, group = row.get("name", ""), row.get("group", "")
+            if not LIBRARY_NAME.fullmatch(str(name)):
+                raise LocalThemeError(f"library {kind}: bad name {name!r}")
+            if (kind, name) in seen:
+                raise LocalThemeError(f"library {kind}: duplicate name {name!r}")
+            seen.add((kind, name))
+            _text(f"library {kind}.{name}.group", group, 32)
+            if kind == "colours" and not base.HEX.fullmatch(str(row.get(key, ""))):
+                raise LocalThemeError(f"library colours.{name}: hex must be #rrggbb")
+            if kind == "emoji":
+                _glyph(f"library emoji.{name}", row.get(key))
+    return {
+        "colours": [{"name": c["name"], "hex": c["hex"].lower(), "group": c["group"]} for c in colours],
+        "emoji": [{"name": e["name"], "glyph": e["glyph"], "group": e["group"]} for e in emoji],
+    }
 
 
 def empty() -> dict[str, Any]:
@@ -521,6 +546,7 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
             for name, scale in base.SCALES.items()
         ],
         "tokens": list(base.TOKENS),
+        "library": load_library(),
         "paths": {
             "local": str(path),
             "rendered": str(RENDERED_DIR),
