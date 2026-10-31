@@ -264,7 +264,7 @@ class EnrollmentTests(unittest.TestCase):
         self.assertFalse((repo / "pkg").exists())
         ps.vendor(entry, self.portfolio, apply=True)
         target = repo / "pkg" / "portfolio"
-        self.assertEqual(sorted(p.name for p in target.iterdir()), sorted([*ps.VENDORED, ps.MANIFEST]))
+        self.assertEqual(sorted(p.name for p in target.iterdir()), sorted([*ps.VENDORED, "__init__.py", ps.MANIFEST]))
         self.assertEqual((target / ps.MANIFEST).read_text(), ps.manifest_text(target))
         self.assertEqual(ps.vendor(entry, self.portfolio, apply=False).strip(), "ok")
         (target / "theme.css").write_text("tampered")

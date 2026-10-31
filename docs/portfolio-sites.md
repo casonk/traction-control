@@ -98,7 +98,7 @@ Theme assets are generic and safe to vendor anywhere. The private parts are `sit
 1. Add `/.portfolio` to its `.gitignore` and a synthetic `config/portfolio-site.example.toml`
    (`[site]` with `fronting = "direct"`).
 2. Enrol it (tracked file if public, overlay if private) and run `vendor --apply`, which writes
-   `site.py`, the three fallback assets and a `MANIFEST.sha256` into its `vendor_dir`.
+   `__init__.py`, `site.py`, the three fallback assets and a `MANIFEST.sha256` into its `vendor_dir`.
 3. In its request handler, answer `/_portfolio/*` from
    `site = portfolio_site.resolve(repo_root, vendored=vendor_dir)` and `site.response(path)`.
    Add the three tags above to each page, and a test that the manifest matches the files.
