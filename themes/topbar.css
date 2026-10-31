@@ -23,7 +23,7 @@
   text-align: left;
 }
 .pf-topbar a, .pf-topbar summary { color: inherit; text-decoration: none; }
-.pf-topbar__brand, .pf-topbar__direct, .pf-topbar summary, .pf-topbar__theme {
+.pf-topbar__brand, .pf-topbar__direct, .pf-topbar summary, .pf-topbar__theme, .pf-topbar__rotator {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -79,7 +79,8 @@
   pointer-events: none;
 }
 .pf-topbar__themewrap { display: flex; align-items: center; flex: none; margin-left: auto; }
-.pf-topbar__theme {
+.pf-topbar__theme,
+.pf-topbar__rotator {
   flex: none;
   color: inherit;
   background: none;
@@ -88,22 +89,19 @@
   font: inherit;
   cursor: pointer;
 }
-.pf-topbar__theme:hover { color: var(--pf-text); background: var(--pf-accent-dim); }
-.pf-topbar__group--theme > summary {
+.pf-topbar__themewrap > .pf-topbar__rotator ~ .pf-topbar__rotator,
+.pf-topbar__themewrap > .pf-topbar__theme { margin-left: 8px; }
+.pf-topbar__theme:hover, .pf-topbar__rotator:hover { color: var(--pf-text); background: var(--pf-accent-dim); }
+.pf-topbar__group--theme > summary,
+.pf-topbar__group--caret > summary {
   border: 1px solid var(--pf-border);
   border-left-width: 0;
   border-radius: 0 7px 7px 0;
   padding: 6px 8px;
 }
-.pf-topbar__group--theme > summary::after { font-size: 11px; opacity: 1; }
+.pf-topbar__group--theme > summary::after,
+.pf-topbar__group--caret > summary::after { font-size: 11px; opacity: 1; }
 .pf-topbar__group--theme .pf-topbar__menu { min-width: 260px; }
-.pf-topbar__group--type > summary {
-  border: 1px solid var(--pf-border);
-  border-radius: 7px;
-  margin-right: 6px;
-  padding: 6px 8px;
-}
-.pf-topbar__group--type .pf-topbar__menu { min-width: 180px; }
 .pf-topbar [data-type-label] {
   padding: 8px 11px 2px;
   color: var(--pf-muted);
@@ -142,7 +140,8 @@
   .pf-topbar__groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; width: 100%; }
   .pf-topbar__direct, .pf-topbar summary { justify-content: center; min-height: 36px; padding: 4px 2px; font-size: 12px; }
   .pf-topbar__themewrap { position: absolute; top: 4px; right: 10px; margin: 0; }
-  .pf-topbar__theme { min-height: 30px; padding: 2px 8px; }
-  .pf-topbar__group--theme > summary { min-height: 30px; padding: 2px 6px; }
+  .pf-topbar__theme, .pf-topbar__rotator { min-height: 30px; padding: 2px 8px; }
+  .pf-topbar__group--theme > summary,
+  .pf-topbar__group--caret > summary { min-height: 30px; padding: 2px 6px; }
   .pf-topbar__menu, .pf-topbar__group--right .pf-topbar__menu { position: fixed; top: 88px; left: 10px; right: 10px; min-width: 0; max-width: none; max-height: min(65vh, 500px); }
 }

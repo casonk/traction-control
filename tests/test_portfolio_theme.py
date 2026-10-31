@@ -184,6 +184,13 @@ class ThemeSourceTests(unittest.TestCase):
         ):
             self.assertIn(needle, js)
         self.assertIn('"Tiny"', js)
+        self.assertIn("bindType", js)
+        self.assertIn('kind === "size"', js)
+        chrome = rpt.render(self.document)["portfolio-chrome.js"]
+        self.assertIn('rotatorFor("font"', chrome)
+        self.assertIn('rotatorFor("size"', chrome)
+        self.assertIn("Choose a font", chrome)
+        self.assertIn("Choose a size", chrome)
         with self.assertRaises(rpt.ThemeError):
             rpt.type_settings({"type": {"font": "comic sans", "size": "medium"}})
         with self.assertRaises(rpt.ThemeError):
