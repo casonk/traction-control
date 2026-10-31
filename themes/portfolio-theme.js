@@ -62,14 +62,18 @@
     apply(name);
   }
   function cycle() { set(following(current() || pick())); }
+  function bind(el) {
+    if (el.pfBound) return;
+    el.pfBound = true;
+    el.addEventListener("click", cycle);
+    paintCycle(el, current() || pick());
+  }
   apply(pick());
   window.addEventListener("storage", function (event) {
     if (event.key === KEY && THEMES[event.newValue]) apply(event.newValue);
   });
   document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll("[data-theme-cycle]").forEach(function (el) {
-      el.addEventListener("click", cycle);
-    });
+    document.querySelectorAll("[data-theme-cycle]").forEach(bind);
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {
       if (el.tagName === "SELECT" && !el.options.length) {
         Object.keys(THEMES).forEach(function (name) {
@@ -84,5 +88,5 @@
     });
     apply(root.getAttribute("data-theme") || pick());
   });
-  window.PortfolioTheme = { themes: THEMES, set: set, cycle: cycle, current: current };
+  window.PortfolioTheme = { themes: THEMES, set: set, cycle: cycle, bind: bind, current: current };
 })();

@@ -80,6 +80,23 @@ class ThemeSourceTests(unittest.TestCase):
         for name, theme in self.themes.items():
             self.assertTrue(theme.get("icon"), name)
 
+    def test_chrome_bundle_scopes_tokens_to_the_bar_and_includes_the_bar(self):
+        chrome = rpt.render(self.document)["portfolio-chrome.js"]
+        for name in self.themes:
+            self.assertIn(f'html[data-theme=\\"{name}\\"] .pf-topbar', chrome)
+        self.assertIn("--pf-surface:", chrome)
+        self.assertNotIn(":root", chrome.split("window.PortfolioTheme")[0])
+        for needle in ("pf-topbar", "/_portfolio/nav.json", "PortfolioTheme.bind", "data-theme-cycle"):
+            self.assertIn(needle, chrome)
+        self.assertIn("if (!window.PortfolioTheme)", chrome)
+
+    def test_topbar_css_uses_only_scoped_tokens(self):
+        css = (ROOT / "themes" / "topbar.css").read_text(encoding="utf-8")
+        import re
+
+        self.assertEqual(re.findall(r"var\(--(?!pf-)[a-z0-9-]+\)", css), [])
+        self.assertEqual(re.findall(r"(?<![&\w])#[0-9a-fA-F]{3,6}\b", css), [])
+
     def test_css_defines_every_token_for_every_theme(self):
         css = rpt.render_css(self.document)
         for name in self.themes:

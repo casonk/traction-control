@@ -71,6 +71,42 @@ code. A chart drawn as a standalone SVG cannot see the page's theme; use
 `var(--token, #fallback)` with the Midnight value as the fallback, and inline the
 SVG when it should follow the theme.
 
+## The top bar for services
+
+Every service behind the shared Caddy can show the portfolio top bar (Home, Clockwork,
+Lists, Media, Services, and the theme rotator) with one line in its page template:
+
+```html
+<script src="/_portfolio/chrome.js" defer></script>
+```
+
+`themes/portfolio-chrome.js` is one self-contained script: it applies the theme,
+defines the `--pf-*` tokens on the bar only (so the page keeps its own palette until it
+adopts the tokens), builds the bar, and loads `/_portfolio/nav.json`. wiring-harness's
+Caddy serves `/_portfolio/` from a shared directory on every proxied site; Clockwork
+writes `nav.json` (and the script) into it. If the file or the directory is missing the
+bar still shows the rotator, from the last navigation cached in the browser.
+
+`nav.json`:
+
+```json
+{"home": {"label": "Home", "icon": "🏠", "url": "https://…/home"},
+ "items": [
+   {"label": "Clockwork", "mobile": "Jobs", "icon": "⏰", "url": "https://…/"},
+   {"label": "Lists", "icon": "✅", "menu": [
+     {"label": "Groceries", "icon": "🛒", "url": "https://…/groceries"}]},
+   {"label": "Services", "mobile": "Sites", "icon": "🧰", "align": "right", "menu": [
+     {"section": "Tools"},
+     {"label": "Bench", "icon": "🏁", "url": "https://…/", "service": true}]}]}
+```
+
+A menu entry with `"service": true` is highlighted when the page is on that site. Only
+`http` and `https` URLs are used. The script does nothing on a page that already has a
+Clockwork nav or a `.pf-topbar`, and nothing when the page has no `<body>`.
+
+Pages that serve their own copy of the top bar markup instead should use
+`themes/topbar.css` and `themes/topbar.js` as the reference for the styling.
+
 ## Changing or adding a theme
 
 1. Edit `themes/themes.toml` (add a `[themes.<name>]` table with every token).

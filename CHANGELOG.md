@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the shared portfolio top bar: `themes/portfolio-chrome.js` (theme, rotator and a
+  navigation bar built from `/_portfolio/nav.json`, with tokens scoped to the bar) and its
+  sources `themes/topbar.{css,js}`, so services behind the shared Caddy get the bar with one
+  script tag. See `docs/system-theme.md`.
+
 - Add system themes: `themes/themes.toml` defines Midnight, Daylight, Ember and High
   contrast as CSS tokens; `scripts/render_portfolio_theme.py` renders
   `themes/portfolio-theme.{css,js}` (tokens, system-preference default, saved choice,
