@@ -170,6 +170,49 @@ private repositories are enrolled.
 4. Consumers refresh their copies with
    `python3 scripts/render_portfolio_theme.py --install <repo>/<dir>`.
 
+## Your own themes
+
+The tracked themes are the portfolio's defaults. Your changes (a renamed or recoloured theme, themes of your
+own, which themes are offered, saved colours and emoji) live in one owner-only file that is never committed:
+
+```
+~/.config/traction-control/themes.local.toml          0600
+~/.config/traction-control/themes/rendered/           0700   the one rendered copy
+~/.config/traction-control/sites/_shared/theme.css    a symlink to the rendered copy
+```
+
+```toml
+[active]                       # which themes are offered, in menu order (omit for all)
+themes = ["midnight", "daylight", "mine"]
+[palette]                      # named colours to pick from when editing
+brand = "#1f6feb"
+[emoji]                        # named emoji to pick from for icons
+rocket = "🚀"
+[override.midnight]            # change a tracked theme: label, icon, description, stripe, any token
+label = "Night"
+accent = "#ff8800"
+[themes.mine]                  # a theme of your own, starting from a tracked one
+based_on = "ember"
+label = "Mine"
+icon = "🚀"
+```
+
+`scripts/portfolio_themes.py` reads, validates, merges and publishes it (`show`, `apply --stdin`, `render`,
+`reset`, `check`, `path`). Validation is the tracked file's (every token a `#rrggbb` colour, defaults that
+exist) plus limits, because the values end up in CSS and HTML: names are lowercase slugs, labels and
+descriptions have no markup or comment markers, icons are non-ASCII symbols of at most 8 characters, and a
+tracked theme cannot be redefined (override it instead). Nothing is written when validation fails.
+
+**One render, linked.** The merged themes are rendered once into `themes/rendered/` and the store's `_shared`
+files are relative symlinks to it, so there is a single copy rather than one per consumer, and replacing a copy
+with a link is atomic. `portfolio_sites.py publish` and `check` understand this and keep the links. The
+Caddy-served `/srv/portfolio-chrome` stays a *copy*: Caddy cannot read through an owner-only home directory.
+Each repository's vendored fallback is the tracked theme and is not affected, so a page still works with no
+local layer present.
+
+The tracked `themes/portfolio-theme.*` files never contain your changes (`render_portfolio_theme.py --check`
+ignores the local file). Clockwork's themes page edits this layer through `apply`.
+
 ## Adopting it in a repository
 
 Vendor the two generated files (`--install`), inline them into the pages, use only

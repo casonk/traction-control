@@ -36,7 +36,9 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "themes"))
+sys.path.insert(0, str(ROOT / "scripts"))
 import portfolio_site as seam  # noqa: E402
+import portfolio_themes as local_themes  # noqa: E402
 
 BASE_CONFIG = ROOT / "config" / "portfolio-sites" / "sites.conf"
 CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "traction-control"
@@ -225,6 +227,15 @@ def _atomic_write(path: Path, data: bytes, mode: int) -> None:
 def publish(store: Path, extra_dirs: list[Path], apply: bool, include_store: bool = True) -> list[str]:
     """Copy the rendered theme files into ``store/_shared`` (and any extra directories)."""
     notes = []
+    local = local_themes.local_path()
+    if include_store and local.exists():
+        # Your own themes are rendered once and the store's files are symlinks to that render.
+        rendered, shared = local_themes.rendered_for(store), store / SHARED
+        stale = local_themes.problems(local, rendered, shared)
+        notes.append(f"{'link   ' if stale else 'ok     '} {shared} (from your local themes)")
+        if apply and stale:
+            local_themes.publish(local, rendered, shared)
+        include_store = False
     for target in [*([store / SHARED] if include_store else []), *extra_dirs]:
         for published, source in PUBLISHED.items():
             src = THEMES / source
@@ -329,6 +340,10 @@ def check(entries: list[Entry], portfolio: Path, store: Path, show_slugs: bool) 
         if vendor(entry, portfolio, apply=False).strip() != "ok":
             problems.append(f"{who}: vendored fallback is stale (run vendor --apply)")
     shared = store / SHARED
+    local = local_themes.local_path()
+    if local.exists():
+        problems += local_themes.problems(local, local_themes.rendered_for(store), shared)
+        return problems
     for published, source in PUBLISHED.items():
         dest = shared / published
         if not dest.is_file() or dest.read_bytes() != (THEMES / source).read_bytes():

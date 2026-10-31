@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add an owner-only layer for your own themes: `scripts/portfolio_themes.py` reads `~/.config/traction-control/themes.local.toml` (0600, never committed), validates it (names, colours, text and icons, because the values reach CSS and HTML), merges it over `themes/themes.toml` (overrides of tracked themes, themes of your own, which themes are active, saved colours and emoji) and renders the result once into `~/.config/traction-control/themes/rendered/` (0700). The store's `_shared` theme files become relative symlinks to that render instead of copies, and `portfolio_sites.py publish` and `check` keep them. The tracked `themes/portfolio-theme.*` files and every repository's vendored fallback are unchanged. See `docs/system-theme.md`. `render_portfolio_theme.py` gains a reusable `validate`.
 - Add portfolio sites: a standard-library seam (`themes/portfolio_site.py`) that lets any repository serve
   `/_portfolio/*` itself, and `scripts/portfolio_sites.py` (`list`, `publish`, `link`, `vendor`, `check`) with
   a central owner-only store under `~/.config/traction-control/sites`, one `.portfolio` symlink per checkout,
