@@ -3,7 +3,7 @@
 
     portfolio_sites.py list     [--show-slugs]
     portfolio_sites.py check    [--show-slugs]             exit 1 on any problem
-    portfolio_sites.py publish  [--apply] [--dir DIR ...]  copy the theme files to the central store
+    portfolio_sites.py publish  [--apply] [--dir DIR ...] [--no-store]  copy the theme files to the store
     portfolio_sites.py link     [--apply]                  create store entries and checkout links
     portfolio_sites.py vendor   [--apply] [NAME ...]       write each repo's last-resort fallback copy
 
@@ -221,10 +221,10 @@ def _atomic_write(path: Path, data: bytes, mode: int) -> None:
         raise
 
 
-def publish(store: Path, extra_dirs: list[Path], apply: bool) -> list[str]:
+def publish(store: Path, extra_dirs: list[Path], apply: bool, include_store: bool = True) -> list[str]:
     """Copy the rendered theme files into ``store/_shared`` (and any extra directories)."""
     notes = []
-    for target in [store / SHARED, *extra_dirs]:
+    for target in [*([store / SHARED] if include_store else []), *extra_dirs]:
         for published, source in PUBLISHED.items():
             src = THEMES / source
             if not src.is_file():
@@ -342,6 +342,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--show-slugs", action="store_true", help="show private repository slugs")
     parser.add_argument("--store", type=Path, help="central store (default: ~/.config/traction-control/sites)")
     parser.add_argument("--dir", type=Path, action="append", default=[], help="publish: extra directory")
+    parser.add_argument("--no-store", action="store_true", help="publish: only the --dir targets, not the store")
     parser.add_argument("--portfolio-root", type=Path, default=ROOT.parents[1])
     parser.add_argument("--base-config", type=Path, default=BASE_CONFIG)
     parser.add_argument("--private-config", type=Path, default=OVERLAY_CONFIG)
@@ -354,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"{label(e, args.show_slugs):40} {e.fronting:22} {e.path}")
             return 0
         if args.command == "publish":
-            print("\n".join(publish(store, args.dir, args.apply)))
+            print("\n".join(publish(store, args.dir, args.apply, include_store=not args.no_store)))
             return 0
         if args.command == "link":
             plan, problems = link(entries, args.portfolio_root, store, args.apply, args.show_slugs)

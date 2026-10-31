@@ -251,6 +251,12 @@ class EnrollmentTests(unittest.TestCase):
             self.assertEqual((extra / name).read_bytes(), (ROOT / "themes" / source).read_bytes())
         self.assertTrue(all(n.startswith("ok") for n in ps.publish(self.store, [extra], apply=True)))
 
+    def test_publish_can_skip_the_store_and_fill_only_the_given_directories(self):
+        extra = self.root / "extra"
+        ps.publish(self.store, [extra], apply=True, include_store=False)
+        self.assertTrue((extra / "theme.css").is_file())
+        self.assertFalse(self.store.exists())
+
     def test_vendor_writes_the_fallback_copy_and_a_manifest_that_matches(self):
         repo = git_repo(self.portfolio / "util-repos" / "pub", "o/pub")
         entry = ps.parse_config("pub|o/pub|util-repos/pub|pkg/portfolio|direct", private=False)[0]

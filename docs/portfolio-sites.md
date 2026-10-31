@@ -68,7 +68,7 @@ names are served, and a file must be a regular file inside the directory it was 
 
 ```bash
 python3 scripts/portfolio_sites.py list                # who is enrolled and how they are fronted
-python3 scripts/portfolio_sites.py publish [--apply]   # theme files -> the store's _shared (and --dir DIR)
+python3 scripts/portfolio_sites.py publish [--apply]   # theme files -> the store's _shared (and --dir DIR; --no-store for only those)
 python3 scripts/portfolio_sites.py link    [--apply]    # store entries and checkout links
 python3 scripts/portfolio_sites.py vendor  [--apply] [NAME ...]   # each repo's fallback copy
 python3 scripts/portfolio_sites.py check               # exit 1 on a missing link or stale copy
