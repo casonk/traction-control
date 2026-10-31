@@ -72,7 +72,7 @@ def load(path: Path = SOURCE) -> dict:
         for token in TOKENS:
             if not HEX.fullmatch(str(theme.get(token, ""))):
                 raise ThemeError(f"theme {name}: {token} must be a #rrggbb colour")
-        extra = set(theme) - set(TOKENS) - {"label", "description", "scheme"}
+        extra = set(theme) - set(TOKENS) - {"label", "description", "scheme", "icon"}
         if extra:
             raise ThemeError(f"theme {name}: unknown keys {sorted(extra)}")
     for key in ("default_dark", "default_light"):
@@ -111,7 +111,14 @@ def render_css(document: dict) -> str:
 
 def render_js(document: dict) -> str:
     themes, meta = document["themes"], document["meta"]
-    listing = {n: {"label": t["label"], "scheme": t["scheme"]} for n, t in themes.items()}
+    listing = {
+        n: {
+            "label": t["label"],
+            "scheme": t["scheme"],
+            "icon": t.get("icon", "☀" if t["scheme"] == "light" else "☾"),
+        }
+        for n, t in themes.items()
+    }
     return f"""/* {HEADER} */
 (function () {{
   var THEMES = {json.dumps(listing, indent=2)};
@@ -128,17 +135,41 @@ def render_js(document: dict) -> str:
     if (kept && THEMES[kept]) return kept;
     return window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? LIGHT : DARK;
   }}
+  var ORDER = Object.keys(THEMES);
+  function current() {{ return root.getAttribute("data-theme"); }}
+  function following(name) {{ return ORDER[(ORDER.indexOf(name) + 1) % ORDER.length]; }}
+  function paintCycle(el, name) {{
+    var theme = THEMES[name], target = THEMES[following(name)];
+    var icon = el.querySelector("[data-theme-icon]"), label = el.querySelector("[data-theme-name]");
+    if (icon || label) {{
+      if (icon) icon.textContent = theme.icon;
+      if (label) label.textContent = theme.label;
+    }} else {{
+      el.textContent = theme.icon + " " + theme.label;
+    }}
+    var text = "Theme: " + theme.label + ". Switch to " + target.label + ".";
+    el.setAttribute("aria-label", text);
+    el.setAttribute("title", text);
+  }}
   function apply(name) {{
     root.setAttribute("data-theme", name);
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{ el.value = name; }});
+    document.querySelectorAll("[data-theme-cycle]").forEach(function (el) {{ paintCycle(el, name); }});
   }}
   function set(name) {{
     if (!THEMES[name]) return;
     try {{ localStorage.setItem(KEY, name); }} catch (e) {{}}
     apply(name);
   }}
+  function cycle() {{ set(following(current() || pick())); }}
   apply(pick());
+  window.addEventListener("storage", function (event) {{
+    if (event.key === KEY && THEMES[event.newValue]) apply(event.newValue);
+  }});
   document.addEventListener("DOMContentLoaded", function () {{
+    document.querySelectorAll("[data-theme-cycle]").forEach(function (el) {{
+      el.addEventListener("click", cycle);
+    }});
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{
       if (el.tagName === "SELECT" && !el.options.length) {{
         Object.keys(THEMES).forEach(function (name) {{
@@ -153,9 +184,7 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, current: function () {{
-    return root.getAttribute("data-theme");
-  }} }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, current: current }};
 }})();
 """
 

@@ -10,6 +10,7 @@
 # commit all three files together. See docs/system-theme.md.
 #
 # Tokens (every theme defines every token):
+#   icon (optional)            a short glyph the theme rotator shows
 #   bg, surface, surface2      page background, cards and panels, raised/hovered rows
 #   border                     rules and outlines
 #   text, muted                body text, secondary text
@@ -24,6 +25,7 @@ default_light = "daylight"  # chosen when the system prefers light and nothing i
 storage_key = "portfolio-theme"
 
 [themes.midnight]
+icon = "🌙"
 label = "Midnight"
 description = "The original Clockwork dark palette"
 scheme = "dark"
@@ -46,6 +48,7 @@ purple = "#a06fff"
 purple-dim = "#29194c"
 
 [themes.daylight]
+icon = "☀️"
 label = "Daylight"
 description = "A light theme for bright rooms and print"
 scheme = "light"
@@ -68,6 +71,7 @@ purple = "#7048e8"
 purple-dim = "#eee8ff"
 
 [themes.ember]
+icon = "🔥"
 label = "Ember"
 description = "A warm dark theme that is easier on the eyes at night"
 scheme = "dark"
@@ -90,6 +94,7 @@ purple = "#b98ae0"
 purple-dim = "#3d2a55"
 
 [themes.contrast]
+icon = "◐"
 label = "High contrast"
 description = "Black and white with strong colours, for low vision and glare"
 scheme = "dark"

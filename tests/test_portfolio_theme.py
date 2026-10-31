@@ -73,6 +73,13 @@ class ThemeSourceTests(unittest.TestCase):
         for name, text in rpt.render(self.document).items():
             self.assertEqual((ROOT / "themes" / name).read_text(encoding="utf-8"), text, name)
 
+    def test_script_offers_a_cycling_control_and_every_theme_has_an_icon(self):
+        js = rpt.render_js(self.document)
+        for needle in ("data-theme-cycle", "PortfolioTheme", "cycle:", "storage"):
+            self.assertIn(needle, js)
+        for name, theme in self.themes.items():
+            self.assertTrue(theme.get("icon"), name)
+
     def test_css_defines_every_token_for_every_theme(self):
         css = rpt.render_css(self.document)
         for name in self.themes:

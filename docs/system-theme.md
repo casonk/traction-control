@@ -57,6 +57,13 @@ Rules for pages:
   <select data-theme-switcher></select>
 ```
 
+A top bar can offer a rotator instead of a menu: a `<button data-theme-cycle>`
+steps to the next theme on each click (Midnight, Daylight, Ember, High contrast,
+then Midnight again) and shows the current theme's icon and name. Put
+`<span data-theme-icon></span><span data-theme-name></span>` inside it to control
+the layout, or leave it empty and the script writes the text. Its label and tooltip
+name the theme it will switch to. Other open tabs of the same site follow a change.
+
 Generated reports and pages served from several places inline both files so the
 page works from disk and behind a proxy. Place the script in `<head>` so the theme
 is applied before first paint. `window.PortfolioTheme.set("ember")` switches from
