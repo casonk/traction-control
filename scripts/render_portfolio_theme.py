@@ -67,8 +67,16 @@ FONTS = {
     },
 }
 MONO_STACK = FONTS["mono"]["stack"]
-SIZES = (14, 16, 18, 20)
-DEFAULT_TYPE = {"font": "system", "size": 14}
+# The design size. Page scale zooms the whole page, so this stays put and pixel-sized text scales with it.
+BASE_FONT_PX = 14
+# Named scales only. An editor cannot supply a zoom value, because that number is CSS.
+SCALES = {
+    "tiny": {"label": "Tiny", "zoom": "0.8"},
+    "small": {"label": "Small", "zoom": "0.9"},
+    "medium": {"label": "Medium", "zoom": "1"},
+    "large": {"label": "Large", "zoom": "1.25"},
+}
+DEFAULT_TYPE = {"font": "system", "size": "medium"}
 
 
 class ThemeError(ValueError):
@@ -130,7 +138,7 @@ def validate(document: dict) -> dict:
 
 
 def type_settings(document: dict) -> dict:
-    """The published font and base size: ``[type]`` in the theme file, else System at 14px."""
+    """The published font and page scale: ``[type]`` in the theme file, else System at medium."""
     raw = document.get("type") or {}
     if not isinstance(raw, dict):
         raise ThemeError("type: a table with font and size")
@@ -140,34 +148,35 @@ def type_settings(document: dict) -> dict:
     font = raw.get("font", DEFAULT_TYPE["font"])
     if font not in FONTS:
         raise ThemeError("type.font must be system, serif or mono")
-    try:
-        size = int(raw.get("size", DEFAULT_TYPE["size"]))
-    except (TypeError, ValueError) as exc:
-        raise ThemeError("type.size must be 14, 16, 18 or 20") from exc
-    if size not in SIZES:
-        raise ThemeError("type.size must be 14, 16, 18 or 20")
+    size = raw.get("size", DEFAULT_TYPE["size"])
+    if size not in SCALES:
+        raise ThemeError("type.size must be tiny, small, medium or large")
     return {"font": font, "size": size}
 
 
 def render_type_css(document: dict) -> str:
-    """``--font``, ``--mono`` and ``--font-size``. A ``data-font`` / ``data-size`` attribute overrides them.
+    """``--font``, ``--mono``, ``--font-size``, and a page zoom.
 
-    The attributes are how the browser switcher works, the same way ``data-theme`` picks a colour theme.
-    ``:root`` carries the published default, so a page with no saved choice still has a font.
+    ``--font-size`` stays the design size. Tiny, small, medium and large zoom the whole page, so text
+    that sets its own pixel size scales too. A ``data-font`` / ``data-size`` attribute overrides the
+    published choice, the same way ``data-theme`` picks a colour theme.
     """
     chosen = type_settings(document)
     lines = [
         ":root {",
         f"  --font: {FONTS[chosen['font']]['stack']};",
         f"  --mono: {MONO_STACK};",
-        f"  --font-size: {chosen['size']}px;",
+        f"  --font-size: {BASE_FONT_PX}px;",
         "}",
     ]
     for name, face in FONTS.items():
         lines.append(f'html[data-font="{name}"] {{ --font: {face["stack"]}; }}')
-    for size in SIZES:
-        lines.append(f'html[data-size="{size}"] {{ --font-size: {size}px; }}')
-    lines.append("html { font-family: var(--font); font-size: var(--font-size); }")
+    for name, scale in SCALES.items():
+        lines.append(f'html[data-size="{name}"] {{ zoom: {scale["zoom"]}; }}')
+    zoom = SCALES[chosen["size"]]["zoom"]
+    lines.append(
+        f"html {{ font-family: var(--font); font-size: var(--font-size); zoom: {zoom}; }}"
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -369,17 +378,20 @@ def render_js(document: dict) -> str:
 
 
 def type_runtime_js(document: dict) -> str:
-    """The font and size switcher. Faces and sizes are a fixed list, so the menu cannot inject CSS."""
+    """The font and page-scale switcher. Faces and scales are a fixed list, so the menu cannot inject CSS."""
     chosen = type_settings(document)
     faces = {name: face["label"] for name, face in FONTS.items()}
+    scales = {name: scale["label"] for name, scale in SCALES.items()}
     return """  var TYPE = %s;
   var FACES = %s;
   var SIZES = %s;
   var FONT_KEY = "portfolio-font", SIZE_KEY = "portfolio-size";
+  var LEGACY_SIZE = { "14": "medium", "16": "large", "18": "large", "20": "large" };
   function knownFace(name) { return Object.prototype.hasOwnProperty.call(FACES, name) ? name : null; }
   function knownSize(value) {
-    var n = parseInt(value, 10);
-    return SIZES.indexOf(n) >= 0 ? String(n) : null;
+    if (value == null) return null;
+    if (Object.prototype.hasOwnProperty.call(SIZES, value)) return value;
+    return LEGACY_SIZE[String(value)] || null;
   }
   function stored(key) {
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -388,15 +400,15 @@ def type_runtime_js(document: dict) -> str:
     var params = new URLSearchParams(location.search);
     return {
       font: knownFace(params.get("font")) || knownFace(stored(FONT_KEY)) || TYPE.font,
-      size: knownSize(params.get("size")) || knownSize(stored(SIZE_KEY)) || String(TYPE.size)
+      size: knownSize(params.get("size")) || knownSize(stored(SIZE_KEY)) || knownSize(TYPE.size)
     };
   }
   function applyType(choice) {
     root.setAttribute("data-font", choice.font);
     root.setAttribute("data-size", choice.size);
-    var text = "Font: " + FACES[choice.font] + ", " + choice.size + " px.";
+    var text = "Font: " + FACES[choice.font] + ", " + SIZES[choice.size] + ".";
     document.querySelectorAll("[data-type-font]").forEach(function (el) { el.textContent = FACES[choice.font]; });
-    document.querySelectorAll("[data-type-size]").forEach(function (el) { el.textContent = choice.size; });
+    document.querySelectorAll("[data-type-size]").forEach(function (el) { el.textContent = SIZES[choice.size]; });
     document.querySelectorAll("[data-type-cycle]").forEach(function (el) {
       el.setAttribute("title", text);
       el.setAttribute("aria-label", text + " Switch the font.");
@@ -436,7 +448,7 @@ def type_runtime_js(document: dict) -> str:
     heading("Font");
     Object.keys(FACES).forEach(function (name) { choice("font", name, FACES[name]); });
     heading("Size");
-    SIZES.forEach(function (size) { choice("size", String(size), size + " px"); });
+    Object.keys(SIZES).forEach(function (name) { choice("size", name, SIZES[name]); });
     paintType(menu, {font: root.getAttribute("data-font"), size: root.getAttribute("data-size")});
   }
   function setType(kind, value) {
@@ -461,7 +473,7 @@ def type_runtime_js(document: dict) -> str:
     var names = Object.keys(FACES), now = root.getAttribute("data-font") || pickType().font;
     setType("font", names[(names.indexOf(now) + 1) %% names.length]);
   }
-""" % (json.dumps(chosen), json.dumps(faces), json.dumps(list(SIZES)))
+""" % (json.dumps(chosen), json.dumps(faces), json.dumps(scales))
 
 
 def render(document: dict) -> dict[str, str]:

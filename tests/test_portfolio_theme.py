@@ -168,9 +168,11 @@ class ThemeSourceTests(unittest.TestCase):
         self.assertIn("--mono:", css)
         self.assertIn("--font-size: 14px;", css)
         self.assertIn('html[data-font="serif"]', css)
-        self.assertIn('html[data-size="20"]', css)
+        self.assertIn('html[data-size="tiny"] { zoom: 0.8; }', css)
+        self.assertIn('html[data-size="large"] { zoom: 1.25; }', css)
         self.assertIn(
-            "html { font-family: var(--font); font-size: var(--font-size); }", css
+            "html { font-family: var(--font); font-size: var(--font-size); zoom: 1; }",
+            css,
         )
         js = rpt.render_js(self.document)
         for needle in (
@@ -181,10 +183,11 @@ class ThemeSourceTests(unittest.TestCase):
             "fillType",
         ):
             self.assertIn(needle, js)
+        self.assertIn('"Tiny"', js)
         with self.assertRaises(rpt.ThemeError):
-            rpt.type_settings({"type": {"font": "comic sans", "size": 14}})
+            rpt.type_settings({"type": {"font": "comic sans", "size": "medium"}})
         with self.assertRaises(rpt.ThemeError):
-            rpt.type_settings({"type": {"font": "system", "size": 13}})
+            rpt.type_settings({"type": {"font": "system", "size": 14}})
         self.assertIn(
             "data-type-menu", rpt.render(self.document)["portfolio-chrome.js"]
         )

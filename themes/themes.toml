@@ -26,12 +26,12 @@ default_dark = "midnight"   # chosen when the system prefers dark and nothing is
 default_light = "daylight"  # chosen when the system prefers light and nothing is saved
 storage_key = "portfolio-theme"
 
-# The font and the base size every page starts from. A browser can override both
+# The font and the page scale every page starts from. A browser can override both
 # (localStorage portfolio-font and portfolio-size); this is the shared default.
-# font is system, serif or mono. size is 14, 16, 18 or 20 (pixels).
+# font is system, serif or mono. size is tiny, small, medium or large (a zoom of the whole page).
 [type]
 font = "system"
-size = 14
+size = "medium"
 
 # A theme that was renamed keeps working for people who saved the old name.
 [meta.aliases]

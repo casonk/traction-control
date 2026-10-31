@@ -11,7 +11,7 @@ The tracked themes (themes/themes.toml) stay the portfolio's defaults and are ne
 changes live in ``~/.config/traction-control/themes.local.toml`` (owner-only, never committed):
 
     [active]                  which themes are offered, in menu order (omit for all of them)
-    [type]                    the shared font and base size (omit a field to keep the tracked one)
+    [type]                    the shared font and page scale (omit a field to keep the tracked one)
     [palette]                 named colours you can pick from when editing a theme
     [emoji]                   named emoji you can pick from for icons
     [override.<built-in>]     change a tracked theme: label, icon, description, stripe, any token
@@ -233,13 +233,9 @@ def _type(raw: Any) -> dict[str, Any]:
             raise LocalThemeError("type.font must be system, serif or mono")
         out["font"] = raw["font"]
     if "size" in raw:
-        try:
-            size = int(raw["size"])
-        except (TypeError, ValueError) as exc:
-            raise LocalThemeError("type.size must be 14, 16, 18 or 20") from exc
-        if size not in base.SIZES:
-            raise LocalThemeError("type.size must be 14, 16, 18 or 20")
-        out["size"] = size
+        if raw["size"] not in base.SCALES:
+            raise LocalThemeError("type.size must be tiny, small, medium or large")
+        out["size"] = raw["size"]
     return out
 
 
@@ -520,7 +516,10 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
         "fonts": [
             {"name": name, "label": face["label"]} for name, face in base.FONTS.items()
         ],
-        "sizes": list(base.SIZES),
+        "sizes": [
+            {"name": name, "label": scale["label"]}
+            for name, scale in base.SCALES.items()
+        ],
         "tokens": list(base.TOKENS),
         "paths": {
             "local": str(path),
@@ -585,12 +584,10 @@ def from_state(desired: dict[str, Any]) -> dict[str, Any]:
     if wanted.get("font") and wanted["font"] != published["font"]:
         local_type["font"] = wanted["font"]
     if wanted.get("size") not in (None, ""):
-        try:
-            size = int(wanted["size"])
-        except (TypeError, ValueError) as exc:
-            raise LocalThemeError("type.size must be 14, 16, 18 or 20") from exc
-        if size != published["size"]:
-            local_type["size"] = size
+        if wanted["size"] not in base.SCALES:
+            raise LocalThemeError("type.size must be tiny, small, medium or large")
+        if wanted["size"] != published["size"]:
+            local_type["size"] = wanted["size"]
     if local_type:
         raw["type"] = local_type
     return clean(raw)

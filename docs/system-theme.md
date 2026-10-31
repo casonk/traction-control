@@ -26,22 +26,24 @@ choice is saved per site, not once for every site.
 
 ## Type
 
-Colour themes do not choose a font. Every page shares one font and one base size, from `[type]` in
+Colour themes do not choose a font. Every page shares one font and one page scale, from `[type]` in
 `themes/themes.toml`:
 
 | | |
 |---|---|
 | `font` | `system` (the portfolio default), `serif`, or `mono` |
-| `size` | `14`, `16`, `18` or `20`, in pixels |
+| `size` | `tiny` (80%), `small` (90%), `medium` (100%, the current page), or `large` (125%) |
 
 Pages set `font-family: var(--font)` and `font-size: var(--font-size)`, and `var(--mono)` for code.
-The generated CSS also sets those on `html`, and a `data-font` / `data-size` attribute overrides them.
+`--font-size` stays the design size. The size is a zoom of the whole page, so a heading and a label
+that sets its own pixel size grow and shrink together. A `data-font` / `data-size` attribute overrides
+the published choice.
 
-The **Aa** control next to the theme switcher changes the font and the size for this browser only
-(`localStorage` keys `portfolio-font` and `portfolio-size`, or `?font=serif&size=18` on a URL). That
+The **Aa** control next to the theme switcher changes the font and the scale for this browser only
+(`localStorage` keys `portfolio-font` and `portfolio-size`, or `?font=serif&size=large` on a URL). That
 choice stays on this site, the same way a colour theme does. The Themes page edits the shared default,
-which is what a browser uses before it has a choice of its own. The faces are a fixed list: an editor
-cannot supply a font stack, because the value is written into CSS.
+which is what a browser uses before it has a choice of its own. The faces and the four scales are a
+fixed list: an editor cannot supply a font stack or a zoom value, because those values are written into CSS.
 
 ## Tokens
 
@@ -207,9 +209,9 @@ themes = ["midnight", "daylight", "mine"]
 brand = "#1f6feb"
 [emoji]                        # named emoji to pick from for icons
 rocket = "🚀"
-[type]                         # the shared font and base size (omit a field to keep the tracked one)
+[type]                         # the shared font and page scale (omit a field to keep the tracked one)
 font = "serif"                 # system, serif or mono
-size = 18                      # 14, 16, 18 or 20
+size = "large"                 # tiny, small, medium or large
 [override.midnight]            # change a tracked theme: label, icon, description, stripe, any token
 label = "Night"
 accent = "#ff8800"
