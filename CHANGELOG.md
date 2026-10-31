@@ -4,6 +4,9 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Document how a service follows the theme (`/_portfolio/theme.css` and `theme.js`, and a
+  role-to-token mapping) in `docs/system-theme.md`.
+
 - Place the shared top bar outside `<body>` so a page that narrows its body no longer narrows the bar.
 
 - Isolate the shared top bar from host-page CSS (`all: revert`), so a page that styles every

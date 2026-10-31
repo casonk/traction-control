@@ -107,6 +107,37 @@ Clockwork nav or a `.pf-topbar`, and nothing when the page has no `<body>`.
 Pages that serve their own copy of the top bar markup instead should use
 `themes/topbar.css` and `themes/topbar.js` as the reference for the styling.
 
+## Making a service follow the theme
+
+The top bar changes only itself. To make the page follow the theme, load the tokens and
+use them in the page's CSS. Clockwork publishes both files next to `chrome.js`:
+
+```html
+<link rel="stylesheet" href="/_portfolio/theme.css">
+<script src="/_portfolio/theme.js"></script>   <!-- synchronous: applies the saved theme before first paint -->
+```
+
+Then map the page's colours to tokens by role instead of by value:
+
+| Page colour | Token |
+|---|---|
+| page background | `var(--bg)` |
+| cards, panels, inputs | `var(--surface)`; raised or hovered `var(--surface2)` |
+| rules and outlines | `var(--border)` |
+| text, secondary text | `var(--text)`, `var(--muted)` |
+| primary action; text on it | `var(--accent)`; `var(--accent-ink)` |
+| status and series hues | `var(--green)` `var(--red)` `var(--yellow)` `var(--purple)` |
+| a tinted fill carrying text in that hue | the matching `-dim` token |
+| translucent tints | `color-mix(in srgb, var(--accent) 12%, transparent)` |
+
+Rules that keep it working: delete the page's own dark-mode media query (the theme
+replaces it); delete or rename page variables that share a token's name (`--bg: var(--bg)`
+is a cycle) and alias the rest (`--panel: var(--surface)`); leave black shadows and scrims
+alone; for data that needs its own hue, set `--hue` and mix it with tokens. Without the two
+tags (direct access, no Caddy) tokens are undefined and the page falls back to the browser's
+defaults, so keep the tags in every page head. A test in each repository keeps literal colours
+out of its CSS (see crew-chief's `tests/test_theme.py`).
+
 ## Changing or adding a theme
 
 1. Edit `themes/themes.toml` (add a `[themes.<name>]` table with every token).
