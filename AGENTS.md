@@ -215,7 +215,9 @@ CSS custom properties from `themes/portfolio-theme.css` (`var(--surface)`,
 never a literal colour) and include `themes/portfolio-theme.js` for the
 switcher, so one theme change restyles everything. A consuming repo vendors the
 two generated files with `scripts/render_portfolio_theme.py --install DIR` and
-tests that its copies match the source. See [the system theme guide](docs/system-theme.md).
+tests that its copies match the source. Services behind the shared Caddy get the portfolio
+top bar with `<script src="/_portfolio/chrome.js" defer></script>`. See
+[the system theme guide](docs/system-theme.md).
 
 ## Reusable Workflow Strategy
 

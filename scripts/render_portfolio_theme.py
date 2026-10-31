@@ -27,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "themes" / "themes.toml"
-OUTPUTS = ("portfolio-theme.css", "portfolio-theme.js")
+OUTPUTS = ("portfolio-theme.css", "portfolio-theme.js", "portfolio-chrome.js")
 TOKENS = (
     "bg",
     "surface",
@@ -87,9 +87,11 @@ def load(path: Path = SOURCE) -> dict:
     return document
 
 
-def _block(selector: str, theme: dict) -> str:
-    lines = [f"{selector} {{", f"  color-scheme: {theme['scheme']};"]
-    lines += [f"  --{token}: {theme[token].lower()};" for token in TOKENS]
+def _block(selector: str, theme: dict, prefix: str = "") -> str:
+    lines = [f"{selector} {{"]
+    if not prefix:
+        lines.append(f"  color-scheme: {theme['scheme']};")
+    lines += [f"  --{prefix}{token}: {theme[token].lower()};" for token in TOKENS]
     lines.append("}")
     return "\n".join(lines)
 
@@ -107,6 +109,35 @@ def render_css(document: dict) -> str:
         parts.append(f'/* {theme["label"]}: {theme.get("description", "")} */')
         parts.append(_block(f':root[data-theme="{name}"]', theme))
     return "\n".join(parts) + "\n"
+
+
+def render_scoped_css(document: dict) -> str:
+    """The tokens as --pf-* on .pf-topbar only, so a page keeps its own palette."""
+    themes, meta = document["themes"], document["meta"]
+    parts = [_block(".pf-topbar", themes[meta["default_dark"]], "pf-")]
+    light = _block("  html:not([data-theme]) .pf-topbar", themes[meta["default_light"]], "pf-")
+    parts.append("@media (prefers-color-scheme: light) {\n" + light.replace("\n", "\n  ").rstrip() + "\n}")
+    for name, theme in themes.items():
+        parts.append(_block(f'html[data-theme="{name}"] .pf-topbar', theme, "pf-"))
+    return "\n".join(parts) + "\n"
+
+
+def render_chrome(document: dict) -> str:
+    """One script for pages served behind the shared Caddy: theme, switcher and top bar."""
+    css = render_scoped_css(document) + (SOURCE.parent / "topbar.css").read_text(encoding="utf-8")
+    theme_js = render_js(document)
+    top = (SOURCE.parent / "topbar.js").read_text(encoding="utf-8")
+    return (
+        f"/* {HEADER} */\n"
+        "(function () {\n"
+        "  if (window.__portfolioChrome) return;\n"
+        "  window.__portfolioChrome = true;\n"
+        '  var style = document.createElement("style");\n'
+        f"  style.textContent = {json.dumps(css)};\n"
+        "  document.head.appendChild(style);\n"
+        "})();\n"
+        "if (!window.PortfolioTheme) {\n" + theme_js + "}\n" + top
+    )
 
 
 def render_js(document: dict) -> str:
@@ -162,14 +193,18 @@ def render_js(document: dict) -> str:
     apply(name);
   }}
   function cycle() {{ set(following(current() || pick())); }}
+  function bind(el) {{
+    if (el.pfBound) return;
+    el.pfBound = true;
+    el.addEventListener("click", cycle);
+    paintCycle(el, current() || pick());
+  }}
   apply(pick());
   window.addEventListener("storage", function (event) {{
     if (event.key === KEY && THEMES[event.newValue]) apply(event.newValue);
   }});
   document.addEventListener("DOMContentLoaded", function () {{
-    document.querySelectorAll("[data-theme-cycle]").forEach(function (el) {{
-      el.addEventListener("click", cycle);
-    }});
+    document.querySelectorAll("[data-theme-cycle]").forEach(bind);
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{
       if (el.tagName === "SELECT" && !el.options.length) {{
         Object.keys(THEMES).forEach(function (name) {{
@@ -184,13 +219,17 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, current: current }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, current: current }};
 }})();
 """
 
 
 def render(document: dict) -> dict[str, str]:
-    return {"portfolio-theme.css": render_css(document), "portfolio-theme.js": render_js(document)}
+    return {
+        "portfolio-theme.css": render_css(document),
+        "portfolio-theme.js": render_js(document),
+        "portfolio-chrome.js": render_chrome(document),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

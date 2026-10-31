@@ -1,0 +1,85 @@
+/* Portfolio top bar. Styled only with --pf-* tokens, which the generator defines on
+   .pf-topbar for every theme, so a page keeps its own palette and the bar still themes. */
+.pf-topbar, .pf-topbar *, .pf-topbar *::before, .pf-topbar *::after { box-sizing: border-box; }
+.pf-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 52px;
+  margin: 0;
+  padding: 0 20px;
+  color: var(--pf-text);
+  background: var(--pf-surface);
+  border-bottom: 1px solid var(--pf-border);
+  font: 600 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: left;
+}
+.pf-topbar a, .pf-topbar summary { color: inherit; text-decoration: none; }
+.pf-topbar__brand, .pf-topbar__direct, .pf-topbar summary, .pf-topbar__theme {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+.pf-topbar__brand { flex: none; font-weight: 700; }
+.pf-topbar__mobile { display: none; }
+.pf-topbar__groups { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.pf-topbar__group { position: relative; }
+.pf-topbar summary { cursor: pointer; list-style: none; }
+.pf-topbar summary::-webkit-details-marker { display: none; }
+.pf-topbar summary::after { content: "\25BE"; font-size: 10px; opacity: .7; }
+.pf-topbar__brand:hover, .pf-topbar__direct:hover, .pf-topbar summary:hover,
+.pf-topbar__group[open] summary, .pf-topbar [aria-current="page"] {
+  color: var(--pf-text);
+  background: var(--pf-accent-dim);
+}
+.pf-topbar :focus-visible { outline: 2px solid var(--pf-accent); outline-offset: 2px; }
+.pf-topbar__menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  max-width: min(340px, calc(100vw - 20px));
+  max-height: min(70vh, 560px);
+  padding: 7px;
+  overflow-y: auto;
+  background: var(--pf-surface2);
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .5);
+}
+.pf-topbar__group:not([open]) .pf-topbar__menu { display: none; }
+.pf-topbar__group--right .pf-topbar__menu { left: auto; right: 0; min-width: 240px; }
+.pf-topbar__menu a { display: block; padding: 9px 11px; border-radius: 6px; font-weight: 500; white-space: normal; overflow-wrap: anywhere; }
+.pf-topbar__menu a:hover, .pf-topbar__menu a:focus-visible { background: var(--pf-accent-dim); }
+.pf-topbar__section { padding: 10px 11px 3px; color: var(--pf-muted); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.pf-topbar__section:not(:first-child) { border-top: 1px solid var(--pf-border); margin-top: 5px; }
+.pf-topbar__theme {
+  flex: none;
+  margin-left: auto;
+  color: inherit;
+  background: none;
+  border: 1px solid var(--pf-border);
+  font: inherit;
+  cursor: pointer;
+}
+.pf-topbar__theme:hover { color: var(--pf-text); background: var(--pf-accent-dim); }
+@media (max-width: 600px) {
+  .pf-topbar { flex-direction: column; align-items: stretch; justify-content: center; gap: 0; height: 88px; padding: 4px 10px; }
+  .pf-topbar__brand { align-self: flex-start; min-height: 30px; padding: 2px 8px; }
+  .pf-topbar__desktop { display: none; }
+  .pf-topbar__mobile { display: inline; }
+  .pf-topbar__groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; width: 100%; }
+  .pf-topbar__direct, .pf-topbar summary { justify-content: center; min-height: 36px; padding: 4px 2px; font-size: 12px; }
+  .pf-topbar__theme { position: absolute; top: 4px; right: 10px; min-height: 30px; margin: 0; padding: 2px 8px; }
+  .pf-topbar__menu, .pf-topbar__group--right .pf-topbar__menu { position: fixed; top: 88px; left: 10px; right: 10px; min-width: 0; max-width: none; max-height: min(65vh, 500px); }
+}
