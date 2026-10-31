@@ -51,6 +51,24 @@ HEX = re.compile(r"#[0-9a-fA-F]{6}")
 STRIPE = re.compile(r"[A-Za-z0-9#%.,() \-]{1,200}")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}")
 HEADER = "Generated from themes/themes.toml by scripts/render_portfolio_theme.py; do not edit."
+# Named faces only. A page never receives a font stack from an editor, because that string is CSS.
+FONTS = {
+    "system": {
+        "label": "System",
+        "stack": '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    },
+    "serif": {
+        "label": "Serif",
+        "stack": '"Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif',
+    },
+    "mono": {
+        "label": "Mono",
+        "stack": 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace',
+    },
+}
+MONO_STACK = FONTS["mono"]["stack"]
+SIZES = (14, 16, 18, 20)
+DEFAULT_TYPE = {"font": "system", "size": 14}
 
 
 class ThemeError(ValueError):
@@ -71,7 +89,9 @@ def validate(document: dict) -> dict:
         raise ThemeError("no [themes.*] tables")
     for name, theme in themes.items():
         if not NAME.fullmatch(name):
-            raise ThemeError(f"theme name {name!r}: use lowercase letters, digits and -")
+            raise ThemeError(
+                f"theme name {name!r}: use lowercase letters, digits and -"
+            )
         if theme.get("scheme") not in ("dark", "light"):
             raise ThemeError(f"theme {name}: scheme must be dark or light")
         if not theme.get("label"):
@@ -81,8 +101,14 @@ def validate(document: dict) -> dict:
                 raise ThemeError(f"theme {name}: {token} must be a #rrggbb colour")
         stripe = theme.get("stripe")
         if stripe is not None and not STRIPE.fullmatch(str(stripe)):
-            raise ThemeError(f"theme {name}: stripe must be a plain CSS background value")
-        extra = set(theme) - set(TOKENS) - {"label", "description", "scheme", "icon", "stripe"}
+            raise ThemeError(
+                f"theme {name}: stripe must be a plain CSS background value"
+            )
+        extra = (
+            set(theme)
+            - set(TOKENS)
+            - {"label", "description", "scheme", "icon", "stripe"}
+        )
         if extra:
             raise ThemeError(f"theme {name}: unknown keys {sorted(extra)}")
     for key in ("default_dark", "default_light"):
@@ -94,10 +120,55 @@ def validate(document: dict) -> dict:
         raise ThemeError("default_light must be a light theme")
     for old, new in meta.get("aliases", {}).items():
         if old in themes or new not in themes or not NAME.fullmatch(old):
-            raise ThemeError(f"meta.aliases.{old}: an old name must not be a theme, and must point at one")
+            raise ThemeError(
+                f"meta.aliases.{old}: an old name must not be a theme, and must point at one"
+            )
     if not re.fullmatch(r"[a-z][a-z-]{2,31}", str(meta.get("storage_key", ""))):
         raise ThemeError("meta.storage_key must be a short lowercase key")
+    type_settings(document)
     return document
+
+
+def type_settings(document: dict) -> dict:
+    """The published font and base size: ``[type]`` in the theme file, else System at 14px."""
+    raw = document.get("type") or {}
+    if not isinstance(raw, dict):
+        raise ThemeError("type: a table with font and size")
+    extra = set(raw) - {"font", "size"}
+    if extra:
+        raise ThemeError(f"type: unknown keys {sorted(extra)}")
+    font = raw.get("font", DEFAULT_TYPE["font"])
+    if font not in FONTS:
+        raise ThemeError("type.font must be system, serif or mono")
+    try:
+        size = int(raw.get("size", DEFAULT_TYPE["size"]))
+    except (TypeError, ValueError) as exc:
+        raise ThemeError("type.size must be 14, 16, 18 or 20") from exc
+    if size not in SIZES:
+        raise ThemeError("type.size must be 14, 16, 18 or 20")
+    return {"font": font, "size": size}
+
+
+def render_type_css(document: dict) -> str:
+    """``--font``, ``--mono`` and ``--font-size``. A ``data-font`` / ``data-size`` attribute overrides them.
+
+    The attributes are how the browser switcher works, the same way ``data-theme`` picks a colour theme.
+    ``:root`` carries the published default, so a page with no saved choice still has a font.
+    """
+    chosen = type_settings(document)
+    lines = [
+        ":root {",
+        f"  --font: {FONTS[chosen['font']]['stack']};",
+        f"  --mono: {MONO_STACK};",
+        f"  --font-size: {chosen['size']}px;",
+        "}",
+    ]
+    for name, face in FONTS.items():
+        lines.append(f'html[data-font="{name}"] {{ --font: {face["stack"]}; }}')
+    for size in SIZES:
+        lines.append(f'html[data-size="{size}"] {{ --font-size: {size}px; }}')
+    lines.append("html { font-family: var(--font); font-size: var(--font-size); }")
+    return "\n".join(lines) + "\n"
 
 
 def _block(selector: str, theme: dict, prefix: str = "") -> str:
@@ -116,21 +187,29 @@ def render_css(document: dict) -> str:
     parts = [f"/* {HEADER} */", _block(":root", themes[dark])]
     parts.append(
         "@media (prefers-color-scheme: light) {\n"
-        + _block("  :root:not([data-theme])", themes[light]).replace("\n", "\n  ").rstrip()
+        + _block("  :root:not([data-theme])", themes[light])
+        .replace("\n", "\n  ")
+        .rstrip()
         + "\n}"
     )
     for name, theme in themes.items():
-        parts.append(f'/* {theme["label"]}: {theme.get("description", "")} */')
+        parts.append(f"/* {theme['label']}: {theme.get('description', '')} */")
         parts.append(_block(f':root[data-theme="{name}"]', theme))
-    return "\n".join(parts) + "\n"
+    return "\n".join(parts) + "\n" + render_type_css(document)
 
 
 def render_scoped_css(document: dict) -> str:
     """The tokens as --pf-* on .pf-topbar only, so a page keeps its own palette."""
     themes, meta = document["themes"], document["meta"]
     parts = [_block(".pf-topbar", themes[meta["default_dark"]], "pf-")]
-    light = _block("  html:not([data-theme]) .pf-topbar", themes[meta["default_light"]], "pf-")
-    parts.append("@media (prefers-color-scheme: light) {\n" + light.replace("\n", "\n  ").rstrip() + "\n}")
+    light = _block(
+        "  html:not([data-theme]) .pf-topbar", themes[meta["default_light"]], "pf-"
+    )
+    parts.append(
+        "@media (prefers-color-scheme: light) {\n"
+        + light.replace("\n", "\n  ").rstrip()
+        + "\n}"
+    )
     for name, theme in themes.items():
         parts.append(_block(f'html[data-theme="{name}"] .pf-topbar', theme, "pf-"))
     return "\n".join(parts) + "\n"
@@ -138,7 +217,9 @@ def render_scoped_css(document: dict) -> str:
 
 def render_chrome(document: dict) -> str:
     """One script for pages served behind the shared Caddy: theme, switcher and top bar."""
-    css = render_scoped_css(document) + (SOURCE.parent / "topbar.css").read_text(encoding="utf-8")
+    css = render_scoped_css(document) + (SOURCE.parent / "topbar.css").read_text(
+        encoding="utf-8"
+    )
     theme_js = render_js(document)
     top = (SOURCE.parent / "topbar.js").read_text(encoding="utf-8")
     return (
@@ -165,7 +246,7 @@ def render_js(document: dict) -> str:
         }
         for n, t in themes.items()
     }
-    return f"""/* {HEADER} */
+    script = f"""/* {HEADER} */
 (function () {{
   var THEMES = {json.dumps(listing, indent=2)};
   var KEY = {json.dumps(meta["storage_key"])};
@@ -251,13 +332,22 @@ def render_js(document: dict) -> str:
     el.addEventListener("click", cycle);
     paintCycle(el, current() || pick());
   }}
+/*__TYPE__*/
   apply(pick());
+  applyType(pickType());
   window.addEventListener("storage", function (event) {{
     if (event.key === KEY && known(event.newValue)) apply(known(event.newValue));
+    if (event.key === FONT_KEY || event.key === SIZE_KEY) applyType(pickType());
   }});
   document.addEventListener("DOMContentLoaded", function () {{
     document.querySelectorAll("[data-theme-cycle]").forEach(bind);
     document.querySelectorAll("[data-theme-menu]").forEach(fill);
+    document.querySelectorAll("[data-type-menu]").forEach(fillType);
+    document.querySelectorAll("[data-type-cycle]").forEach(function (el) {{
+      if (el.pfTypeBound) return;
+      el.pfTypeBound = true;
+      el.addEventListener("click", cycleType);
+    }});
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{
       if (el.tagName === "SELECT" && !el.options.length) {{
         Object.keys(THEMES).forEach(function (name) {{
@@ -272,9 +362,106 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, setFont: function (name) {{ setType("font", name); }}, setSize: function (name) {{ setType("size", name); }}, cycleType: cycleType }};
 }})();
 """
+    return script.replace("/*__TYPE__*/", type_runtime_js(document).rstrip("\n"))
+
+
+def type_runtime_js(document: dict) -> str:
+    """The font and size switcher. Faces and sizes are a fixed list, so the menu cannot inject CSS."""
+    chosen = type_settings(document)
+    faces = {name: face["label"] for name, face in FONTS.items()}
+    return """  var TYPE = %s;
+  var FACES = %s;
+  var SIZES = %s;
+  var FONT_KEY = "portfolio-font", SIZE_KEY = "portfolio-size";
+  function knownFace(name) { return Object.prototype.hasOwnProperty.call(FACES, name) ? name : null; }
+  function knownSize(value) {
+    var n = parseInt(value, 10);
+    return SIZES.indexOf(n) >= 0 ? String(n) : null;
+  }
+  function stored(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function pickType() {
+    var params = new URLSearchParams(location.search);
+    return {
+      font: knownFace(params.get("font")) || knownFace(stored(FONT_KEY)) || TYPE.font,
+      size: knownSize(params.get("size")) || knownSize(stored(SIZE_KEY)) || String(TYPE.size)
+    };
+  }
+  function applyType(choice) {
+    root.setAttribute("data-font", choice.font);
+    root.setAttribute("data-size", choice.size);
+    var text = "Font: " + FACES[choice.font] + ", " + choice.size + " px.";
+    document.querySelectorAll("[data-type-font]").forEach(function (el) { el.textContent = FACES[choice.font]; });
+    document.querySelectorAll("[data-type-size]").forEach(function (el) { el.textContent = choice.size; });
+    document.querySelectorAll("[data-type-cycle]").forEach(function (el) {
+      el.setAttribute("title", text);
+      el.setAttribute("aria-label", text + " Switch the font.");
+    });
+    document.querySelectorAll("[data-type-menu]").forEach(function (menu) { paintType(menu, choice); });
+  }
+  function paintType(menu, choice) {
+    menu.querySelectorAll("[data-type-choice]").forEach(function (item) {
+      var id = item.getAttribute("data-type-choice");
+      item.setAttribute("aria-checked", String(id === "font:" + choice.font || id === "size:" + choice.size));
+    });
+  }
+  function fillType(menu) {
+    if (menu.pfTypeFilled) return;
+    menu.pfTypeFilled = true;
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Font and size");
+    function heading(text) {
+      var node = document.createElement("div");
+      node.setAttribute("data-type-label", "");
+      node.textContent = text;
+      menu.appendChild(node);
+    }
+    function choice(kind, value, label) {
+      var item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "menuitemradio");
+      item.setAttribute("data-type-choice", kind + ":" + value);
+      item.textContent = label;
+      item.addEventListener("click", function () {
+        setType(kind, value);
+        var open = menu.closest && menu.closest("details");
+        if (open) open.open = false;
+      });
+      menu.appendChild(item);
+    }
+    heading("Font");
+    Object.keys(FACES).forEach(function (name) { choice("font", name, FACES[name]); });
+    heading("Size");
+    SIZES.forEach(function (size) { choice("size", String(size), size + " px"); });
+    paintType(menu, {font: root.getAttribute("data-font"), size: root.getAttribute("data-size")});
+  }
+  function setType(kind, value) {
+    var choice = {
+      font: root.getAttribute("data-font") || pickType().font,
+      size: root.getAttribute("data-size") || pickType().size
+    };
+    if (kind === "font") {
+      value = knownFace(value);
+      if (!value) return;
+      choice.font = value;
+      try { localStorage.setItem(FONT_KEY, value); } catch (e) {}
+    } else {
+      value = knownSize(value);
+      if (!value) return;
+      choice.size = value;
+      try { localStorage.setItem(SIZE_KEY, value); } catch (e) {}
+    }
+    applyType(choice);
+  }
+  function cycleType() {
+    var names = Object.keys(FACES), now = root.getAttribute("data-font") || pickType().font;
+    setType("font", names[(names.indexOf(now) + 1) %% names.length]);
+  }
+""" % (json.dumps(chosen), json.dumps(faces), json.dumps(list(SIZES)))
 
 
 def render(document: dict) -> dict[str, str]:
@@ -287,8 +474,12 @@ def render(document: dict) -> dict[str, str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--check", action="store_true", help="fail if the outputs are stale")
-    parser.add_argument("--install", metavar="DIR", help="copy the rendered files into DIR")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if the outputs are stale"
+    )
+    parser.add_argument(
+        "--install", metavar="DIR", help="copy the rendered files into DIR"
+    )
     args = parser.parse_args(argv)
     try:
         outputs = render(load())
@@ -300,10 +491,14 @@ def main(argv: list[str] | None = None) -> int:
         stale = [
             n
             for n, text in outputs.items()
-            if not (target / n).is_file() or (target / n).read_text(encoding="utf-8") != text
+            if not (target / n).is_file()
+            or (target / n).read_text(encoding="utf-8") != text
         ]
         for name in stale:
-            print(f"stale: themes/{name}; run scripts/render_portfolio_theme.py", file=sys.stderr)
+            print(
+                f"stale: themes/{name}; run scripts/render_portfolio_theme.py",
+                file=sys.stderr,
+            )
         return 1 if stale else 0
     for name, text in outputs.items():
         (target / name).write_text(text, encoding="utf-8")

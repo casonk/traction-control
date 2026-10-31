@@ -165,13 +165,110 @@
     el.addEventListener("click", cycle);
     paintCycle(el, current() || pick());
   }
+  var TYPE = {"font": "system", "size": 14};
+  var FACES = {"system": "System", "serif": "Serif", "mono": "Mono"};
+  var SIZES = [14, 16, 18, 20];
+  var FONT_KEY = "portfolio-font", SIZE_KEY = "portfolio-size";
+  function knownFace(name) { return Object.prototype.hasOwnProperty.call(FACES, name) ? name : null; }
+  function knownSize(value) {
+    var n = parseInt(value, 10);
+    return SIZES.indexOf(n) >= 0 ? String(n) : null;
+  }
+  function stored(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function pickType() {
+    var params = new URLSearchParams(location.search);
+    return {
+      font: knownFace(params.get("font")) || knownFace(stored(FONT_KEY)) || TYPE.font,
+      size: knownSize(params.get("size")) || knownSize(stored(SIZE_KEY)) || String(TYPE.size)
+    };
+  }
+  function applyType(choice) {
+    root.setAttribute("data-font", choice.font);
+    root.setAttribute("data-size", choice.size);
+    var text = "Font: " + FACES[choice.font] + ", " + choice.size + " px.";
+    document.querySelectorAll("[data-type-font]").forEach(function (el) { el.textContent = FACES[choice.font]; });
+    document.querySelectorAll("[data-type-size]").forEach(function (el) { el.textContent = choice.size; });
+    document.querySelectorAll("[data-type-cycle]").forEach(function (el) {
+      el.setAttribute("title", text);
+      el.setAttribute("aria-label", text + " Switch the font.");
+    });
+    document.querySelectorAll("[data-type-menu]").forEach(function (menu) { paintType(menu, choice); });
+  }
+  function paintType(menu, choice) {
+    menu.querySelectorAll("[data-type-choice]").forEach(function (item) {
+      var id = item.getAttribute("data-type-choice");
+      item.setAttribute("aria-checked", String(id === "font:" + choice.font || id === "size:" + choice.size));
+    });
+  }
+  function fillType(menu) {
+    if (menu.pfTypeFilled) return;
+    menu.pfTypeFilled = true;
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Font and size");
+    function heading(text) {
+      var node = document.createElement("div");
+      node.setAttribute("data-type-label", "");
+      node.textContent = text;
+      menu.appendChild(node);
+    }
+    function choice(kind, value, label) {
+      var item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "menuitemradio");
+      item.setAttribute("data-type-choice", kind + ":" + value);
+      item.textContent = label;
+      item.addEventListener("click", function () {
+        setType(kind, value);
+        var open = menu.closest && menu.closest("details");
+        if (open) open.open = false;
+      });
+      menu.appendChild(item);
+    }
+    heading("Font");
+    Object.keys(FACES).forEach(function (name) { choice("font", name, FACES[name]); });
+    heading("Size");
+    SIZES.forEach(function (size) { choice("size", String(size), size + " px"); });
+    paintType(menu, {font: root.getAttribute("data-font"), size: root.getAttribute("data-size")});
+  }
+  function setType(kind, value) {
+    var choice = {
+      font: root.getAttribute("data-font") || pickType().font,
+      size: root.getAttribute("data-size") || pickType().size
+    };
+    if (kind === "font") {
+      value = knownFace(value);
+      if (!value) return;
+      choice.font = value;
+      try { localStorage.setItem(FONT_KEY, value); } catch (e) {}
+    } else {
+      value = knownSize(value);
+      if (!value) return;
+      choice.size = value;
+      try { localStorage.setItem(SIZE_KEY, value); } catch (e) {}
+    }
+    applyType(choice);
+  }
+  function cycleType() {
+    var names = Object.keys(FACES), now = root.getAttribute("data-font") || pickType().font;
+    setType("font", names[(names.indexOf(now) + 1) % names.length]);
+  }
   apply(pick());
+  applyType(pickType());
   window.addEventListener("storage", function (event) {
     if (event.key === KEY && known(event.newValue)) apply(known(event.newValue));
+    if (event.key === FONT_KEY || event.key === SIZE_KEY) applyType(pickType());
   });
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-theme-cycle]").forEach(bind);
     document.querySelectorAll("[data-theme-menu]").forEach(fill);
+    document.querySelectorAll("[data-type-menu]").forEach(fillType);
+    document.querySelectorAll("[data-type-cycle]").forEach(function (el) {
+      if (el.pfTypeBound) return;
+      el.pfTypeBound = true;
+      el.addEventListener("click", cycleType);
+    });
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {
       if (el.tagName === "SELECT" && !el.options.length) {
         Object.keys(THEMES).forEach(function (name) {
@@ -186,5 +283,5 @@
     });
     apply(root.getAttribute("data-theme") || pick());
   });
-  window.PortfolioTheme = { themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current };
+  window.PortfolioTheme = { themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, setFont: function (name) { setType("font", name); }, setSize: function (name) { setType("size", name); }, cycleType: cycleType };
 })();
