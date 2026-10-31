@@ -1,0 +1,1019 @@
+# The global colour and icon library the themes page offers. Curated, read-only here: your own saved
+# colours and emoji live in your owner-only local layer (see docs/system-theme.md).
+# Colours: 12 hue families in five steps (100 light to 900 dark) and a slate neutral ramp, using the
+# widely used Tailwind CSS v3 palette values (MIT). Emoji: grouped, with a short slug name.
+
+[[colours]]
+name = "red-100"
+hex = "#fee2e2"
+group = "Red"
+
+[[colours]]
+name = "red-300"
+hex = "#fca5a5"
+group = "Red"
+
+[[colours]]
+name = "red-500"
+hex = "#ef4444"
+group = "Red"
+
+[[colours]]
+name = "red-700"
+hex = "#b91c1c"
+group = "Red"
+
+[[colours]]
+name = "red-900"
+hex = "#7f1d1d"
+group = "Red"
+
+[[colours]]
+name = "orange-100"
+hex = "#ffedd5"
+group = "Orange"
+
+[[colours]]
+name = "orange-300"
+hex = "#fdba74"
+group = "Orange"
+
+[[colours]]
+name = "orange-500"
+hex = "#f97316"
+group = "Orange"
+
+[[colours]]
+name = "orange-700"
+hex = "#c2410c"
+group = "Orange"
+
+[[colours]]
+name = "orange-900"
+hex = "#7c2d12"
+group = "Orange"
+
+[[colours]]
+name = "amber-100"
+hex = "#fef3c7"
+group = "Amber"
+
+[[colours]]
+name = "amber-300"
+hex = "#fcd34d"
+group = "Amber"
+
+[[colours]]
+name = "amber-500"
+hex = "#f59e0b"
+group = "Amber"
+
+[[colours]]
+name = "amber-700"
+hex = "#b45309"
+group = "Amber"
+
+[[colours]]
+name = "amber-900"
+hex = "#78350f"
+group = "Amber"
+
+[[colours]]
+name = "yellow-100"
+hex = "#fef9c3"
+group = "Yellow"
+
+[[colours]]
+name = "yellow-300"
+hex = "#fde047"
+group = "Yellow"
+
+[[colours]]
+name = "yellow-500"
+hex = "#eab308"
+group = "Yellow"
+
+[[colours]]
+name = "yellow-700"
+hex = "#a16207"
+group = "Yellow"
+
+[[colours]]
+name = "yellow-900"
+hex = "#713f12"
+group = "Yellow"
+
+[[colours]]
+name = "lime-100"
+hex = "#ecfccb"
+group = "Lime"
+
+[[colours]]
+name = "lime-300"
+hex = "#bef264"
+group = "Lime"
+
+[[colours]]
+name = "lime-500"
+hex = "#84cc16"
+group = "Lime"
+
+[[colours]]
+name = "lime-700"
+hex = "#4d7c0f"
+group = "Lime"
+
+[[colours]]
+name = "lime-900"
+hex = "#365314"
+group = "Lime"
+
+[[colours]]
+name = "green-100"
+hex = "#dcfce7"
+group = "Green"
+
+[[colours]]
+name = "green-300"
+hex = "#86efac"
+group = "Green"
+
+[[colours]]
+name = "green-500"
+hex = "#22c55e"
+group = "Green"
+
+[[colours]]
+name = "green-700"
+hex = "#15803d"
+group = "Green"
+
+[[colours]]
+name = "green-900"
+hex = "#14532d"
+group = "Green"
+
+[[colours]]
+name = "teal-100"
+hex = "#ccfbf1"
+group = "Teal"
+
+[[colours]]
+name = "teal-300"
+hex = "#5eead4"
+group = "Teal"
+
+[[colours]]
+name = "teal-500"
+hex = "#14b8a6"
+group = "Teal"
+
+[[colours]]
+name = "teal-700"
+hex = "#0f766e"
+group = "Teal"
+
+[[colours]]
+name = "teal-900"
+hex = "#134e4a"
+group = "Teal"
+
+[[colours]]
+name = "cyan-100"
+hex = "#cffafe"
+group = "Cyan"
+
+[[colours]]
+name = "cyan-300"
+hex = "#67e8f9"
+group = "Cyan"
+
+[[colours]]
+name = "cyan-500"
+hex = "#06b6d4"
+group = "Cyan"
+
+[[colours]]
+name = "cyan-700"
+hex = "#0e7490"
+group = "Cyan"
+
+[[colours]]
+name = "cyan-900"
+hex = "#164e63"
+group = "Cyan"
+
+[[colours]]
+name = "blue-100"
+hex = "#dbeafe"
+group = "Blue"
+
+[[colours]]
+name = "blue-300"
+hex = "#93c5fd"
+group = "Blue"
+
+[[colours]]
+name = "blue-500"
+hex = "#3b82f6"
+group = "Blue"
+
+[[colours]]
+name = "blue-700"
+hex = "#1d4ed8"
+group = "Blue"
+
+[[colours]]
+name = "blue-900"
+hex = "#1e3a8a"
+group = "Blue"
+
+[[colours]]
+name = "indigo-100"
+hex = "#e0e7ff"
+group = "Indigo"
+
+[[colours]]
+name = "indigo-300"
+hex = "#a5b4fc"
+group = "Indigo"
+
+[[colours]]
+name = "indigo-500"
+hex = "#6366f1"
+group = "Indigo"
+
+[[colours]]
+name = "indigo-700"
+hex = "#4338ca"
+group = "Indigo"
+
+[[colours]]
+name = "indigo-900"
+hex = "#312e81"
+group = "Indigo"
+
+[[colours]]
+name = "purple-100"
+hex = "#f3e8ff"
+group = "Purple"
+
+[[colours]]
+name = "purple-300"
+hex = "#d8b4fe"
+group = "Purple"
+
+[[colours]]
+name = "purple-500"
+hex = "#a855f7"
+group = "Purple"
+
+[[colours]]
+name = "purple-700"
+hex = "#7e22ce"
+group = "Purple"
+
+[[colours]]
+name = "purple-900"
+hex = "#581c87"
+group = "Purple"
+
+[[colours]]
+name = "pink-100"
+hex = "#fce7f3"
+group = "Pink"
+
+[[colours]]
+name = "pink-300"
+hex = "#f9a8d4"
+group = "Pink"
+
+[[colours]]
+name = "pink-500"
+hex = "#ec4899"
+group = "Pink"
+
+[[colours]]
+name = "pink-700"
+hex = "#be185d"
+group = "Pink"
+
+[[colours]]
+name = "pink-900"
+hex = "#831843"
+group = "Pink"
+
+[[colours]]
+name = "slate-50"
+hex = "#f8fafc"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-100"
+hex = "#f1f5f9"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-200"
+hex = "#e2e8f0"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-300"
+hex = "#cbd5e1"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-400"
+hex = "#94a3b8"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-500"
+hex = "#64748b"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-600"
+hex = "#475569"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-700"
+hex = "#334155"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-800"
+hex = "#1e293b"
+group = "Neutrals"
+
+[[colours]]
+name = "slate-900"
+hex = "#0f172a"
+group = "Neutrals"
+
+[[colours]]
+name = "white"
+hex = "#ffffff"
+group = "Neutrals"
+
+[[colours]]
+name = "black"
+hex = "#000000"
+group = "Neutrals"
+
+[[emoji]]
+name = "ok"
+glyph = "✅"
+group = "Status"
+
+[[emoji]]
+name = "cross"
+glyph = "❌"
+group = "Status"
+
+[[emoji]]
+name = "warning"
+glyph = "⚠️"
+group = "Status"
+
+[[emoji]]
+name = "waiting"
+glyph = "⏳"
+group = "Status"
+
+[[emoji]]
+name = "bell"
+glyph = "🔔"
+group = "Status"
+
+[[emoji]]
+name = "star"
+glyph = "⭐"
+group = "Status"
+
+[[emoji]]
+name = "heart"
+glyph = "❤️"
+group = "Status"
+
+[[emoji]]
+name = "fire"
+glyph = "🔥"
+group = "Status"
+
+[[emoji]]
+name = "bolt"
+glyph = "⚡"
+group = "Status"
+
+[[emoji]]
+name = "idea"
+glyph = "💡"
+group = "Status"
+
+[[emoji]]
+name = "lock"
+glyph = "🔒"
+group = "Status"
+
+[[emoji]]
+name = "unlocked"
+glyph = "🔓"
+group = "Status"
+
+[[emoji]]
+name = "key"
+glyph = "🔑"
+group = "Status"
+
+[[emoji]]
+name = "check"
+glyph = "✔️"
+group = "Status"
+
+[[emoji]]
+name = "plus"
+glyph = "➕"
+group = "Status"
+
+[[emoji]]
+name = "minus"
+glyph = "➖"
+group = "Status"
+
+[[emoji]]
+name = "new"
+glyph = "🆕"
+group = "Status"
+
+[[emoji]]
+name = "stop"
+glyph = "🛑"
+group = "Status"
+
+[[emoji]]
+name = "pin"
+glyph = "📌"
+group = "Status"
+
+[[emoji]]
+name = "flag"
+glyph = "🚩"
+group = "Status"
+
+[[emoji]]
+name = "target"
+glyph = "🎯"
+group = "Status"
+
+[[emoji]]
+name = "trophy"
+glyph = "🏆"
+group = "Status"
+
+[[emoji]]
+name = "home"
+glyph = "🏠"
+group = "Home and life"
+
+[[emoji]]
+name = "cart"
+glyph = "🛒"
+group = "Home and life"
+
+[[emoji]]
+name = "bags"
+glyph = "🛍️"
+group = "Home and life"
+
+[[emoji]]
+name = "cooking"
+glyph = "🍳"
+group = "Home and life"
+
+[[emoji]]
+name = "laundry"
+glyph = "🧺"
+group = "Home and life"
+
+[[emoji]]
+name = "sofa"
+glyph = "🛋️"
+group = "Home and life"
+
+[[emoji]]
+name = "car"
+glyph = "🚗"
+group = "Home and life"
+
+[[emoji]]
+name = "plane"
+glyph = "✈️"
+group = "Home and life"
+
+[[emoji]]
+name = "luggage"
+glyph = "🧳"
+group = "Home and life"
+
+[[emoji]]
+name = "health"
+glyph = "🏥"
+group = "Home and life"
+
+[[emoji]]
+name = "pill"
+glyph = "💊"
+group = "Home and life"
+
+[[emoji]]
+name = "gift"
+glyph = "🎁"
+group = "Home and life"
+
+[[emoji]]
+name = "coffee"
+glyph = "☕"
+group = "Home and life"
+
+[[emoji]]
+name = "pizza"
+glyph = "🍕"
+group = "Home and life"
+
+[[emoji]]
+name = "apple"
+glyph = "🍎"
+group = "Home and life"
+
+[[emoji]]
+name = "bed"
+glyph = "🛏️"
+group = "Home and life"
+
+[[emoji]]
+name = "bike"
+glyph = "🚲"
+group = "Home and life"
+
+[[emoji]]
+name = "paw"
+glyph = "🐾"
+group = "Home and life"
+
+[[emoji]]
+name = "film"
+glyph = "🎬"
+group = "Media"
+
+[[emoji]]
+name = "tv"
+glyph = "📺"
+group = "Media"
+
+[[emoji]]
+name = "headphones"
+glyph = "🎧"
+group = "Media"
+
+[[emoji]]
+name = "music"
+glyph = "🎵"
+group = "Media"
+
+[[emoji]]
+name = "books"
+glyph = "📚"
+group = "Media"
+
+[[emoji]]
+name = "book"
+glyph = "📖"
+group = "Media"
+
+[[emoji]]
+name = "gamepad"
+glyph = "🎮"
+group = "Media"
+
+[[emoji]]
+name = "projector"
+glyph = "🎞️"
+group = "Media"
+
+[[emoji]]
+name = "camera"
+glyph = "📷"
+group = "Media"
+
+[[emoji]]
+name = "microphone"
+glyph = "🎙️"
+group = "Media"
+
+[[emoji]]
+name = "radio"
+glyph = "📻"
+group = "Media"
+
+[[emoji]]
+name = "newspaper"
+glyph = "📰"
+group = "Media"
+
+[[emoji]]
+name = "palette"
+glyph = "🎨"
+group = "Media"
+
+[[emoji]]
+name = "theatre"
+glyph = "🎭"
+group = "Media"
+
+[[emoji]]
+name = "laptop"
+glyph = "💻"
+group = "Work and tech"
+
+[[emoji]]
+name = "desktop"
+glyph = "🖥️"
+group = "Work and tech"
+
+[[emoji]]
+name = "keyboard"
+glyph = "⌨️"
+group = "Work and tech"
+
+[[emoji]]
+name = "printer"
+glyph = "🖨️"
+group = "Work and tech"
+
+[[emoji]]
+name = "antenna"
+glyph = "📡"
+group = "Work and tech"
+
+[[emoji]]
+name = "wrench"
+glyph = "🔧"
+group = "Work and tech"
+
+[[emoji]]
+name = "tools"
+glyph = "🛠️"
+group = "Work and tech"
+
+[[emoji]]
+name = "gear"
+glyph = "⚙️"
+group = "Work and tech"
+
+[[emoji]]
+name = "toolbox"
+glyph = "🧰"
+group = "Work and tech"
+
+[[emoji]]
+name = "flask"
+glyph = "🧪"
+group = "Work and tech"
+
+[[emoji]]
+name = "package"
+glyph = "📦"
+group = "Work and tech"
+
+[[emoji]]
+name = "cabinet"
+glyph = "🗄️"
+group = "Work and tech"
+
+[[emoji]]
+name = "disk"
+glyph = "💾"
+group = "Work and tech"
+
+[[emoji]]
+name = "plug"
+glyph = "🔌"
+group = "Work and tech"
+
+[[emoji]]
+name = "battery"
+glyph = "🔋"
+group = "Work and tech"
+
+[[emoji]]
+name = "globe"
+glyph = "🌐"
+group = "Work and tech"
+
+[[emoji]]
+name = "chart-bars"
+glyph = "📊"
+group = "Work and tech"
+
+[[emoji]]
+name = "chart-up"
+glyph = "📈"
+group = "Work and tech"
+
+[[emoji]]
+name = "chart-down"
+glyph = "📉"
+group = "Work and tech"
+
+[[emoji]]
+name = "clipboard"
+glyph = "📋"
+group = "Work and tech"
+
+[[emoji]]
+name = "memo"
+glyph = "📝"
+group = "Work and tech"
+
+[[emoji]]
+name = "calendar"
+glyph = "📅"
+group = "Work and tech"
+
+[[emoji]]
+name = "schedule"
+glyph = "🗓️"
+group = "Work and tech"
+
+[[emoji]]
+name = "alarm"
+glyph = "⏰"
+group = "Work and tech"
+
+[[emoji]]
+name = "stopwatch"
+glyph = "⏱️"
+group = "Work and tech"
+
+[[emoji]]
+name = "phone"
+glyph = "📞"
+group = "Work and tech"
+
+[[emoji]]
+name = "email"
+glyph = "📧"
+group = "Work and tech"
+
+[[emoji]]
+name = "chat"
+glyph = "💬"
+group = "Work and tech"
+
+[[emoji]]
+name = "robot"
+glyph = "🤖"
+group = "Work and tech"
+
+[[emoji]]
+name = "link"
+glyph = "🔗"
+group = "Work and tech"
+
+[[emoji]]
+name = "tag"
+glyph = "🏷️"
+group = "Work and tech"
+
+[[emoji]]
+name = "paperclip"
+glyph = "📎"
+group = "Work and tech"
+
+[[emoji]]
+name = "magnifier"
+glyph = "🔍"
+group = "Work and tech"
+
+[[emoji]]
+name = "compass"
+glyph = "🧭"
+group = "Work and tech"
+
+[[emoji]]
+name = "map"
+glyph = "🗺️"
+group = "Work and tech"
+
+[[emoji]]
+name = "shield"
+glyph = "🛡️"
+group = "Work and tech"
+
+[[emoji]]
+name = "bug"
+glyph = "🐛"
+group = "Work and tech"
+
+[[emoji]]
+name = "rocket"
+glyph = "🚀"
+group = "Work and tech"
+
+[[emoji]]
+name = "satellite"
+glyph = "🛰️"
+group = "Work and tech"
+
+[[emoji]]
+name = "cloud"
+glyph = "☁️"
+group = "Work and tech"
+
+[[emoji]]
+name = "server"
+glyph = "🧮"
+group = "Work and tech"
+
+[[emoji]]
+name = "money"
+glyph = "💰"
+group = "Money"
+
+[[emoji]]
+name = "card"
+glyph = "💳"
+group = "Money"
+
+[[emoji]]
+name = "bank"
+glyph = "🏦"
+group = "Money"
+
+[[emoji]]
+name = "coin"
+glyph = "🪙"
+group = "Money"
+
+[[emoji]]
+name = "receipt"
+glyph = "🧾"
+group = "Money"
+
+[[emoji]]
+name = "banknote"
+glyph = "💵"
+group = "Money"
+
+[[emoji]]
+name = "scales"
+glyph = "⚖️"
+group = "Money"
+
+[[emoji]]
+name = "gem"
+glyph = "💎"
+group = "Money"
+
+[[emoji]]
+name = "moon"
+glyph = "🌙"
+group = "Nature and weather"
+
+[[emoji]]
+name = "sun"
+glyph = "☀️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "partly-sunny"
+glyph = "🌤️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "rain"
+glyph = "🌧️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "snow"
+glyph = "❄️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "tree"
+glyph = "🌲"
+group = "Nature and weather"
+
+[[emoji]]
+name = "wave"
+glyph = "🌊"
+group = "Nature and weather"
+
+[[emoji]]
+name = "leaf"
+glyph = "🍃"
+group = "Nature and weather"
+
+[[emoji]]
+name = "flower"
+glyph = "🌸"
+group = "Nature and weather"
+
+[[emoji]]
+name = "mountain"
+glyph = "⛰️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "rainbow"
+glyph = "🌈"
+group = "Nature and weather"
+
+[[emoji]]
+name = "thermometer"
+glyph = "🌡️"
+group = "Nature and weather"
+
+[[emoji]]
+name = "circle-red"
+glyph = "🔴"
+group = "Shapes"
+
+[[emoji]]
+name = "circle-orange"
+glyph = "🟠"
+group = "Shapes"
+
+[[emoji]]
+name = "circle-yellow"
+glyph = "🟡"
+group = "Shapes"
+
+[[emoji]]
+name = "circle-green"
+glyph = "🟢"
+group = "Shapes"
+
+[[emoji]]
+name = "circle-blue"
+glyph = "🔵"
+group = "Shapes"
+
+[[emoji]]
+name = "circle-purple"
+glyph = "🟣"
+group = "Shapes"
+
+[[emoji]]
+name = "square-black"
+glyph = "⬛"
+group = "Shapes"
+
+[[emoji]]
+name = "square-white"
+glyph = "⬜"
+group = "Shapes"
+
+[[emoji]]
+name = "diamond"
+glyph = "🔷"
+group = "Shapes"
+
+[[emoji]]
+name = "sparkles"
+glyph = "✨"
+group = "Shapes"
+
+[[emoji]]
+name = "hourglass"
+glyph = "⌛"
+group = "Shapes"
+
+[[emoji]]
+name = "infinity"
+glyph = "♾️"
+group = "Shapes"
+
+[[emoji]]
+name = "flag-us"
+glyph = "🇺🇸"
+group = "Flags"
+
+[[emoji]]
+name = "checkered"
+glyph = "🏁"
+group = "Flags"
+
+[[emoji]]
+name = "white-flag"
+glyph = "🏳️"
+group = "Flags"
+
+[[emoji]]
+name = "pirate"
+glyph = "🏴‍☠️"
+group = "Flags"
