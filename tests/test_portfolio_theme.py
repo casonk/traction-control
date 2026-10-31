@@ -90,6 +90,15 @@ class ThemeSourceTests(unittest.TestCase):
             self.assertIn(needle, chrome)
         self.assertIn("if (!window.PortfolioTheme)", chrome)
 
+    def test_topbar_is_placed_outside_the_page_body(self):
+        js = (ROOT / "themes" / "topbar.js").read_text(encoding="utf-8")
+        self.assertIn("document.documentElement.insertBefore(bar, document.body)", js)
+
+    def test_topbar_css_isolates_itself_from_page_styles_first(self):
+        css = (ROOT / "themes" / "topbar.css").read_text(encoding="utf-8")
+        reset = css.index(".pf-topbar { all: initial; }")
+        self.assertLess(reset, css.index(".pf-topbar {\n"))
+
     def test_topbar_css_uses_only_scoped_tokens(self):
         css = (ROOT / "themes" / "topbar.css").read_text(encoding="utf-8")
         import re
