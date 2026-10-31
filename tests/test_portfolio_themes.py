@@ -92,6 +92,34 @@ class ValidationTests(Case):
         self.assertIn("themes.local.toml", str(ctx.exception))
 
 
+class TrackedValuesTests(Case):
+    def test_a_tracked_theme_reports_its_tracked_values_even_after_you_change_it(self):
+        state = self.editor_state()
+        mid = next(t for t in state["themes"] if t["name"] == "midnight")
+        original = json.loads(json.dumps(mid["tracked"]))
+        self.assertEqual(original["label"], "Midnight")
+        mid["label"], mid["tokens"]["accent"] = "Night", "#ff8800"
+        mine = {**mid, "name": "mine", "label": "Mine", "based_on": "ember", "tracked": None}
+        self.apply({"themes": [*state["themes"], mine], "active": [*state["active"], "mine"]})
+        after = {t["name"]: t for t in self.editor_state()["themes"]}
+        self.assertEqual(after["midnight"]["label"], "Night")
+        self.assertEqual(after["midnight"]["tracked"], original)  # still what the tracked file says
+        self.assertIsNone(after["mine"]["tracked"])  # a theme of your own has nothing to revert to
+
+    def test_sending_the_tracked_values_back_removes_the_override(self):
+        state = self.editor_state()
+        mid = next(t for t in state["themes"] if t["name"] == "midnight")
+        mid["label"] = "Night"
+        self.apply({"themes": state["themes"], "active": state["active"]})
+        self.assertIn("midnight", pt.load_local(self.local)["override"])
+        state = self.editor_state()
+        mid = next(t for t in state["themes"] if t["name"] == "midnight")
+        mid.update({k: v for k, v in mid["tracked"].items() if k != "tokens"})
+        mid["tokens"] = dict(mid["tracked"]["tokens"])
+        self.apply({"themes": state["themes"], "active": state["active"]})
+        self.assertNotIn("midnight", pt.load_local(self.local)["override"])
+
+
 class MergeTests(Case):
     def merged(self, **raw):
         return pt.merge(base.load(), pt.clean(raw))

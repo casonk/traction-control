@@ -359,6 +359,8 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
                 "active": name in chosen["themes"],
                 **{k: theme.get(k, "") for k in ("label", "description", "scheme", "icon", "stripe")},
                 "tokens": {t: theme[t] for t in base.TOKENS},
+                # What the tracked file says, so an editor can offer "revert to the tracked theme".
+                "tracked": _plain(document["themes"][name]) if name in builtin else None,
             }
         )
     return {
@@ -369,6 +371,13 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
         "defaults": {"dark": chosen["meta"]["default_dark"], "light": chosen["meta"]["default_light"]},
         "tokens": list(base.TOKENS),
         "paths": {"local": str(path), "rendered": str(RENDERED_DIR), "shared": str(STORE_SHARED)},
+    }
+
+
+def _plain(theme: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **{k: theme.get(k, "") for k in ("label", "description", "scheme", "icon", "stripe")},
+        "tokens": {t: theme[t] for t in base.TOKENS},
     }
 
 
