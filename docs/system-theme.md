@@ -237,6 +237,11 @@ Caddy-served `/srv/portfolio-chrome` stays a *copy*: Caddy cannot read through a
 Each repository's vendored fallback is the tracked theme and is not affected, so a page still works with no
 local layer present.
 
+**The library.** `themes/library.toml` is a tracked, curated list of colours (twelve hue families in five steps plus a
+neutral ramp, using the widely used Tailwind CSS v3 palette values) and about a hundred and thirty emoji in
+groups. `portfolio_themes.py show --json` returns it as `library` so an editor can offer a picker; it is
+read-only, and what you save from it lands in your own `[palette]` and `[emoji]`.
+
 **Names and icons.** `[labels."<id>"]` renames or re-icons a card or menu entry. The id is a Clockwork page's
 path (`/groceries`), a registry service's name, or a fixed top-bar item (`nav:home`, `nav:clockwork`, `nav:lists`,
 `nav:media`, `nav:services`). Names are up to 32 characters of plain text and icons are non-ASCII symbols, like

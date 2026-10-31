@@ -256,6 +256,52 @@ class LabelTests(Case):
         self.assertFalse((self.rendered / "labels.json").exists())
 
 
+class LibraryTests(Case):
+    def test_the_tracked_library_loads_and_is_what_show_reports(self):
+        library = pt.load_library()
+        self.assertGreaterEqual(len(library["colours"]), 60)
+        self.assertGreaterEqual(len(library["emoji"]), 100)
+        self.assertEqual(self.editor_state()["library"], library)
+
+    def test_every_library_entry_is_valid_unique_and_grouped(self):
+        library = pt.load_library()
+        for kind in ("colours", "emoji"):
+            names = [row["name"] for row in library[kind]]
+            self.assertEqual(len(names), len(set(names)), kind)
+            self.assertTrue(all(row["group"] for row in library[kind]), kind)
+        self.assertTrue(all(base.HEX.fullmatch(c["hex"]) for c in library["colours"]))
+        self.assertTrue(all(0 < len(e["glyph"]) <= 8 and ord(e["glyph"][0]) > 127 for e in library["emoji"]))
+
+    def test_every_library_name_can_be_saved_as_your_own(self):
+        library = pt.load_library()
+        saved = pt.clean(
+            {"palette": {c["name"]: c["hex"] for c in library["colours"]}, "emoji": {e["name"]: e["glyph"] for e in library["emoji"]}}
+        )
+        self.assertEqual(len(saved["palette"]), len(library["colours"]))
+        self.assertEqual(len(saved["emoji"]), len(library["emoji"]))
+
+    def test_the_library_covers_the_basics_an_editor_needs(self):
+        library = pt.load_library()
+        groups = {c["group"] for c in library["colours"]}
+        self.assertTrue({"Red", "Green", "Blue", "Neutrals"} <= groups)
+        glyphs = {e["name"]: e["glyph"] for e in library["emoji"]}
+        for name in ("home", "cart", "film", "laptop", "money", "rocket", "ok", "warning"):
+            self.assertIn(name, glyphs)
+
+    def test_a_bad_library_file_is_refused(self):
+        bad = self.root / "library.toml"
+        for body in (
+            '[[colours]]\nname = "x"\nhex = "red"\ngroup = "G"\n',
+            '[[emoji]]\nname = "x"\nglyph = "ab"\ngroup = "G"\n',
+            '[[emoji]]\nname = "Bad Name"\nglyph = "🚀"\ngroup = "G"\n',
+            '[[emoji]]\nname = "a"\nglyph = "🚀"\ngroup = "G"\n[[emoji]]\nname = "a"\nglyph = "🔥"\ngroup = "G"\n',
+            '[[emoji]]\nname = "a"\nglyph = "🚀"\ngroup = "<b>"\n',
+        ):
+            bad.write_text(body, encoding="utf-8")
+            with self.assertRaises(pt.LocalThemeError, msg=body):
+                pt.load_library(bad)
+
+
 class MergeTests(Case):
     def merged(self, **raw):
         return pt.merge(base.load(), pt.clean(raw))
