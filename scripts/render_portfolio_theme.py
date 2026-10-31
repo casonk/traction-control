@@ -59,6 +59,12 @@ class ThemeError(ValueError):
 
 def load(path: Path = SOURCE) -> dict:
     document = tomllib.loads(path.read_text(encoding="utf-8"))
+    validate(document)
+    return document
+
+
+def validate(document: dict) -> dict:
+    """Raise ThemeError unless *document* (the shape ``load`` returns) is complete and consistent."""
     themes = document.get("themes", {})
     meta = document.get("meta", {})
     if not themes:
