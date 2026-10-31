@@ -1,0 +1,86 @@
+"""The shared theme source is complete, readable, and its rendered files are current."""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("render_portfolio_theme", ROOT / "scripts" / "render_portfolio_theme.py")
+rpt = importlib.util.module_from_spec(spec)
+sys.modules["render_portfolio_theme"] = rpt
+spec.loader.exec_module(rpt)
+
+
+def luminance(colour: str) -> float:
+    channels = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast(a: str, b: str) -> float:
+    hi, lo = sorted((luminance(a), luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class ThemeSourceTests(unittest.TestCase):
+    def setUp(self):
+        self.document = rpt.load()
+        self.themes = self.document["themes"]
+
+    def test_there_are_several_themes_in_both_schemes(self):
+        self.assertGreaterEqual(len(self.themes), 3)
+        self.assertEqual({t["scheme"] for t in self.themes.values()}, {"dark", "light"})
+
+    def test_text_is_readable_in_every_theme(self):
+        for name, t in self.themes.items():
+            for fg, bg, floor in (
+                ("text", "bg", 4.5),
+                ("text", "surface", 4.5),
+                ("text", "surface2", 4.5),
+                ("muted", "bg", 4.5),
+                ("muted", "surface", 4.5),
+                ("accent-ink", "accent", 4.5),
+                ("accent", "surface", 3.0),
+                ("green", "green-dim", 4.5),
+                ("red", "red-dim", 4.5),
+                ("yellow", "yellow-dim", 4.5),
+                ("purple", "purple-dim", 4.5),
+                ("accent", "accent-dim", 3.0),
+            ):
+                with self.subTest(theme=name, pair=f"{fg} on {bg}"):
+                    self.assertGreaterEqual(contrast(t[fg], t[bg]), floor, f"{contrast(t[fg], t[bg]):.2f}")
+
+    def test_invalid_themes_are_rejected(self):
+        import tempfile
+
+        good = (ROOT / "themes" / "themes.toml").read_text(encoding="utf-8")
+        for bad in (
+            good.replace('bg = "#0f1117"', 'bg = "red"', 1),
+            good.replace('scheme = "dark"', 'scheme = "blue"', 1),
+            good.replace('default_light = "daylight"', 'default_light = "midnight"', 1),
+            good.replace('bg = "#0f1117"', 'bg = "#0f1117"\nnope = "#000000"', 1),
+        ):
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "t.toml"
+                path.write_text(bad, encoding="utf-8")
+                with self.assertRaises(rpt.ThemeError):
+                    rpt.load(path)
+
+    def test_rendered_files_are_current(self):
+        for name, text in rpt.render(self.document).items():
+            self.assertEqual((ROOT / "themes" / name).read_text(encoding="utf-8"), text, name)
+
+    def test_css_defines_every_token_for_every_theme(self):
+        css = rpt.render_css(self.document)
+        for name in self.themes:
+            block = css.split(f':root[data-theme="{name}"] {{')[1].split("}")[0]
+            for token in rpt.TOKENS:
+                self.assertIn(f"--{token}:", block, f"{name} {token}")
+        self.assertIn("prefers-color-scheme: light", css)
+
+
+if __name__ == "__main__":
+    unittest.main()
