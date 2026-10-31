@@ -8,7 +8,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("render_portfolio_theme", ROOT / "scripts" / "render_portfolio_theme.py")
+spec = importlib.util.spec_from_file_location(
+    "render_portfolio_theme", ROOT / "scripts" / "render_portfolio_theme.py"
+)
 rpt = importlib.util.module_from_spec(spec)
 sys.modules["render_portfolio_theme"] = rpt
 spec.loader.exec_module(rpt)
@@ -16,7 +18,9 @@ spec.loader.exec_module(rpt)
 
 def luminance(colour: str) -> float:
     channels = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
-    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    linear = [
+        c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels
+    ]
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
 
 
@@ -51,7 +55,9 @@ class ThemeSourceTests(unittest.TestCase):
                 ("accent", "accent-dim", 3.0),
             ):
                 with self.subTest(theme=name, pair=f"{fg} on {bg}"):
-                    self.assertGreaterEqual(contrast(t[fg], t[bg]), floor, f"{contrast(t[fg], t[bg]):.2f}")
+                    self.assertGreaterEqual(
+                        contrast(t[fg], t[bg]), floor, f"{contrast(t[fg], t[bg]):.2f}"
+                    )
 
     def test_invalid_themes_are_rejected(self):
         import tempfile
@@ -71,7 +77,9 @@ class ThemeSourceTests(unittest.TestCase):
 
     def test_rendered_files_are_current(self):
         for name, text in rpt.render(self.document).items():
-            self.assertEqual((ROOT / "themes" / name).read_text(encoding="utf-8"), text, name)
+            self.assertEqual(
+                (ROOT / "themes" / name).read_text(encoding="utf-8"), text, name
+            )
 
     def test_script_offers_a_cycling_control_and_every_theme_has_an_icon(self):
         js = rpt.render_js(self.document)
@@ -86,7 +94,12 @@ class ThemeSourceTests(unittest.TestCase):
             self.assertIn(f'html[data-theme=\\"{name}\\"] .pf-topbar', chrome)
         self.assertIn("--pf-surface:", chrome)
         self.assertNotIn(":root", chrome.split("window.PortfolioTheme")[0])
-        for needle in ("pf-topbar", "/_portfolio/nav.json", "PortfolioTheme.bind", "data-theme-cycle"):
+        for needle in (
+            "pf-topbar",
+            "/_portfolio/nav.json",
+            "PortfolioTheme.bind",
+            "data-theme-cycle",
+        ):
             self.assertIn(needle, chrome)
         self.assertIn("if (!window.PortfolioTheme)", chrome)
 
@@ -126,7 +139,10 @@ class ThemeSourceTests(unittest.TestCase):
 
         good = (ROOT / "themes" / "themes.toml").read_text(encoding="utf-8")
         line = next(ln for ln in good.splitlines() if ln.startswith("stripe = "))
-        for bad in ('stripe = "red; } body { display: none"', 'stripe = "url(https://example.test/x)"'):
+        for bad in (
+            'stripe = "red; } body { display: none"',
+            'stripe = "url(https://example.test/x)"',
+        ):
             with tempfile.TemporaryDirectory() as tmp:
                 path = Path(tmp) / "t.toml"
                 path.write_text(good.replace(line, bad, 1), encoding="utf-8")
@@ -135,10 +151,43 @@ class ThemeSourceTests(unittest.TestCase):
 
     def test_script_builds_a_drop_down_menu_of_every_theme(self):
         js = rpt.render_js(self.document)
-        for needle in ("data-theme-menu", "menuitemradio", "data-theme-choice", "fill: fill", "swatch"):
+        for needle in (
+            "data-theme-menu",
+            "menuitemradio",
+            "data-theme-choice",
+            "fill: fill",
+            "swatch",
+        ):
             self.assertIn(needle, js)
         chrome = rpt.render(self.document)["portfolio-chrome.js"]
         self.assertIn("pf-topbar__group--theme", chrome)
+
+    def test_type_is_a_fixed_list_and_the_switcher_overrides_it(self):
+        css = rpt.render_css(self.document)
+        self.assertIn("--font:", css)
+        self.assertIn("--mono:", css)
+        self.assertIn("--font-size: 14px;", css)
+        self.assertIn('html[data-font="serif"]', css)
+        self.assertIn('html[data-size="20"]', css)
+        self.assertIn(
+            "html { font-family: var(--font); font-size: var(--font-size); }", css
+        )
+        js = rpt.render_js(self.document)
+        for needle in (
+            "portfolio-font",
+            "portfolio-size",
+            "data-type-menu",
+            "data-type-choice",
+            "fillType",
+        ):
+            self.assertIn(needle, js)
+        with self.assertRaises(rpt.ThemeError):
+            rpt.type_settings({"type": {"font": "comic sans", "size": 14}})
+        with self.assertRaises(rpt.ThemeError):
+            rpt.type_settings({"type": {"font": "system", "size": 13}})
+        self.assertIn(
+            "data-type-menu", rpt.render(self.document)["portfolio-chrome.js"]
+        )
 
     def test_css_defines_every_token_for_every_theme(self):
         css = rpt.render_css(self.document)

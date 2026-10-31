@@ -97,7 +97,23 @@
 }
 .pf-topbar__group--theme > summary::after { font-size: 11px; opacity: 1; }
 .pf-topbar__group--theme .pf-topbar__menu { min-width: 260px; }
-.pf-topbar [data-theme-choice] {
+.pf-topbar__group--type > summary {
+  border: 1px solid var(--pf-border);
+  border-radius: 7px;
+  margin-right: 6px;
+  padding: 6px 8px;
+}
+.pf-topbar__group--type .pf-topbar__menu { min-width: 180px; }
+.pf-topbar [data-type-label] {
+  padding: 8px 11px 2px;
+  color: var(--pf-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.pf-topbar [data-theme-choice],
+.pf-topbar [data-type-choice] {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -112,8 +128,10 @@
   text-align: left;
   cursor: pointer;
 }
-.pf-topbar [data-theme-choice]:hover, .pf-topbar [data-theme-choice]:focus-visible { background: var(--pf-accent-dim); }
-.pf-topbar [data-theme-choice][aria-checked="true"] { background: var(--pf-accent-dim); font-weight: 700; }
+.pf-topbar [data-theme-choice]:hover, .pf-topbar [data-theme-choice]:focus-visible,
+.pf-topbar [data-type-choice]:hover, .pf-topbar [data-type-choice]:focus-visible { background: var(--pf-accent-dim); }
+.pf-topbar [data-theme-choice][aria-checked="true"],
+.pf-topbar [data-type-choice][aria-checked="true"] { background: var(--pf-accent-dim); font-weight: 700; }
 .pf-topbar [data-theme-choice] small { margin-left: auto; color: var(--pf-muted); font-size: 11px; font-weight: 600; text-transform: capitalize; }
 .pf-topbar .pf-swatch { display: block; flex: none; width: 36px; height: 14px; border: 1px solid var(--pf-border); border-radius: 4px; }
 @media (max-width: 600px) {

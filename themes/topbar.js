@@ -91,6 +91,20 @@
     name.setAttribute("data-theme-name", "");
     rotator.appendChild(name);
     rotator.setAttribute("data-theme-cycle", "");
+    var typeChoose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--type");
+    var typeSummary = el("summary");
+    typeSummary.setAttribute("aria-label", "Font and size");
+    typeSummary.setAttribute("title", "Font and size");
+    typeSummary.textContent = "Aa";
+    var typeMenu = el("div", "pf-topbar__menu");
+    typeMenu.setAttribute("data-type-menu", "");
+    typeChoose.appendChild(typeSummary);
+    typeChoose.appendChild(typeMenu);
+    typeChoose.addEventListener("toggle", function () {
+      if (typeChoose.open) groups.forEach(function (other) { if (other !== typeChoose) other.open = false; });
+    });
+    groups.push(typeChoose);
+    wrap.appendChild(typeChoose);
     wrap.appendChild(rotator);
     var choose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--theme");
     var caret = el("summary");
@@ -113,6 +127,7 @@
     if (window.PortfolioTheme && window.PortfolioTheme.bind) {
       window.PortfolioTheme.bind(rotator);
       window.PortfolioTheme.fill(menu);
+      if (window.PortfolioTheme.fillType) window.PortfolioTheme.fillType(typeMenu);
     }
     bar.pfGroups = groups;
   }
