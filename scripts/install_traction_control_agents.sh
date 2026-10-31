@@ -17,6 +17,7 @@ PLATFORM="auto"
 CLONE_PROTOCOL="https"
 CLONE_MISSING=1
 ACTIVATE=0
+LINK_SITES=0
 DRY_RUN=0
 NO_SCHEDULER=0
 AUTONOMOUS_CI_REPAIR=0
@@ -48,6 +49,9 @@ Options:
   --no-clone                      Do not clone missing repositories.
   --no-scheduler                  Download/validate repos without rendering jobs.
   --activate                      Enable rendered timers or LaunchAgents.
+  --link-sites                    Also publish the portfolio theme files and link enrolled
+                                  repositories' pages to them (scripts/portfolio_sites.py);
+                                  a plan only unless --activate is also passed.
   --enable-autonomous-ci-repair   Heavy only: schedule broad CI repair instead
                                   of discovery-only CI monitoring.
   --dry-run                       Print the plan without writes, network, or service calls.
@@ -393,6 +397,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --activate)
       ACTIVATE=1
+      shift
+      ;;
+    --link-sites)
+      LINK_SITES=1
       shift
       ;;
     --enable-autonomous-ci-repair)
@@ -1504,6 +1512,19 @@ if [[ "${PLATFORM}" == "linux" ]] && (( ACTIVATE == 1 && DRY_RUN == 0 )); then
     fi
     job_index=$(( job_index + 1 ))
   done
+fi
+
+if (( LINK_SITES == 1 )); then
+  if (( DRY_RUN == 1 )); then
+    info "dry-run: would run scripts/portfolio_sites.py publish and link"
+  else
+    sites_apply=()
+    (( ACTIVATE == 1 )) && sites_apply=(--apply)
+    python3 "${REPO_ROOT}/scripts/portfolio_sites.py" publish ${sites_apply[@]+"${sites_apply[@]}"}
+    python3 "${REPO_ROOT}/scripts/portfolio_sites.py" link --portfolio-root "${PORTFOLIO_ROOT}" \
+      ${sites_apply[@]+"${sites_apply[@]}"} || \
+      info "some enrolled sites could not be linked; see the problems above"
+  fi
 fi
 
 if (( DRY_RUN == 1 )); then

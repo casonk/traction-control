@@ -101,6 +101,7 @@ bash tests/test_create_private_github_repo.sh
 - `LESSONSLEARNED.md`: tracked durable lessons that should influence future sessions
 - `docs/templates/SECURITY.md`: starter template for new repo security-policy files
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
+- `docs/portfolio-sites.md`: deploying pages with whatever tooling is present: the central store, `scripts/portfolio_sites.py`, resolution order, and public/private enrollment
 - `docs/system-theme.md`: the portfolio colour themes, tokens, and how pages and reports adopt them (`themes/themes.toml` is the source)
 - `docs/lesson-capture-framework.md`: end-of-session gate for deciding whether a durable lesson must be recorded
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo

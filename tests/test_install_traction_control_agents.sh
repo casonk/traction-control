@@ -528,6 +528,18 @@ test_cli_and_dry_run() {
   else
     fail_test "dry-run creates no state, scheduler, or repository files"
   fi
+
+  : > "${COMMAND_LOG}"
+  run_installer "${case_root}" \
+    --tier light \
+    --portfolio-root "${portfolio_root}" \
+    --platform macos \
+    --state-dir "${case_root}/state" \
+    --launchd-dir "${case_root}/launch agents" \
+    --link-sites \
+    --dry-run
+  assert_status 0 "--link-sites is accepted in a dry run"
+  assert_output_contains "would run scripts/portfolio_sites.py publish and link" "--link-sites is planned, not run, in a dry run"
   if [[ ! -s "${COMMAND_LOG}" ]]; then
     pass "dry-run invokes no network or scheduler command stubs"
   else
