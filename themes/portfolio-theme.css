@@ -18,6 +18,7 @@
   --yellow-dim: #4a3d10;
   --purple: #a06fff;
   --purple-dim: #29194c;
+  --stripe: transparent;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -39,6 +40,7 @@
     --yellow-dim: #fff3bf;
     --purple: #7048e8;
     --purple-dim: #eee8ff;
+    --stripe: transparent;
   }
 }
 /* Midnight: The original Clockwork dark palette */
@@ -61,6 +63,7 @@
   --yellow-dim: #4a3d10;
   --purple: #a06fff;
   --purple-dim: #29194c;
+  --stripe: transparent;
 }
 /* Daylight: A light theme for bright rooms and print */
 :root[data-theme="daylight"] {
@@ -82,6 +85,7 @@
   --yellow-dim: #fff3bf;
   --purple: #7048e8;
   --purple-dim: #eee8ff;
+  --stripe: transparent;
 }
 /* Ember: A warm dark theme that is easier on the eyes at night */
 :root[data-theme="ember"] {
@@ -103,9 +107,10 @@
   --yellow-dim: #4a3d12;
   --purple: #b98ae0;
   --purple-dim: #3d2a55;
+  --stripe: transparent;
 }
-/* High contrast: Black and white with strong colours, for low vision and glare */
-:root[data-theme="contrast"] {
+/* High contrast dark: Black and white with strong colours, for low vision and glare */
+:root[data-theme="contrast-dark"] {
   color-scheme: dark;
   --bg: #000000;
   --surface: #0b0b0b;
@@ -124,4 +129,49 @@
   --yellow-dim: #4d4000;
   --purple: #d6a8ff;
   --purple-dim: #3d1a66;
+  --stripe: transparent;
+}
+/* High contrast white: Black on white with strong colours and black outlines, for low vision and sunlight */
+:root[data-theme="contrast-light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #ececec;
+  --border: #000000;
+  --text: #000000;
+  --muted: #2e2e2e;
+  --accent: #0000cc;
+  --accent-dim: #d9d9ff;
+  --accent-ink: #ffffff;
+  --green: #005a00;
+  --green-dim: #d2f2d2;
+  --red: #a80000;
+  --red-dim: #ffd6d6;
+  --yellow: #6b4200;
+  --yellow-dim: #ffedb3;
+  --purple: #5200a3;
+  --purple-dim: #e8d9ff;
+  --stripe: transparent;
+}
+/* Liberty: Red, white and blue, like a Bomb Pop */
+:root[data-theme="liberty"] {
+  color-scheme: light;
+  --bg: #f2f5fb;
+  --surface: #ffffff;
+  --surface2: #e4ebf8;
+  --border: #a9b8d8;
+  --text: #0a2342;
+  --muted: #455b85;
+  --accent: #0a3161;
+  --accent-dim: #d6e0f5;
+  --accent-ink: #ffffff;
+  --green: #1b6b38;
+  --green-dim: #d8f0e0;
+  --red: #b31942;
+  --red-dim: #fbdde5;
+  --yellow: #8a5200;
+  --yellow-dim: #fdecc2;
+  --purple: #3a5bbf;
+  --purple-dim: #dde5fb;
+  --stripe: linear-gradient(90deg, #b31942 0 33.34%, #ffffff 33.34% 66.67%, #0a3161 66.67% 100%);
 }

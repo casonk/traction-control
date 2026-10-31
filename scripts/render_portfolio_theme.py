@@ -48,6 +48,7 @@ TOKENS = (
     "purple-dim",
 )
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
+STRIPE = re.compile(r"[A-Za-z0-9#%.,() \-]{1,200}")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}")
 HEADER = "Generated from themes/themes.toml by scripts/render_portfolio_theme.py; do not edit."
 
@@ -72,7 +73,10 @@ def load(path: Path = SOURCE) -> dict:
         for token in TOKENS:
             if not HEX.fullmatch(str(theme.get(token, ""))):
                 raise ThemeError(f"theme {name}: {token} must be a #rrggbb colour")
-        extra = set(theme) - set(TOKENS) - {"label", "description", "scheme", "icon"}
+        stripe = theme.get("stripe")
+        if stripe is not None and not STRIPE.fullmatch(str(stripe)):
+            raise ThemeError(f"theme {name}: stripe must be a plain CSS background value")
+        extra = set(theme) - set(TOKENS) - {"label", "description", "scheme", "icon", "stripe"}
         if extra:
             raise ThemeError(f"theme {name}: unknown keys {sorted(extra)}")
     for key in ("default_dark", "default_light"):
@@ -82,6 +86,9 @@ def load(path: Path = SOURCE) -> dict:
         raise ThemeError("default_dark must be a dark theme")
     if themes[meta["default_light"]]["scheme"] != "light":
         raise ThemeError("default_light must be a light theme")
+    for old, new in meta.get("aliases", {}).items():
+        if old in themes or new not in themes or not NAME.fullmatch(old):
+            raise ThemeError(f"meta.aliases.{old}: an old name must not be a theme, and must point at one")
     if not re.fullmatch(r"[a-z][a-z-]{2,31}", str(meta.get("storage_key", ""))):
         raise ThemeError("meta.storage_key must be a short lowercase key")
     return document
@@ -92,6 +99,7 @@ def _block(selector: str, theme: dict, prefix: str = "") -> str:
     if not prefix:
         lines.append(f"  color-scheme: {theme['scheme']};")
     lines += [f"  --{prefix}{token}: {theme[token].lower()};" for token in TOKENS]
+    lines.append(f"  --{prefix}stripe: {theme.get('stripe', 'transparent')};")
     lines.append("}")
     return "\n".join(lines)
 
@@ -147,6 +155,7 @@ def render_js(document: dict) -> str:
             "label": t["label"],
             "scheme": t["scheme"],
             "icon": t.get("icon", "☀" if t["scheme"] == "light" else "☾"),
+            "swatch": [t["bg"].lower(), t["accent"].lower(), t["text"].lower()],
         }
         for n, t in themes.items()
     }
@@ -154,6 +163,8 @@ def render_js(document: dict) -> str:
 (function () {{
   var THEMES = {json.dumps(listing, indent=2)};
   var KEY = {json.dumps(meta["storage_key"])};
+  var ALIASES = {json.dumps(meta.get("aliases", {}))};
+  function known(name) {{ name = ALIASES[name] || name; return THEMES[name] ? name : null; }}
   var DARK = {json.dumps(meta["default_dark"])}, LIGHT = {json.dumps(meta["default_light"])};
   var root = document.documentElement;
   function saved() {{
@@ -161,9 +172,9 @@ def render_js(document: dict) -> str:
   }}
   function pick() {{
     var asked = new URLSearchParams(location.search).get("theme");
-    if (asked && THEMES[asked]) return asked;
+    if (known(asked)) return known(asked);
     var kept = saved();
-    if (kept && THEMES[kept]) return kept;
+    if (known(kept)) return known(kept);
     return window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? LIGHT : DARK;
   }}
   var ORDER = Object.keys(THEMES);
@@ -186,9 +197,44 @@ def render_js(document: dict) -> str:
     root.setAttribute("data-theme", name);
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{ el.value = name; }});
     document.querySelectorAll("[data-theme-cycle]").forEach(function (el) {{ paintCycle(el, name); }});
+    document.querySelectorAll("[data-theme-menu]").forEach(function (menu) {{ paintMenu(menu, name); }});
+  }}
+  function paintMenu(menu, name) {{
+    menu.querySelectorAll("[data-theme-choice]").forEach(function (item) {{
+      item.setAttribute("aria-checked", String(item.getAttribute("data-theme-choice") === name));
+    }});
+  }}
+  function fill(menu) {{
+    if (menu.pfFilled) return;
+    menu.pfFilled = true;
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Themes");
+    ORDER.forEach(function (name) {{
+      var theme = THEMES[name], item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "menuitemradio");
+      item.setAttribute("data-theme-choice", name);
+      var swatch = document.createElement("span");
+      swatch.className = "pf-swatch";
+      swatch.style.background = "linear-gradient(90deg," + theme.swatch[0] + " 0 34%," +
+        theme.swatch[1] + " 34% 67%," + theme.swatch[2] + " 67%)";
+      var label = document.createElement("span");
+      label.textContent = theme.icon + " " + theme.label;
+      var kind = document.createElement("small");
+      kind.textContent = theme.scheme;
+      item.appendChild(swatch); item.appendChild(label); item.appendChild(kind);
+      item.addEventListener("click", function () {{
+        set(name);
+        var open = menu.closest && menu.closest("details");
+        if (open) open.open = false;
+      }});
+      menu.appendChild(item);
+    }});
+    paintMenu(menu, current() || pick());
   }}
   function set(name) {{
-    if (!THEMES[name]) return;
+    name = known(name);
+    if (!name) return;
     try {{ localStorage.setItem(KEY, name); }} catch (e) {{}}
     apply(name);
   }}
@@ -201,10 +247,11 @@ def render_js(document: dict) -> str:
   }}
   apply(pick());
   window.addEventListener("storage", function (event) {{
-    if (event.key === KEY && THEMES[event.newValue]) apply(event.newValue);
+    if (event.key === KEY && known(event.newValue)) apply(known(event.newValue));
   }});
   document.addEventListener("DOMContentLoaded", function () {{
     document.querySelectorAll("[data-theme-cycle]").forEach(bind);
+    document.querySelectorAll("[data-theme-menu]").forEach(fill);
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{
       if (el.tagName === "SELECT" && !el.options.length) {{
         Object.keys(THEMES).forEach(function (name) {{
@@ -219,7 +266,7 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, current: current }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current }};
 }})();
 """
 

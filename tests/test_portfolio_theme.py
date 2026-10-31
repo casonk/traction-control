@@ -106,6 +106,40 @@ class ThemeSourceTests(unittest.TestCase):
         self.assertEqual(re.findall(r"var\(--(?!pf-)[a-z0-9-]+\)", css), [])
         self.assertEqual(re.findall(r"(?<![&\w])#[0-9a-fA-F]{3,6}\b", css), [])
 
+    def test_new_themes_exist_and_the_old_contrast_name_still_resolves(self):
+        for name in ("contrast-dark", "contrast-light", "liberty"):
+            self.assertIn(name, self.themes)
+        self.assertNotIn("contrast", self.themes)
+        self.assertEqual(self.document["meta"]["aliases"]["contrast"], "contrast-dark")
+        js = rpt.render_js(self.document)
+        self.assertIn('"contrast": "contrast-dark"', js)
+        self.assertIn("known(", js)
+
+    def test_stripe_is_optional_validated_and_emitted_for_every_theme(self):
+        self.assertIn("stripe", self.themes["liberty"])
+        css = rpt.render_css(self.document)
+        self.assertIn("--stripe: transparent;", css)
+        self.assertIn("--stripe: linear-gradient(", css)
+        chrome = rpt.render(self.document)["portfolio-chrome.js"]
+        self.assertIn("--pf-stripe:", chrome)
+        import tempfile
+
+        good = (ROOT / "themes" / "themes.toml").read_text(encoding="utf-8")
+        line = next(ln for ln in good.splitlines() if ln.startswith("stripe = "))
+        for bad in ('stripe = "red; } body { display: none"', 'stripe = "url(https://example.test/x)"'):
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "t.toml"
+                path.write_text(good.replace(line, bad, 1), encoding="utf-8")
+                with self.assertRaises(rpt.ThemeError, msg=bad):
+                    rpt.load(path)
+
+    def test_script_builds_a_drop_down_menu_of_every_theme(self):
+        js = rpt.render_js(self.document)
+        for needle in ("data-theme-menu", "menuitemradio", "data-theme-choice", "fill: fill", "swatch"):
+            self.assertIn(needle, js)
+        chrome = rpt.render(self.document)["portfolio-chrome.js"]
+        self.assertIn("pf-topbar__group--theme", chrome)
+
     def test_css_defines_every_token_for_every_theme(self):
         css = rpt.render_css(self.document)
         for name in self.themes:

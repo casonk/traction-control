@@ -82,6 +82,8 @@
       if (node) wrap.appendChild(node);
     });
     bar.appendChild(wrap);
+    // The theme control: a button that steps to the next theme, and a drop-down menu of them all.
+    var wrap = el("div", "pf-topbar__themewrap");
     var rotator = el("button", "pf-topbar__theme");
     rotator.type = "button";
     rotator.appendChild(el("span")).setAttribute("data-theme-icon", "");
@@ -89,8 +91,29 @@
     name.setAttribute("data-theme-name", "");
     rotator.appendChild(name);
     rotator.setAttribute("data-theme-cycle", "");
-    bar.appendChild(rotator);
-    if (window.PortfolioTheme && window.PortfolioTheme.bind) window.PortfolioTheme.bind(rotator);
+    wrap.appendChild(rotator);
+    var choose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--theme");
+    var caret = el("summary");
+    caret.setAttribute("aria-label", "Choose a theme");
+    caret.setAttribute("title", "Choose a theme");
+    var menu = el("div", "pf-topbar__menu");
+    menu.setAttribute("data-theme-menu", "");
+    choose.appendChild(caret);
+    choose.appendChild(menu);
+    choose.addEventListener("toggle", function () {
+      if (choose.open) groups.forEach(function (other) { if (other !== choose) other.open = false; });
+    });
+    groups.push(choose);
+    groups.forEach(function (other) {
+      if (other === choose) return;
+      other.addEventListener("toggle", function () { if (other.open) choose.open = false; });
+    });
+    wrap.appendChild(choose);
+    bar.appendChild(wrap);
+    if (window.PortfolioTheme && window.PortfolioTheme.bind) {
+      window.PortfolioTheme.bind(rotator);
+      window.PortfolioTheme.fill(menu);
+    }
     bar.pfGroups = groups;
   }
   function cached() {

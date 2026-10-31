@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add two themes, **High contrast white** (`contrast-light`) and **Liberty** (red, white and
+  blue, with a stripe under the top bar); rename `contrast` to `contrast-dark` (High contrast
+  dark), keeping the old name as an alias. The top bar's theme control keeps its rotator
+  button and gains a drop-down menu of every theme.
+
 - Document how a service follows the theme (`/_portfolio/theme.css` and `theme.js`, and a
   role-to-token mapping) in `docs/system-theme.md`.
 
