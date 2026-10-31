@@ -380,16 +380,21 @@ class PublishTests(Case):
 
     def test_the_shared_font_and_size_round_trip_and_a_bad_one_is_refused(self):
         state = self.editor_state()
-        self.assertEqual(state["type"], {"font": "system", "size": 14})
-        self.apply({**self._kept(state), "type": {"font": "serif", "size": 18}})
+        self.assertEqual(state["type"], {"font": "system", "size": "medium"})
+        self.assertEqual(
+            [item["name"] for item in state["sizes"]],
+            ["tiny", "small", "medium", "large"],
+        )
+        self.apply({**self._kept(state), "type": {"font": "serif", "size": "large"}})
         after = self.editor_state()
-        self.assertEqual(after["type"], {"font": "serif", "size": 18})
+        self.assertEqual(after["type"], {"font": "serif", "size": "large"})
         css = (self.rendered / "theme.css").read_text()
         self.assertIn('"Iowan Old Style"', css)
-        self.assertIn("--font-size: 18px;", css)
+        self.assertIn("zoom: 1.25;", css)
+        self.assertIn("--font-size: 14px;", css)
         with self.assertRaises(pt.LocalThemeError):
             self.apply(
-                {**self._kept(state), "type": {"font": "comic sans", "size": 18}}
+                {**self._kept(state), "type": {"font": "comic sans", "size": "large"}}
             )
 
     def _kept(self, state):

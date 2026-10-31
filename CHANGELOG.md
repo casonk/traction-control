@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- The shared size is a page scale: tiny, small, medium, or large (80%, 90%, 100%, 125%). It zooms the whole page, so text that sets its own pixel size scales with the headings. Medium is the current page. The Aa control and `[type].size` use these names.
 - Add a shared font and base size (`[type]` in `themes/themes.toml`: system, serif or mono, and 14, 16, 18 or 20). Pages use `var(--font)`, `var(--font-size)` and `var(--mono)`. The browser switcher (`data-type-menu`, `data-type-cycle`) overrides them per site; the local theme layer's `[type]` changes the shared default.
 - The local layer takes `[labels."<id>"]` tables: a new name and/or icon for a Clockwork page (by path), a registry service (by name) or a top-bar item (`nav:lists`). Validated like theme labels, rendered to `themes/rendered/labels.json` (owner-only) and returned by `show --json` and accepted by `apply`; `reset` removes it.
 - `portfolio_themes.py show --json` reports each tracked theme's tracked values (`tracked`) beside the merged ones, so an editor can offer "revert to the tracked theme".
