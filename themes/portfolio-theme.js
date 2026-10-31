@@ -60,6 +60,26 @@
       "#0a3161",
       "#0a2342"
     ]
+  },
+  "hulk": {
+    "label": "Hulk",
+    "scheme": "dark",
+    "icon": "\ud83d\udc9a",
+    "swatch": [
+      "#140a1f",
+      "#6fe03a",
+      "#f0e8ff"
+    ]
+  },
+  "neon": {
+    "label": "Neon",
+    "scheme": "dark",
+    "icon": "\u26a1",
+    "swatch": [
+      "#07070f",
+      "#00f0ff",
+      "#f4f4ff"
+    ]
   }
 };
   var KEY = "portfolio-theme";

@@ -14,6 +14,8 @@ follows this guide.
 | `ember` | dark | Warm dark, easier on the eyes at night |
 | `contrast-dark` | dark | High contrast dark: black and white with strong colours, for low vision and glare (formerly `contrast`; a saved `contrast` still resolves) |
 | `contrast-light` | light | High contrast white: black on white with black outlines, for low vision and sunlight |
+| `hulk` | dark | The Incredible Hulk: gamma green on deep purple, with a purple and green stripe under the top bar |
+| `neon` | dark | Electric cyan, magenta and lime on near-black, with a four-colour neon stripe |
 | `liberty` | light | Red, white and blue, like a Bomb Pop: navy accent, red status colour, and a red/white/blue stripe under the top bar |
 
 With no saved choice a page follows the system: `daylight` when the system prefers

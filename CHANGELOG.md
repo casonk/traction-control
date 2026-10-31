@@ -4,6 +4,8 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the **Hulk** (purple and green) and **Neon** themes, each with a stripe under the top bar.
+
 - Add two themes, **High contrast white** (`contrast-light`) and **Liberty** (red, white and
   blue, with a stripe under the top bar); rename `contrast` to `contrast-dark` (High contrast
   dark), keeping the old name as an alias. The top bar's theme control keeps its rotator
