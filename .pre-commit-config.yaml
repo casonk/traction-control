@@ -28,6 +28,18 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: portfolio-theme-current
+        name: portfolio theme outputs match themes/themes.toml
+        entry: python3 scripts/render_portfolio_theme.py --check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: portfolio-theme-tests
+        name: portfolio theme tests
+        entry: python3 -m unittest discover -s tests -p test_portfolio_theme.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: portfolio-private-metadata-check
         name: portfolio private-metadata index check
         entry: /bin/bash scripts/check_portfolio_privacy.sh

@@ -1,0 +1,127 @@
+/* Generated from themes/themes.toml by scripts/render_portfolio_theme.py; do not edit. */
+:root {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --text: #e2e4f0;
+  --muted: #8890b0;
+  --accent: #5b7fff;
+  --accent-dim: #161c34;
+  --accent-ink: #0f1117;
+  --green: #3ecf6e;
+  --green-dim: #1a4d30;
+  --red: #e05252;
+  --red-dim: #251418;
+  --yellow: #e0b832;
+  --yellow-dim: #4a3d10;
+  --purple: #a06fff;
+  --purple-dim: #29194c;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #f4f5fa;
+    --surface: #ffffff;
+    --surface2: #eceef6;
+    --border: #d3d7e6;
+    --text: #1c2033;
+    --muted: #5b6486;
+    --accent: #3b5bdb;
+    --accent-dim: #e0e8ff;
+    --accent-ink: #ffffff;
+    --green: #17743d;
+    --green-dim: #d3f2df;
+    --red: #c92a2a;
+    --red-dim: #ffe6e6;
+    --yellow: #8a5a00;
+    --yellow-dim: #fff3bf;
+    --purple: #7048e8;
+    --purple-dim: #eee8ff;
+  }
+}
+/* Midnight: The original Clockwork dark palette */
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --text: #e2e4f0;
+  --muted: #8890b0;
+  --accent: #5b7fff;
+  --accent-dim: #161c34;
+  --accent-ink: #0f1117;
+  --green: #3ecf6e;
+  --green-dim: #1a4d30;
+  --red: #e05252;
+  --red-dim: #251418;
+  --yellow: #e0b832;
+  --yellow-dim: #4a3d10;
+  --purple: #a06fff;
+  --purple-dim: #29194c;
+}
+/* Daylight: A light theme for bright rooms and print */
+:root[data-theme="daylight"] {
+  color-scheme: light;
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --surface2: #eceef6;
+  --border: #d3d7e6;
+  --text: #1c2033;
+  --muted: #5b6486;
+  --accent: #3b5bdb;
+  --accent-dim: #e0e8ff;
+  --accent-ink: #ffffff;
+  --green: #17743d;
+  --green-dim: #d3f2df;
+  --red: #c92a2a;
+  --red-dim: #ffe6e6;
+  --yellow: #8a5a00;
+  --yellow-dim: #fff3bf;
+  --purple: #7048e8;
+  --purple-dim: #eee8ff;
+}
+/* Ember: A warm dark theme that is easier on the eyes at night */
+:root[data-theme="ember"] {
+  color-scheme: dark;
+  --bg: #1a1614;
+  --surface: #241e1b;
+  --surface2: #2e2622;
+  --border: #44382f;
+  --text: #ece3da;
+  --muted: #a8998c;
+  --accent: #e8913a;
+  --accent-dim: #4d3314;
+  --accent-ink: #1a1614;
+  --green: #7cc27a;
+  --green-dim: #25422a;
+  --red: #e5655b;
+  --red-dim: #3b1c19;
+  --yellow: #e6c04a;
+  --yellow-dim: #4a3d12;
+  --purple: #b98ae0;
+  --purple-dim: #3d2a55;
+}
+/* High contrast: Black and white with strong colours, for low vision and glare */
+:root[data-theme="contrast"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #0b0b0b;
+  --surface2: #1c1c1c;
+  --border: #ffffff;
+  --text: #ffffff;
+  --muted: #d6d6d6;
+  --accent: #ffd400;
+  --accent-dim: #4d4000;
+  --accent-ink: #000000;
+  --green: #4dff88;
+  --green-dim: #003d1a;
+  --red: #ff6b6b;
+  --red-dim: #520000;
+  --yellow: #ffd400;
+  --yellow-dim: #4d4000;
+  --purple: #d6a8ff;
+  --purple-dim: #3d1a66;
+}

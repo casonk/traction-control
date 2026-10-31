@@ -16,6 +16,12 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-10-30] **Move the Clockwork pages onto the system theme tokens.**
+  Clockwork's templates each carry their own copy of the Midnight values. Replace
+  them with the `var(--token)` names from `themes/portfolio-theme.css`, include the
+  switcher, and add the vendored-copy parity test `crew-chief` uses. Other web
+  surfaces (wiring-harness inventory, session-control, snowbridge pages) follow.
+
 - [ ] [manual:2026-10-28] **Disposition intake's private-name disclosure findings.**
   The portfolio audit flags four indexed files in intake on its current main (an
   email module and its test whose names match a private repository as a path

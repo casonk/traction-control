@@ -206,6 +206,17 @@ backend depends on the model and on whether it fits.
   counts errors (unlisted pulls, missing evidence) as governance gaps; it
   skips the check, without counting it, when Ollama is not reachable.
 
+## System Themes
+
+`./util-repos/traction-control/themes/themes.toml` defines the portfolio's
+colour themes (Midnight, Daylight, Ember, High contrast) and is the only place
+colours are chosen. Web pages and generated reports style themselves with the
+CSS custom properties from `themes/portfolio-theme.css` (`var(--surface)`,
+never a literal colour) and include `themes/portfolio-theme.js` for the
+switcher, so one theme change restyles everything. A consuming repo vendors the
+two generated files with `scripts/render_portfolio_theme.py --install DIR` and
+tests that its copies match the source. See [the system theme guide](docs/system-theme.md).
+
 ## Reusable Workflow Strategy
 
 Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). Build and CI action version pins live in that repo and Dependabot keeps them current. PyPI trusted publishing requires the upload job in the calling repository, so `actions/download-artifact` and `pypa/gh-action-pypi-publish` are the two caller-local exceptions; review their versions across package callers.
@@ -464,6 +475,7 @@ pre-commit run --all-files
 bash tests/test_repository_visibility_ci.sh
 bash tests/test_main_branch_guard.sh
 python3 -m unittest discover -s tests -p test_repo_settings.py
+python3 -m unittest discover -s tests -p test_portfolio_theme.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are
