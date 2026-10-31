@@ -68,16 +68,54 @@
 .pf-topbar__menu a:hover, .pf-topbar__menu a:focus-visible { background: var(--pf-accent-dim); }
 .pf-topbar__section { padding: 10px 11px 3px; color: var(--pf-muted); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
 .pf-topbar__section:not(:first-child) { border-top: 1px solid var(--pf-border); margin-top: 5px; }
+.pf-topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  background: var(--pf-stripe);
+  pointer-events: none;
+}
+.pf-topbar__themewrap { display: flex; align-items: center; flex: none; margin-left: auto; }
 .pf-topbar__theme {
   flex: none;
-  margin-left: auto;
   color: inherit;
   background: none;
   border: 1px solid var(--pf-border);
+  border-radius: 7px 0 0 7px;
   font: inherit;
   cursor: pointer;
 }
 .pf-topbar__theme:hover { color: var(--pf-text); background: var(--pf-accent-dim); }
+.pf-topbar__group--theme > summary {
+  border: 1px solid var(--pf-border);
+  border-left-width: 0;
+  border-radius: 0 7px 7px 0;
+  padding: 6px 8px;
+}
+.pf-topbar__group--theme > summary::after { font-size: 11px; opacity: 1; }
+.pf-topbar__group--theme .pf-topbar__menu { min-width: 260px; }
+.pf-topbar [data-theme-choice] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 11px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.pf-topbar [data-theme-choice]:hover, .pf-topbar [data-theme-choice]:focus-visible { background: var(--pf-accent-dim); }
+.pf-topbar [data-theme-choice][aria-checked="true"] { background: var(--pf-accent-dim); font-weight: 700; }
+.pf-topbar [data-theme-choice] small { margin-left: auto; color: var(--pf-muted); font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.pf-topbar .pf-swatch { display: block; flex: none; width: 36px; height: 14px; border: 1px solid var(--pf-border); border-radius: 4px; }
 @media (max-width: 600px) {
   .pf-topbar { flex-direction: column; align-items: stretch; justify-content: center; gap: 0; height: 88px; padding: 4px 10px; }
   .pf-topbar__brand { align-self: flex-start; min-height: 30px; padding: 2px 8px; }
@@ -85,6 +123,8 @@
   .pf-topbar__mobile { display: inline; }
   .pf-topbar__groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; width: 100%; }
   .pf-topbar__direct, .pf-topbar summary { justify-content: center; min-height: 36px; padding: 4px 2px; font-size: 12px; }
-  .pf-topbar__theme { position: absolute; top: 4px; right: 10px; min-height: 30px; margin: 0; padding: 2px 8px; }
+  .pf-topbar__themewrap { position: absolute; top: 4px; right: 10px; margin: 0; }
+  .pf-topbar__theme { min-height: 30px; padding: 2px 8px; }
+  .pf-topbar__group--theme > summary { min-height: 30px; padding: 2px 6px; }
   .pf-topbar__menu, .pf-topbar__group--right .pf-topbar__menu { position: fixed; top: 88px; left: 10px; right: 10px; min-width: 0; max-width: none; max-height: min(65vh, 500px); }
 }

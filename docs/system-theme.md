@@ -12,7 +12,9 @@ follows this guide.
 | `midnight` | dark | Default dark; the Clockwork palette (bg `#0f1117`, accent `#5b7fff`) |
 | `daylight` | light | Default light; bright rooms and print |
 | `ember` | dark | Warm dark, easier on the eyes at night |
-| `contrast` | dark | Black and white with strong colours, for low vision and glare |
+| `contrast-dark` | dark | High contrast dark: black and white with strong colours, for low vision and glare (formerly `contrast`; a saved `contrast` still resolves) |
+| `contrast-light` | light | High contrast white: black on white with black outlines, for low vision and sunlight |
+| `liberty` | light | Red, white and blue, like a Bomb Pop: navy accent, red status colour, and a red/white/blue stripe under the top bar |
 
 With no saved choice a page follows the system: `daylight` when the system prefers
 light, `midnight` otherwise. A choice made with the switcher is saved in the
@@ -21,6 +23,11 @@ theme for that visit and saves it. Each site is its own browser origin, so the
 choice is saved per site, not once for every site.
 
 ## Tokens
+
+A theme may also set `stripe`, a CSS background for a 3px strip under the top bar (Liberty uses
+a red, white and blue gradient); it is `transparent` elsewhere. Renaming a theme? Add the old
+name under `[meta.aliases]` in `themes/themes.toml` so saved choices and `?theme=` links keep
+working.
 
 Every theme defines every token; `scripts/render_portfolio_theme.py` rejects a
 theme with a missing token, a value that is not `#rrggbb`, or a default theme of
@@ -56,6 +63,12 @@ Rules for pages:
 <body>
   <select data-theme-switcher></select>
 ```
+
+The top bar's theme control has two parts: a button that steps to the next theme on each
+click, and a drop-down caret beside it that lists every theme as a menu (swatch, name and
+light or dark), so a theme can be picked directly. Pages that build their own bar can get the
+same by adding an empty `<div data-theme-menu></div>` (inside a `<details>`, so choosing a
+theme closes it); the script fills it.
 
 A top bar can offer a rotator instead of a menu: a `<button data-theme-cycle>`
 steps to the next theme on each click (Midnight, Daylight, Ember, High contrast,
