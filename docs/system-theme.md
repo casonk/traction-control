@@ -195,6 +195,9 @@ accent = "#ff8800"
 based_on = "ember"
 label = "Mine"
 icon = "🚀"
+[labels."/groceries"]          # a new name and/or icon for a card, menu entry or top-bar item
+name = "Pantry"
+icon = "🥫"
 ```
 
 `scripts/portfolio_themes.py` reads, validates, merges and publishes it (`show`, `apply --stdin`, `render`,
@@ -209,6 +212,13 @@ with a link is atomic. `portfolio_sites.py publish` and `check` understand this 
 Caddy-served `/srv/portfolio-chrome` stays a *copy*: Caddy cannot read through an owner-only home directory.
 Each repository's vendored fallback is the tracked theme and is not affected, so a page still works with no
 local layer present.
+
+**Names and icons.** `[labels."<id>"]` renames or re-icons a card or menu entry. The id is a Clockwork page's
+path (`/groceries`), a registry service's name, or a fixed top-bar item (`nav:home`, `nav:clockwork`, `nav:lists`,
+`nav:media`, `nav:services`). Names are up to 32 characters of plain text and icons are non-ASCII symbols, like
+theme labels. They are rendered to `themes/rendered/labels.json` (owner-only, not a published asset) for
+Clockwork to read; the desired state sent to `apply` is the complete set, so a call that leaves `labels` out
+clears them.
 
 The tracked `themes/portfolio-theme.*` files never contain your changes (`render_portfolio_theme.py --check`
 ignores the local file). Clockwork's themes page edits this layer through `apply`.
