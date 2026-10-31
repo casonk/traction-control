@@ -99,6 +99,10 @@ Theme assets are generic and safe to vendor anywhere. The private parts are `sit
    (`[site]` with `fronting = "direct"`).
 2. Enrol it (tracked file if public, overlay if private) and run `vendor --apply`, which writes
    `__init__.py`, `site.py`, the three fallback assets and a `MANIFEST.sha256` into its `vendor_dir`.
+   Exclude the vendored files from the repository's formatters with a top-level `exclude:` in
+   `.pre-commit-config.yaml` (`(^|/)portfolio/(__init__\.py|site\.py|theme\.css|theme\.js|chrome\.js|MANIFEST\.sha256)$`):
+   a reformatted copy no longer matches its manifest. Add the package-data patterns for
+   `portfolio/*.css`, `*.js` and `*.sha256` if the repository is packaged.
 3. In its request handler, answer `/_portfolio/*` from
    `site = portfolio_site.resolve(repo_root, vendored=vendor_dir)` and `site.response(path)`.
    Add the three tags above to each page, and a test that the manifest matches the files.
