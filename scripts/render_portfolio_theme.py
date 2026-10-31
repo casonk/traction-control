@@ -352,11 +352,8 @@ def render_js(document: dict) -> str:
     document.querySelectorAll("[data-theme-cycle]").forEach(bind);
     document.querySelectorAll("[data-theme-menu]").forEach(fill);
     document.querySelectorAll("[data-type-menu]").forEach(fillType);
-    document.querySelectorAll("[data-type-cycle]").forEach(function (el) {{
-      if (el.pfTypeBound) return;
-      el.pfTypeBound = true;
-      el.addEventListener("click", cycleType);
-    }});
+    document.querySelectorAll("[data-type-cycle]").forEach(bindType);
+    applyType(pickType());
     document.querySelectorAll("[data-theme-switcher]").forEach(function (el) {{
       if (el.tagName === "SELECT" && !el.options.length) {{
         Object.keys(THEMES).forEach(function (name) {{
@@ -371,7 +368,7 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, setFont: function (name) {{ setType("font", name); }}, setSize: function (name) {{ setType("size", name); }}, cycleType: cycleType }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, bindType: bindType, showType: function () {{ applyType(pickType()); }}, setFont: function (name) {{ setType("font", name); }}, setSize: function (name) {{ setType("size", name); }}, cycleType: cycleType }};
 }})();
 """
     return script.replace("/*__TYPE__*/", type_runtime_js(document).rstrip("\n"))
@@ -403,15 +400,21 @@ def type_runtime_js(document: dict) -> str:
       size: knownSize(params.get("size")) || knownSize(stored(SIZE_KEY)) || knownSize(TYPE.size)
     };
   }
+  function nextName(map, now) {
+    var names = Object.keys(map), index = names.indexOf(now);
+    return names[(index + 1) %% names.length];
+  }
   function applyType(choice) {
     root.setAttribute("data-font", choice.font);
     root.setAttribute("data-size", choice.size);
-    var text = "Font: " + FACES[choice.font] + ", " + SIZES[choice.size] + ".";
     document.querySelectorAll("[data-type-font]").forEach(function (el) { el.textContent = FACES[choice.font]; });
     document.querySelectorAll("[data-type-size]").forEach(function (el) { el.textContent = SIZES[choice.size]; });
     document.querySelectorAll("[data-type-cycle]").forEach(function (el) {
+      var size = el.getAttribute("data-type-cycle") === "size";
+      var map = size ? SIZES : FACES, now = size ? choice.size : choice.font;
+      var text = (size ? "Size: " : "Font: ") + map[now] + ". Switch to " + map[nextName(map, now)] + ".";
       el.setAttribute("title", text);
-      el.setAttribute("aria-label", text + " Switch the font.");
+      el.setAttribute("aria-label", text);
     });
     document.querySelectorAll("[data-type-menu]").forEach(function (menu) { paintType(menu, choice); });
   }
@@ -424,32 +427,39 @@ def type_runtime_js(document: dict) -> str:
   function fillType(menu) {
     if (menu.pfTypeFilled) return;
     menu.pfTypeFilled = true;
+    var kind = menu.getAttribute("data-type-menu") || "";
+    var fonts = kind !== "size", sizes = kind !== "font";
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Font and size");
+    menu.setAttribute("aria-label", kind === "size" ? "Size" : kind === "font" ? "Font" : "Font and size");
     function heading(text) {
       var node = document.createElement("div");
       node.setAttribute("data-type-label", "");
       node.textContent = text;
       menu.appendChild(node);
     }
-    function choice(kind, value, label) {
+    function choice(part, value, label) {
       var item = document.createElement("button");
       item.type = "button";
       item.setAttribute("role", "menuitemradio");
-      item.setAttribute("data-type-choice", kind + ":" + value);
+      item.setAttribute("data-type-choice", part + ":" + value);
       item.textContent = label;
       item.addEventListener("click", function () {
-        setType(kind, value);
+        setType(part, value);
         var open = menu.closest && menu.closest("details");
         if (open) open.open = false;
       });
       menu.appendChild(item);
     }
-    heading("Font");
-    Object.keys(FACES).forEach(function (name) { choice("font", name, FACES[name]); });
-    heading("Size");
-    Object.keys(SIZES).forEach(function (name) { choice("size", name, SIZES[name]); });
+    if (fonts && sizes) heading("Font");
+    if (fonts) Object.keys(FACES).forEach(function (name) { choice("font", name, FACES[name]); });
+    if (fonts && sizes) heading("Size");
+    if (sizes) Object.keys(SIZES).forEach(function (name) { choice("size", name, SIZES[name]); });
     paintType(menu, {font: root.getAttribute("data-font"), size: root.getAttribute("data-size")});
+  }
+  function bindType(el) {
+    if (el.pfTypeBound) return;
+    el.pfTypeBound = true;
+    el.addEventListener("click", function () { cycleType(el.getAttribute("data-type-cycle")); });
   }
   function setType(kind, value) {
     var choice = {
@@ -469,9 +479,11 @@ def type_runtime_js(document: dict) -> str:
     }
     applyType(choice);
   }
-  function cycleType() {
-    var names = Object.keys(FACES), now = root.getAttribute("data-font") || pickType().font;
-    setType("font", names[(names.indexOf(now) + 1) %% names.length]);
+  function cycleType(kind) {
+    var size = kind === "size";
+    var map = size ? SIZES : FACES;
+    var now = root.getAttribute(size ? "data-size" : "data-font") || pickType()[size ? "size" : "font"];
+    setType(size ? "size" : "font", nextName(map, now));
   }
 """ % (json.dumps(chosen), json.dumps(faces), json.dumps(scales))
 

@@ -39,9 +39,10 @@ Pages set `font-family: var(--font)` and `font-size: var(--font-size)`, and `var
 that sets its own pixel size grow and shrink together. A `data-font` / `data-size` attribute overrides
 the published choice.
 
-The **Aa** control next to the theme switcher changes the font and the scale for this browser only
-(`localStorage` keys `portfolio-font` and `portfolio-size`, or `?font=serif&size=large` on a URL). That
-choice stays on this site, the same way a colour theme does. The Themes page edits the shared default,
+The font rotator and the size rotator sit beside the theme rotator. Each button steps to the next
+choice, and its menu lists that choice only, so the font and the scale move independently. A choice
+stays in this browser (`localStorage` keys `portfolio-font` and `portfolio-size`, or
+`?font=serif&size=large` on a URL), the same way a colour theme does. The Themes page edits the shared default,
 which is what a browser uses before it has a choice of its own. The faces and the four scales are a
 fixed list: an editor cannot supply a font stack or a zoom value, because those values are written into CSS.
 

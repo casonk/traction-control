@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- The font and the page scale each have their own rotator, on the same pattern as the theme rotator: the button steps to the next choice, and the menu beside it lists that choice only.
 - Add a global colour and icon library (`themes/library.toml`: 72 colours in twelve hue families and a neutral ramp, 131 emoji in groups) and return it from `portfolio_themes.py show --json` as `library`, so an editor can offer pickers instead of empty lists. Validated on load (slug names, `#rrggbb`, non-ASCII icons up to 8 characters, unique names, safe group names).
 - The shared size is a page scale: tiny, small, medium, or large (80%, 90%, 100%, 125%). It zooms the whole page, so text that sets its own pixel size scales with the headings. Medium is the current page. The Aa control and `[type].size` use these names.
 - Add a shared font and base size (`[type]` in `themes/themes.toml`: system, serif or mono, and 14, 16, 18 or 20). Pages use `var(--font)`, `var(--font-size)` and `var(--mono)`. The browser switcher (`data-type-menu`, `data-type-cycle`) overrides them per site; the local theme layer's `[type]` changes the shared default.

@@ -1,5 +1,5 @@
 /* Portfolio top bar: builds the shared navigation from /_portfolio/nav.json (or
-   window.PORTFOLIO_NAV_URL) and a theme rotator. Runs inside the chrome bundle. */
+   window.PORTFOLIO_NAV_URL), plus font, size and theme rotators. Runs inside the chrome bundle. */
 (function () {
   var NAV_URL = window.PORTFOLIO_NAV_URL || "/_portfolio/nav.json";
   var CACHE = "portfolio-nav-cache";
@@ -82,8 +82,36 @@
       if (node) wrap.appendChild(node);
     });
     bar.appendChild(wrap);
-    // The theme control: a button that steps to the next theme, and a drop-down menu of them all.
+    // Font, size and theme: each is a button that steps to the next choice, and a menu of that list.
     var wrap = el("div", "pf-topbar__themewrap");
+    function menuOf(kind, label) {
+      var choose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--caret");
+      var caret = el("summary");
+      caret.setAttribute("aria-label", label);
+      caret.setAttribute("title", label);
+      var menu = el("div", "pf-topbar__menu");
+      menu.setAttribute("data-type-menu", kind);
+      choose.appendChild(caret);
+      choose.appendChild(menu);
+      choose.addEventListener("toggle", function () {
+        if (choose.open) groups.forEach(function (other) { if (other !== choose) other.open = false; });
+      });
+      groups.push(choose);
+      return choose;
+    }
+    function rotatorFor(kind, mark, shown, menuLabel) {
+      var button = el("button", "pf-topbar__rotator");
+      button.type = "button";
+      button.setAttribute("data-type-cycle", kind);
+      button.appendChild(el("span", "", mark)).setAttribute("aria-hidden", "true");
+      var current = el("span", "pf-topbar__desktop", shown);
+      current.setAttribute(kind === "size" ? "data-type-size" : "data-type-font", "");
+      button.appendChild(current);
+      wrap.appendChild(button);
+      wrap.appendChild(menuOf(kind, menuLabel));
+    }
+    rotatorFor("font", "Aa", "System", "Choose a font");
+    rotatorFor("size", "Tt", "Medium", "Choose a size");
     var rotator = el("button", "pf-topbar__theme");
     rotator.type = "button";
     rotator.appendChild(el("span")).setAttribute("data-theme-icon", "");
@@ -91,20 +119,6 @@
     name.setAttribute("data-theme-name", "");
     rotator.appendChild(name);
     rotator.setAttribute("data-theme-cycle", "");
-    var typeChoose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--type");
-    var typeSummary = el("summary");
-    typeSummary.setAttribute("aria-label", "Font and size");
-    typeSummary.setAttribute("title", "Font and size");
-    typeSummary.textContent = "Aa";
-    var typeMenu = el("div", "pf-topbar__menu");
-    typeMenu.setAttribute("data-type-menu", "");
-    typeChoose.appendChild(typeSummary);
-    typeChoose.appendChild(typeMenu);
-    typeChoose.addEventListener("toggle", function () {
-      if (typeChoose.open) groups.forEach(function (other) { if (other !== typeChoose) other.open = false; });
-    });
-    groups.push(typeChoose);
-    wrap.appendChild(typeChoose);
     wrap.appendChild(rotator);
     var choose = el("details", "pf-topbar__group pf-topbar__group--right pf-topbar__group--theme");
     var caret = el("summary");
@@ -127,7 +141,13 @@
     if (window.PortfolioTheme && window.PortfolioTheme.bind) {
       window.PortfolioTheme.bind(rotator);
       window.PortfolioTheme.fill(menu);
-      if (window.PortfolioTheme.fillType) window.PortfolioTheme.fillType(typeMenu);
+      if (window.PortfolioTheme.fillType) {
+        wrap.querySelectorAll("[data-type-menu]").forEach(window.PortfolioTheme.fillType);
+      }
+      if (window.PortfolioTheme.bindType) {
+        wrap.querySelectorAll("[data-type-cycle]").forEach(window.PortfolioTheme.bindType);
+      }
+      if (window.PortfolioTheme.showType) window.PortfolioTheme.showType();
     }
     bar.pfGroups = groups;
   }
