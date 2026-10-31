@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Document how a service follows the theme (`/_portfolio/theme.css` and `theme.js`, and a
+  role-to-token mapping) in `docs/system-theme.md`.
+
+- Place the shared top bar outside `<body>` so a page that narrows its body no longer narrows the bar.
+
+- Isolate the shared top bar from host-page CSS (`all: revert`), so a page that styles every
+  `button` or `a` no longer distorts it.
+
 - Add the shared portfolio top bar: `themes/portfolio-chrome.js` (theme, rotator and a
   navigation bar built from `/_portfolio/nav.json`, with tokens scoped to the bar) and its
   sources `themes/topbar.{css,js}`, so services behind the shared Caddy get the bar with one

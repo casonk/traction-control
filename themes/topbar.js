@@ -104,7 +104,9 @@
     if (document.querySelector(".cw-site-nav, .pf-topbar") || !document.body) return;
     var bar = el("nav", "pf-topbar");
     bar.setAttribute("aria-label", "Site navigation");
-    document.body.insertBefore(bar, document.body.firstChild);
+    // A sibling of <body>, not a child: a page that narrows its body (max-width, padding)
+    // must not narrow the bar. Sticky positioning still works against the viewport.
+    document.documentElement.insertBefore(bar, document.body);
     render(bar, cached() || {});
     fetch(NAV_URL, { credentials: "same-origin", cache: "no-cache" })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })

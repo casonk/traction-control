@@ -1,5 +1,10 @@
 /* Portfolio top bar. Styled only with --pf-* tokens, which the generator defines on
    .pf-topbar for every theme, so a page keeps its own palette and the bar still themes. */
+/* Isolate the bar from the page: drop whatever the page's own CSS says about these
+   elements (element selectors such as `button { width: 100% }` included), then style them
+   below. This block must stay first so the rules after it win on order. */
+.pf-topbar { all: initial; }  /* also stops inherited page text styles (letter-spacing...) */
+.pf-topbar * { all: revert; }
 .pf-topbar, .pf-topbar *, .pf-topbar *::before, .pf-topbar *::after { box-sizing: border-box; }
 .pf-topbar {
   position: sticky;
