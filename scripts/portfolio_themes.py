@@ -15,6 +15,7 @@ changes live in ``~/.config/traction-control/themes.local.toml`` (owner-only, ne
     [emoji]                   named emoji you can pick from for icons
     [override.<built-in>]     change a tracked theme: label, icon, description, stripe, any token
     [themes.<name>]           a theme of your own: ``based_on`` a tracked theme, plus any changes
+    [labels."<id>"]           a new name and/or icon for a card, menu entry or top-bar item
 
 The merged result is rendered once into ``~/.config/traction-control/themes/rendered/`` and the store's
 ``_shared`` files are *symlinks* to it, so there is one rendered copy rather than one per consumer. (The
@@ -54,7 +55,11 @@ PUBLISHED = {
 THEME_FIELDS = ("label", "description", "scheme", "icon", "stripe", *base.TOKENS)
 LIBRARY_NAME = re.compile(r"[a-z][a-z0-9-]{0,31}")
 MAX_THEMES, MAX_LIBRARY = 40, 200
-TOP_LEVEL = {"active", "palette", "emoji", "override", "themes"}
+TOP_LEVEL = {"active", "palette", "emoji", "override", "themes", "labels"}
+# What a label is attached to: a Clockwork page by path (/groceries), a registry service by name, or a
+# fixed top-bar item (nav:lists). Names and icons for these are yours to change.
+LABEL_ID = re.compile(r"/[a-z0-9/_-]{0,63}|[a-z0-9][a-z0-9._-]{0,63}|nav:[a-z]{2,12}")
+MAX_LABELS = 300
 # Text that ends up inside a CSS comment, a menu label or an attribute: no markup, no comment markers.
 UNSAFE_TEXT = re.compile(r"[\x00-\x1f\x7f<>&\"'`\\]|/\*|\*/")
 
@@ -77,7 +82,7 @@ def rendered_for(store: Path) -> Path:
 
 
 def empty() -> dict[str, Any]:
-    return {"active": None, "palette": {}, "emoji": {}, "override": {}, "themes": {}}
+    return {"active": None, "palette": {}, "emoji": {}, "override": {}, "themes": {}, "labels": {}}
 
 
 def _text(what: str, value: Any, limit: int) -> str:
@@ -154,6 +159,20 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
                 model[key][name] = _glyph(f"emoji.{name}", value)
     for name, table in raw.get("override", {}).items():
         model["override"][name] = _fields(f"override.{name}", table)
+    labels = raw.get("labels", {})
+    if not isinstance(labels, dict) or len(labels) > MAX_LABELS:
+        raise LocalThemeError(f"labels: a table of at most {MAX_LABELS} entries")
+    for ident, table in labels.items():
+        if not LABEL_ID.fullmatch(ident):
+            raise LocalThemeError(f"labels.{ident}: not a page path, service name or nav item")
+        if not isinstance(table, dict) or not table or set(table) - {"name", "icon"}:
+            raise LocalThemeError(f"labels.{ident}: give a name and/or an icon, nothing else")
+        entry: dict[str, str] = {}
+        if "name" in table:
+            entry["name"] = _text(f"labels.{ident}.name", table["name"], 32)
+        if "icon" in table:
+            entry["icon"] = _glyph(f"labels.{ident}.icon", table["icon"])
+        model["labels"][ident] = entry
     themes = raw.get("themes", {})
     if len(themes) > MAX_THEMES:
         raise LocalThemeError(f"at most {MAX_THEMES} themes of your own")
@@ -196,6 +215,10 @@ def dump_local(model: dict[str, Any]) -> str:
             lines.append(f"[{section}.{name}]")
             lines += [f"{k} = {_toml_value(v)}" for k, v in table.items()]
             lines.append("")
+    for ident, table in model["labels"].items():
+        lines.append(f"[labels.{json.dumps(ident)}]")  # ids hold / : . so the key is always quoted
+        lines += [f"{k} = {_toml_value(v)}" for k, v in table.items()]
+        lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -269,14 +292,24 @@ def _owner_only(directory: Path, stop: Path) -> None:
         current = current.parent
 
 
-def render_store(document: dict[str, Any], rendered: Path = RENDERED_DIR) -> dict[str, Path]:
-    """Write the rendered theme files once, owner-only, and return where each was written."""
+LABELS_FILE = "labels.json"
+
+
+def render_store(
+    document: dict[str, Any], rendered: Path = RENDERED_DIR, labels: dict[str, Any] | None = None
+) -> dict[str, Path]:
+    """Write the rendered theme files once, owner-only, and return where each was written.
+
+    ``labels.json`` goes beside them for Clockwork to read; it is not a published asset, so no store
+    link points at it.
+    """
     _owner_only(rendered, rendered.parent.parent)
     outputs = base.render(document)
     written = {}
     for published, source in PUBLISHED.items():
         _atomic_write(rendered / published, outputs[source], 0o600)
         written[published] = rendered / published
+    _atomic_write(rendered / LABELS_FILE, json.dumps(labels or {}, indent=2, ensure_ascii=False, sort_keys=True) + "\n", 0o600)
     return written
 
 
@@ -318,7 +351,7 @@ def unlink_shared(shared: Path = STORE_SHARED) -> list[str]:
 def publish(path: Path = LOCAL_PATH, rendered: Path = RENDERED_DIR, shared: Path = STORE_SHARED) -> dict[str, Any]:
     """Merge, render and link; the one call everything else goes through."""
     document = merged_document(path)
-    written = render_store(document, rendered)
+    written = render_store(document, rendered, load_local(path)["labels"])
     return {
         "themes": list(document["themes"]),
         "rendered": [str(p) for p in written.values()],
@@ -368,6 +401,7 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
         "active": list(chosen["themes"]),
         "palette": model["palette"],
         "emoji": model["emoji"],
+        "labels": model["labels"],
         "defaults": {"dark": chosen["meta"]["default_dark"], "light": chosen["meta"]["default_light"]},
         "tokens": list(base.TOKENS),
         "paths": {"local": str(path), "rendered": str(RENDERED_DIR), "shared": str(STORE_SHARED)},
@@ -389,7 +423,11 @@ def from_state(desired: dict[str, Any]) -> dict[str, Any]:
     """
     document = base.load()
     builtin = document["themes"]
-    raw: dict[str, Any] = {"palette": desired.get("palette", {}), "emoji": desired.get("emoji", {})}
+    raw: dict[str, Any] = {
+        "palette": desired.get("palette", {}),
+        "emoji": desired.get("emoji", {}),
+        "labels": desired.get("labels", {}),
+    }
     if desired.get("active") is not None:
         raw["active"] = desired["active"]
     raw["override"], raw["themes"] = {}, {}
@@ -423,7 +461,7 @@ def apply(desired: dict[str, Any], path: Path = LOCAL_PATH, rendered: Path = REN
 def reset(path: Path = LOCAL_PATH, rendered: Path = RENDERED_DIR, shared: Path = STORE_SHARED) -> dict[str, Any]:
     path.unlink(missing_ok=True)
     restored = unlink_shared(shared)
-    for published in PUBLISHED:
+    for published in (*PUBLISHED, LABELS_FILE):
         (rendered / published).unlink(missing_ok=True)
     return {"restored": restored}
 

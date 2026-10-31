@@ -120,6 +120,75 @@ class TrackedValuesTests(Case):
         self.assertNotIn("midnight", pt.load_local(self.local)["override"])
 
 
+class LabelTests(Case):
+    def clean(self, labels):
+        return pt.clean({"labels": labels})["labels"]
+
+    def test_names_and_icons_for_pages_services_and_nav_items_are_accepted(self):
+        labels = self.clean(
+            {
+                "/groceries": {"name": "Pantry", "icon": "🥫"},
+                "pit-box-remote-desktop": {"name": "Remote desktop"},
+                "nav:lists": {"icon": "📋"},
+            }
+        )
+        self.assertEqual(labels["/groceries"], {"name": "Pantry", "icon": "🥫"})
+        self.assertEqual(labels["nav:lists"], {"icon": "📋"})
+
+    def test_bad_ids_text_icons_and_extra_keys_are_refused(self):
+        for bad in (
+            {"Groceries": {"name": "x"}},
+            {"/Bad Path": {"name": "x"}},
+            {"../etc": {"name": "x"}},
+            {"/a": {}},
+            {"/a": {"name": "x", "url": "http://evil"}},
+            {"/a": {"name": "<b>"}},
+            {"/a": {"name": "x" * 33}},
+            {"/a": {"icon": "ab"}},
+            {"/a": {"icon": "🚀" * 9}},
+        ):
+            with self.assertRaises(pt.LocalThemeError, msg=str(bad)):
+                self.clean(bad)
+        with self.assertRaises(pt.LocalThemeError):
+            self.clean({f"/p{i}": {"name": "x"} for i in range(pt.MAX_LABELS + 1)})
+
+    def test_ids_with_slashes_and_colons_survive_a_toml_round_trip(self):
+        model = pt.clean({"labels": {"/to-code": {"name": "Backlog", "icon": "💻"}, "nav:media": {"name": "Watch"}}})
+        self.local.write_text(pt.dump_local(model), encoding="utf-8")
+        self.assertEqual(pt.load_local(self.local)["labels"], model["labels"])
+        self.assertIn('[labels."/to-code"]', self.local.read_text())
+
+    def test_apply_keeps_labels_and_renders_labels_json_owner_only(self):
+        state = self.editor_state()
+        labels = {"/groceries": {"name": "Pantry", "icon": "🥫"}}
+        self.apply({"themes": state["themes"], "active": state["active"], "labels": labels})
+        written = self.rendered / "labels.json"
+        self.assertEqual(json.loads(written.read_text()), labels)
+        self.assertEqual(stat.S_IMODE(written.stat().st_mode), 0o600)
+        self.assertEqual(self.editor_state()["labels"], labels)
+        self.assertFalse((self.shared / "labels.json").exists())  # not a published asset
+
+    def test_the_desired_state_is_complete_so_leaving_labels_out_clears_them(self):
+        state = self.editor_state()
+        self.apply({"themes": state["themes"], "active": state["active"], "labels": {"/a": {"name": "A"}}})
+        self.apply({"themes": state["themes"], "active": state["active"]})
+        self.assertEqual(json.loads((self.rendered / "labels.json").read_text()), {})
+
+    def test_an_invalid_label_changes_nothing(self):
+        state = self.editor_state()
+        self.apply({"themes": state["themes"], "active": state["active"], "labels": {"/a": {"name": "A"}}})
+        before = self.local.read_text()
+        with self.assertRaises(pt.LocalThemeError):
+            self.apply({"themes": state["themes"], "active": state["active"], "labels": {"/a": {"name": "a*/b"}}})
+        self.assertEqual(self.local.read_text(), before)
+
+    def test_reset_removes_labels_json_too(self):
+        state = self.editor_state()
+        self.apply({"themes": state["themes"], "active": state["active"], "labels": {"/a": {"name": "A"}}})
+        pt.reset(self.local, self.rendered, self.shared)
+        self.assertFalse((self.rendered / "labels.json").exists())
+
+
 class MergeTests(Case):
     def merged(self, **raw):
         return pt.merge(base.load(), pt.clean(raw))
