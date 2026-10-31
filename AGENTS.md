@@ -219,6 +219,16 @@ tests that its copies match the source. Services behind the shared Caddy get the
 top bar with `<script src="/_portfolio/chrome.js" defer></script>`. See
 [the system theme guide](docs/system-theme.md).
 
+## Portfolio Sites
+
+Web pages must work with whatever tooling is present. A repository asks for the same
+`/_portfolio/*` files under every agent profile and ingress; `themes/portfolio_site.py`
+(vendored into each repo with a last-resort fallback copy) answers when no Caddy does. The central
+store lives in `~/.config/traction-control/sites` (owner-only; one entry per repository slug plus one
+ignored `.portfolio` symlink per checkout). Public repositories are enrolled in the tracked
+`config/portfolio-sites/sites.conf`; private ones only in the ignored, verified overlay. See
+[the portfolio sites guide](docs/portfolio-sites.md).
+
 ## Reusable Workflow Strategy
 
 Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). Build and CI action version pins live in that repo and Dependabot keeps them current. PyPI trusted publishing requires the upload job in the calling repository, so `actions/download-artifact` and `pypa/gh-action-pypi-publish` are the two caller-local exceptions; review their versions across package callers.

@@ -153,6 +153,13 @@ tags (direct access, no Caddy) tokens are undefined and the page falls back to t
 defaults, so keep the tags in every page head. A test in each repository keeps literal colours
 out of its CSS (see crew-chief's `tests/test_theme.py`).
 
+## Deploying pages with less tooling
+
+A page asks for the same `/_portfolio/*` files whether or not the shared Caddy or Clockwork is
+present, and works under every agent profile and ingress. [Portfolio sites](portfolio-sites.md)
+describes the central store, the resolution order, the fallback copy each repository keeps, and how
+private repositories are enrolled.
+
 ## Changing or adding a theme
 
 1. Edit `themes/themes.toml` (add a `[themes.<name>]` table with every token).

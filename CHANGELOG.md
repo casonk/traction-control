@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add portfolio sites: a standard-library seam (`themes/portfolio_site.py`) that lets any repository serve
+  `/_portfolio/*` itself, and `scripts/portfolio_sites.py` (`list`, `publish`, `link`, `vendor`, `check`) with
+  a central owner-only store under `~/.config/traction-control/sites`, one `.portfolio` symlink per checkout,
+  slug fallback, a tracked public `config/portfolio-sites/sites.conf` and a verified, fail-closed private
+  overlay. `install_traction_control_agents.sh --link-sites` runs it at any profile. See
+  `docs/portfolio-sites.md`.
+
 - Add the **Hulk** (purple and green) and **Neon** themes, each with a stripe under the top bar.
 
 - Add two themes, **High contrast white** (`contrast-light`) and **Liberty** (red, white and
