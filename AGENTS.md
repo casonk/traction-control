@@ -421,6 +421,10 @@ Add:
 
 For Python repos:
 
+- when `requires-python` is below 3.11, seed `tests/test_python_floor.py` from
+  `./util-repos/traction-control/docs/templates/test_python_floor.py` and keep it
+  identical to the template; it is a standard-library static check that nothing needs
+  a newer Python than the declared floor (see `LESSONSLEARNED.md`)
 - use `pyproject.toml` as the primary package metadata source
 - keep `requirements.txt` only when it materially helps reproducibility or CI
 
