@@ -19,7 +19,9 @@ Commands:
   may have switched off on purpose).
 - ``disable``: switch Actions off and record why, so ``check`` can tell a pause
   you chose from one that just happened. Without ``--repo`` it needs ``--yes``.
-- ``usage``: this month's billed Actions minutes. Needs the ``user`` token scope
+- ``usage``: this month's Actions minutes in private repositories (weighted the way
+  the allowance is, so a macOS minute counts ten), the free public-repository
+  minutes, and any amount actually billed. Needs the ``user`` token scope
   (``gh auth refresh -h github.com -s user``); without it the command says so.
 - ``check``: for a timer. Reports repositories left off after the month they were
   disabled in, off with no recorded reason, workflows stuck in
@@ -59,7 +61,7 @@ DEFAULT_STATE_DIR = STATE_HOME / "portfolio-actions-switch"
 STATE_FILE = "state.json"
 INACTIVITY = "disabled_inactivity"
 MANUAL = "disabled_manually"
-DEFAULT_LIMIT_MINUTES = 2000  # GitHub Free; Pro is 3000
+DEFAULT_LIMIT_MINUTES = 2000  # GitHub Free
 NOTIFY_PREFIX = "ACTIONS_SWITCH_NOTIFY"
 
 
@@ -125,17 +127,24 @@ def inactive_workflows(github: GitHub, slug: str) -> list[tuple[str, str]]:
 # --- repository selection ---------------------------------------------------
 
 
-def registry_slugs(private: Path, public: Path, local_private: Path | None) -> list[str]:
+def registry_slugs(
+    private: Path, public: Path, local_private: Path | None
+) -> tuple[list[str], frozenset[str]]:
+    """Every registered slug, and the bare names of the public ones."""
     try:
         pair = visibility.load_pair(private, public, local_private)
     except (visibility.RegistryError, OSError) as exc:
         raise SwitchError(f"cannot read the visibility registry: {exc}") from exc
-    return sorted({entry.slug for _, entry in pair.entries}, key=str.casefold)
+    slugs = sorted({entry.slug for _, entry in pair.entries}, key=str.casefold)
+    public_names = frozenset(e.slug.rsplit("/", 1)[-1].casefold() for e in pair.public.repositories)
+    return slugs, public_names
 
 
-def owner_slugs(github: GitHub, owner: str) -> list[str]:
-    listing = github.api("GET", f"users/{owner}/repos?per_page=100&type=owner")
-    return sorted((r["full_name"] for r in listing or []), key=str.casefold)
+def owner_slugs(github: GitHub, owner: str) -> tuple[list[str], frozenset[str]]:
+    listing = github.api("GET", f"users/{owner}/repos?per_page=100&type=owner") or []
+    slugs = sorted((r["full_name"] for r in listing), key=str.casefold)
+    public = frozenset(r["name"].casefold() for r in listing if not r.get("private", True))
+    return slugs, public
 
 
 def select(universe: Sequence[str], wanted: Sequence[str]) -> list[str]:
@@ -295,12 +304,34 @@ def disable(
 @dataclass(frozen=True)
 class Usage:
     month: str
-    minutes: float
-    net_minutes: float
+    minutes: float  # allowance-weighted, private repositories only
+    public_minutes: float
+    billed: float  # dollars actually charged after the allowance
 
 
-def fetch_usage(github: GitHub, owner: str, month: str) -> Usage:
-    """Billed Actions minutes for ``month`` (YYYY-MM) from the billing usage report."""
+LINUX_PRICE = 0.006  # dollars per Linux minute; Windows and macOS minutes cost a multiple
+PLAN_MINUTES = {"free": 2000, "pro": 3000, "team": 3000, "enterprise": 50000}
+
+
+def fetch_plan_minutes(github: GitHub) -> float | None:
+    """The plan's included private-repository minutes, when GitHub names a plan we know."""
+    try:
+        return PLAN_MINUTES.get(str((github.api("GET", "user") or {}).get("plan", {}).get("name", "")).casefold())
+    except GitHubError:
+        return None
+
+
+def fetch_usage(
+    github: GitHub, owner: str, month: str, public_names: frozenset[str] = frozenset()
+) -> Usage:
+    """Actions minutes for ``month`` (YYYY-MM) from the billing usage report.
+
+    Only private repositories use the included allowance; public ones appear in the
+    report at full price and then discount to nothing, so ``public_names`` are counted
+    apart. A repository the caller cannot classify counts as private, which errs
+    toward warning. A Windows or macOS minute uses several allowance minutes; the
+    multiple is its price over the Linux price.
+    """
     year, number = month.split("-")
     try:
         report = github.api(
@@ -311,16 +342,20 @@ def fetch_usage(github: GitHub, owner: str, month: str) -> Usage:
         raise GitHubError(
             f"billing usage unavailable: {exc} (needs the user scope: gh auth refresh -h github.com -s user)"
         ) from exc
-    gross = net = 0.0
+    private = public = billed = 0.0
     for item in (report or {}).get("usageItems", []):
         if str(item.get("product", "")).casefold() != "actions":
             continue
         if str(item.get("unitType", "")).casefold() != "minutes":
             continue
-        quantity = float(item.get("quantity", 0))
-        gross += quantity
-        net += float(item.get("netQuantity", quantity - float(item.get("discountQuantity", 0))))
-    return Usage(month, gross, net)
+        weight = max(1, round(float(item.get("pricePerUnit") or LINUX_PRICE) / LINUX_PRICE))
+        minutes = float(item.get("quantity", 0)) * weight
+        billed += float(item.get("netAmount", 0))
+        if str(item.get("repositoryName", "")).casefold() in public_names:
+            public += minutes
+        else:
+            private += minutes
+    return Usage(month, private, public, billed)
 
 
 @dataclass(frozen=True)
@@ -367,15 +402,18 @@ def assess(
                         Finding(f"stuck:{s.slug}:{path}", f"{s.slug}: {Path(path).name} is {INACTIVITY}")
                     )
     if usage is not None and limit_minutes > 0:
-        # Gross minutes: the included allowance shows up as a discount, so net is ~0 until it runs out.
         percent = 100 * usage.minutes / limit_minutes
         if percent >= warn_percent:
             findings.append(
                 Finding(
                     f"usage:{usage.month}:{int(percent // 10) * 10}",
-                    f"Actions minutes {usage.minutes:.0f} of {limit_minutes:.0f} ({percent:.0f}%) in {usage.month}",
+                    f"Private-repository Actions minutes {usage.minutes:.0f} of {limit_minutes:.0f} ({percent:.0f}%) in {usage.month}",
                 )
             )
+    if usage is not None and usage.billed > 0:
+        findings.append(
+            Finding(f"billed:{usage.month}", f"Actions has been charged ${usage.billed:.2f} in {usage.month}")
+        )
     return findings, paused
 
 
@@ -467,13 +505,13 @@ def _parser() -> argparse.ArgumentParser:
     chk.add_argument("--notify", action="store_true")
     chk.add_argument("--channels", default="all", help="signal,telegram,gmail or all.")
     chk.add_argument("--renotify-hours", type=float, default=24)
-    chk.add_argument("--limit-minutes", type=float, default=float(os.environ.get("ACTIONS_SWITCH_LIMIT_MINUTES", DEFAULT_LIMIT_MINUTES)))
+    chk.add_argument("--limit-minutes", type=float, default=float(os.environ["ACTIONS_SWITCH_LIMIT_MINUTES"]) if os.environ.get("ACTIONS_SWITCH_LIMIT_MINUTES") else None, help="Included minutes (default: from your GitHub plan, else 2000).")
     chk.add_argument("--warn-percent", type=float, default=80)
     chk.add_argument("--no-usage", action="store_true", help="Skip the billing lookup.")
     return parser
 
 
-def _universe(args: argparse.Namespace, github: GitHub) -> list[str]:
+def _universe(args: argparse.Namespace, github: GitHub) -> tuple[list[str], frozenset[str]]:
     if args.owner:
         return owner_slugs(github, args.owner)
     local = args.local_private if args.local_private.exists() else None
@@ -489,13 +527,18 @@ def main(argv: Sequence[str] | None = None, github: GitHub | None = None) -> int
     github = github or GitHub(args.gh)
     now = datetime.now(timezone.utc)
     try:
-        universe = _universe(args, github)
+        universe, public_names = _universe(args, github)
         slugs = select(universe, getattr(args, "repo", []))
         ledger = load_ledger(args.state_dir)
         if args.command == "usage":
             month = args.month or month_of(now)
-            usage = fetch_usage(github, _owner(universe, args), month)
-            print(f"{usage.month}: {usage.minutes:.0f} Actions minutes ({usage.net_minutes:.0f} billable after discounts)")
+            usage = fetch_usage(github, _owner(universe, args), month, public_names)
+            limit = fetch_plan_minutes(github) or DEFAULT_LIMIT_MINUTES
+            print(
+                f"{usage.month}: {usage.minutes:.0f} private-repository minutes of {limit:.0f} included "
+                f"({100 * usage.minutes / limit:.0f}%), {usage.public_minutes:.0f} public (free), "
+                f"billed ${usage.billed:.2f}"
+            )
             return 0
         if args.command == "status":
             states = observe_all(github, slugs)
@@ -514,10 +557,11 @@ def main(argv: Sequence[str] | None = None, github: GitHub | None = None) -> int
             usage = None
             if not args.no_usage:
                 with contextlib.suppress(SwitchError):
-                    usage = fetch_usage(github, _owner(universe, args), month_of(now))
+                    usage = fetch_usage(github, _owner(universe, args), month_of(now), public_names)
+            limit = args.limit_minutes or (usage and fetch_plan_minutes(github)) or DEFAULT_LIMIT_MINUTES
             findings, paused = assess(
                 observe_all(github, slugs), ledger, now, usage,
-                limit_minutes=args.limit_minutes, warn_percent=args.warn_percent,
+                limit_minutes=limit, warn_percent=args.warn_percent,
             )
             names = relay.CHANNELS if args.channels in {"", "all"} else tuple(args.channels.split(","))
             unknown = [c for c in names if c not in relay.SERVICE_SCRIPTS]

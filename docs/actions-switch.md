@@ -54,7 +54,8 @@ scripts/actions_switch.py check                    # what needs attention (exit 
 | off since a previous month | a pause you recorded is still in force after the month rolled over |
 | off with no recorded reason | Actions was switched off, but not by `disable` |
 | workflow `disabled_inactivity` | GitHub switched a workflow off; `enable` fixes it |
-| minutes at or above `--warn-percent` (default 80) of `--limit-minutes` | the month's allowance is nearly spent |
+| private-repository minutes at or above `--warn-percent` (default 80) of the limit | the month's allowance is nearly spent |
+| a charge on the Actions bill | minutes beyond the allowance are costing money |
 
 A pause you recorded this month is counted but not reported, so a deliberate
 pause does not nag. With `--notify` it sends one message to Signal, Telegram and
@@ -65,9 +66,7 @@ again. State is saved only when a channel delivered, so a failed send is retried
 Targets are `ACTIONS_SWITCH_NOTIFY_{SIGNAL,TELEGRAM,GMAIL}_TARGET` (optional
 `..._CONFIG`) in `~/.config/traction-control/actions-switch.env`; a channel
 without a target is reported and skipped. `JOB_GUARD_SHOCK_RELAY_ROOT`
-overrides the shock-relay checkout, as for the job guard. The limit defaults to
-2000 minutes (GitHub Free; Pro is 3000) and can be set with
-`ACTIONS_SWITCH_LIMIT_MINUTES`.
+overrides the shock-relay checkout, as for the job guard.
 
 Install the daily timer from `config/clockwork/actions-switch-check.toml.template`:
 substitute `__REPO_ROOT__`, run `python3 -m clockwork install --manifest FILE
@@ -80,10 +79,26 @@ actions-switch-check.timer`.
 `usage` and the minutes check read GitHub's billing usage report, which needs
 the `user` scope on the token. Without it GitHub answers 404 and the tool says
 how to add it (`gh auth refresh -h github.com -s user`); `check` then carries on
-without the minutes finding, and `--no-usage` skips the lookup. Minutes are
-summed as reported (gross, before the included allowance is discounted), so the
-percentage compares against the plan's allowance rather than against what is
-billed.
+without the minutes findings, and `--no-usage` skips the lookup.
+
+What the report contains decides how it is read:
+
+- **Only private repositories use the allowance.** Public-repository minutes
+  appear at full price and are then discounted to nothing, so they are counted
+  apart and never warn. A repository the registry cannot classify counts as
+  private, which errs toward warning. With `--owner` the repository listing's
+  `private` flag does the same job.
+- **Minutes are weighted.** A Windows minute uses two allowance minutes and a
+  macOS minute ten; the multiple is the item's price over the Linux price.
+- **Storage and other products are ignored.**
+- **A real charge is its own finding** (`netAmount` above zero), whatever the
+  percentage.
+
+The limit comes from your GitHub plan (free 2000, pro and team 3000), else 2000;
+`--limit-minutes` or `ACTIONS_SWITCH_LIMIT_MINUTES` overrides it.
+
+October 2026 read 2013 weighted private minutes against 2000, with 11335 public
+minutes free and nothing billed, which is why Actions was paused.
 
 ## State
 

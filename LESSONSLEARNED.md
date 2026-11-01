@@ -19,7 +19,11 @@
   one-off loop: `enable` clears both, and `disable` records the reason so
   `check` can tell a deliberate pause from one that was forgotten after the
   month turned over. The billing usage report needs the `user` token scope; a
-  token without it gets 404, not 403.
+  token without it gets 404, not 403. Read it per runner type and per
+  repository: public-repository minutes are listed at full price and then
+  discounted away, and a macOS minute counts ten against the allowance, so a raw
+  sum is wrong in both directions (October 2026: 6,590 raw, 13,348 weighted
+  over every repository, 2,013 over private ones against the 2,000 allowance).
 - A privacy refactor that replaces a tracked private checkout path with a
   neutral placeholder is an operational migration, not only a code cleanup.
   Update ignored host manifests and installed service environments in the same

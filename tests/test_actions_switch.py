@@ -22,15 +22,18 @@ NOV = datetime(2026, 11, 1, 9, tzinfo=timezone.utc)
 class FakeGitHub:
     """In-memory stand-in for the REST calls; records every write."""
 
-    def __init__(self, repos: dict[str, dict], usage: dict | None = None) -> None:
+    def __init__(self, repos: dict[str, dict], usage: dict | None = None, plan: str = "free") -> None:
         self.repos = repos  # slug -> {archived, enabled, workflows: {file: state}}
         self.usage = usage
+        self.plan = plan
         self.writes: list[tuple[str, str, dict | None]] = []
 
     def api(self, method, path, fields=None):
         if method != "GET":
             self.writes.append((method, path, fields))
         parts = path.split("?")[0].split("/")
+        if path == "user":
+            return {"plan": {"name": self.plan}}
         if parts[0] == "users":
             if self.usage is None:
                 raise sw.GitHubError("needs the user scope")
@@ -158,23 +161,51 @@ class DisableCase(unittest.TestCase):
         self.assertEqual((gh.writes, led["disabled"]), ([], {}))
 
 
+def item(repo_name, sku, quantity, price, net=0.0, unit="Minutes", product="actions"):
+    return {
+        "product": product, "sku": sku, "unitType": unit, "quantity": quantity,
+        "pricePerUnit": price, "repositoryName": repo_name, "netAmount": net,
+        "grossAmount": quantity * price, "discountAmount": quantity * price - net,
+    }
+
+
 class UsageCase(unittest.TestCase):
-    ITEMS = {
+    REPORT = {
         "usageItems": [
-            {"product": "Actions", "unitType": "Minutes", "quantity": 1500, "discountQuantity": 1500, "netQuantity": 0},
-            {"product": "Actions", "unitType": "Minutes", "quantity": 600, "discountQuantity": 500, "netQuantity": 100},
-            {"product": "Actions", "unitType": "GigabyteHours", "quantity": 99},
-            {"product": "Copilot", "unitType": "Requests", "quantity": 7},
+            item("Priv", "Actions Linux", 100, 0.006),
+            item("Priv", "Actions Windows", 10, 0.010),  # 2x
+            item("Priv", "Actions macOS 3-core", 5, 0.062),  # 10x
+            item("pub", "Actions Linux", 5000, 0.006),
+            item("stranger", "Actions Linux", 7, 0.006),  # not in the registry
+            item("Priv", "Actions storage", 0.5, 0.0003, unit="GigabyteHours"),
+            item("Priv", "Copilot", 9, 0.0, product="copilot"),
+            item("Priv", "Actions Linux", 1, 0.006, net=0.25),
         ]
     }
 
-    def test_sums_only_actions_minutes(self):
-        usage = sw.fetch_usage(FakeGitHub({}, self.ITEMS), "me", "2026-11")
-        self.assertEqual((usage.minutes, usage.net_minutes), (2100, 100))
+    def fetch(self, public=frozenset({"pub"})):
+        return sw.fetch_usage(FakeGitHub({}, self.REPORT), "me", "2026-11", public)
+
+    def test_private_minutes_are_weighted_and_public_ones_kept_apart(self):
+        usage = self.fetch()
+        # 100 + 10*2 + 5*10 + 7 (unclassified counts as private) + 1
+        self.assertEqual(usage.minutes, 178)
+        self.assertEqual(usage.public_minutes, 5000)
+
+    def test_storage_and_other_products_are_ignored_and_charges_summed(self):
+        self.assertAlmostEqual(self.fetch().billed, 0.25)
+
+    def test_without_a_registry_everything_counts_as_private(self):
+        self.assertEqual(self.fetch(frozenset()).minutes, 5178)
 
     def test_missing_scope_says_how_to_fix_it(self):
         with self.assertRaisesRegex(sw.GitHubError, "gh auth refresh"):
             sw.fetch_usage(FakeGitHub({}, None), "me", "2026-11")
+
+    def test_plan_limit(self):
+        self.assertEqual(sw.fetch_plan_minutes(FakeGitHub({}, plan="free")), 2000)
+        self.assertEqual(sw.fetch_plan_minutes(FakeGitHub({}, plan="pro")), 3000)
+        self.assertIsNone(sw.fetch_plan_minutes(FakeGitHub({}, plan="mystery")))
 
 
 class AssessCase(unittest.TestCase):
@@ -211,10 +242,14 @@ class AssessCase(unittest.TestCase):
 
     def test_usage_threshold(self):
         states = [sw.RepoState("me/a", enabled=True)]
-        low, _ = self.assess(states, usage=sw.Usage("2026-11", 1000, 0), limit_minutes=2000)
-        high, _ = self.assess(states, usage=sw.Usage("2026-11", 1700, 0), limit_minutes=2000)
+        low, _ = self.assess(states, usage=sw.Usage("2026-11", 1000, 0, 0), limit_minutes=2000)
+        high, _ = self.assess(states, usage=sw.Usage("2026-11", 1700, 0, 0), limit_minutes=2000)
         self.assertEqual(low, [])
         self.assertEqual([f.key for f in high], ["usage:2026-11:80"])
+
+    def test_a_real_charge_is_flagged_even_under_the_threshold(self):
+        findings, _ = self.assess([], usage=sw.Usage("2026-11", 10, 0, 1.5), limit_minutes=2000)
+        self.assertEqual([f.key for f in findings], ["billed:2026-11"])
 
 
 class CheckCase(unittest.TestCase):
@@ -314,7 +349,7 @@ class CliCase(unittest.TestCase):
 
         def api(method, path, fields=None):
             if path.startswith("users/me/repos"):
-                return [{"full_name": slug} for slug in gh.repos]
+                return [{"full_name": slug, "name": slug.split("/")[1], "private": True} for slug in gh.repos]
             return original(method, path, fields)
 
         gh.api = api
