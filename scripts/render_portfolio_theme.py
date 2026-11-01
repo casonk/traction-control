@@ -126,6 +126,8 @@ def validate(document: dict) -> dict:
         raise ThemeError("default_dark must be a dark theme")
     if themes[meta["default_light"]]["scheme"] != "light":
         raise ThemeError("default_light must be a light theme")
+    if "global" in meta and meta["global"] not in themes:
+        raise ThemeError("meta.global must name a theme")
     for old, new in meta.get("aliases", {}).items():
         if old in themes or new not in themes or not NAME.fullmatch(old):
             raise ThemeError(
@@ -262,6 +264,8 @@ def render_js(document: dict) -> str:
   var ALIASES = {json.dumps(meta.get("aliases", {}))};
   function known(name) {{ name = ALIASES[name] || name; return THEMES[name] ? name : null; }}
   var DARK = {json.dumps(meta["default_dark"])}, LIGHT = {json.dumps(meta["default_light"])};
+  var GLOBAL = {json.dumps(meta.get("global"))}, GLOBAL_URL = "/_portfolio/global";
+  var scope = "site", note = "";
   var root = document.documentElement;
   function saved() {{
     try {{ return localStorage.getItem(KEY); }} catch (e) {{ return null; }}
@@ -271,6 +275,7 @@ def render_js(document: dict) -> str:
     if (known(asked)) return known(asked);
     var kept = saved();
     if (known(kept)) return known(kept);
+    if (known(GLOBAL)) return known(GLOBAL);
     return window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? LIGHT : DARK;
   }}
   var ORDER = Object.keys(THEMES);
@@ -305,6 +310,29 @@ def render_js(document: dict) -> str:
     menu.pfFilled = true;
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Themes");
+    [["site", "This site"], ["all", "Everywhere"]].forEach(function (pair) {{
+      var chooser = document.createElement("button");
+      chooser.type = "button";
+      chooser.setAttribute("role", "menuitemradio");
+      chooser.setAttribute("data-theme-scope", pair[0]);
+      chooser.textContent = pair[1];
+      chooser.addEventListener("click", function (event) {{
+        event.stopPropagation();
+        scope = pair[0];
+        paintScope();
+      }});
+      menu.appendChild(chooser);
+    }});
+    var follow = document.createElement("button");
+    follow.type = "button";
+    follow.setAttribute("data-theme-follow", "");
+    follow.addEventListener("click", function () {{ useGlobal(); }});
+    menu.appendChild(follow);
+    var status = document.createElement("small");
+    status.setAttribute("data-theme-note", "");
+    status.textContent = note;
+    menu.appendChild(status);
+    paintScope();
     ORDER.forEach(function (name) {{
       var theme = THEMES[name], item = document.createElement("button");
       item.type = "button";
@@ -320,7 +348,7 @@ def render_js(document: dict) -> str:
       kind.textContent = theme.scheme;
       item.appendChild(swatch); item.appendChild(label); item.appendChild(kind);
       item.addEventListener("click", function () {{
-        set(name);
+        set(name, scope);
         var open = menu.closest && menu.closest("details");
         if (open) open.open = false;
       }});
@@ -328,11 +356,56 @@ def render_js(document: dict) -> str:
     }});
     paintMenu(menu, current() || pick());
   }}
-  function set(name) {{
+  function say(text) {{
+    note = text;
+    document.querySelectorAll("[data-theme-note]").forEach(function (el) {{ el.textContent = text; }});
+  }}
+  function overridden() {{ return !!known(saved()); }}
+  function paintScope() {{
+    document.querySelectorAll("[data-theme-scope]").forEach(function (el) {{
+      el.setAttribute("aria-checked", String(el.getAttribute("data-theme-scope") === scope));
+    }});
+    document.querySelectorAll("[data-theme-follow]").forEach(function (el) {{
+      el.hidden = !overridden() || !known(GLOBAL);
+      if (known(GLOBAL)) el.textContent = "Follow the global theme (" + THEMES[known(GLOBAL)].label + ")";
+    }});
+  }}
+  function set(name, where) {{
     name = known(name);
     if (!name) return;
+    if ((where || "site") === "all") return setGlobal(name);
     try {{ localStorage.setItem(KEY, name); }} catch (e) {{}}
     apply(name);
+    say("");
+    paintScope();
+  }}
+  function setGlobal(name) {{
+    name = known(name);
+    if (!name) return;
+    fetch(GLOBAL_URL, {{
+      method: "POST",
+      credentials: "same-origin",
+      headers: {{ "Content-Type": "application/json", "X-Portfolio-Global": "1" }},
+      body: JSON.stringify({{ theme: name }})
+    }}).then(function (response) {{
+      if (!response.ok) throw new Error(String(response.status));
+      try {{ localStorage.removeItem(KEY); }} catch (e) {{}}
+      GLOBAL = name;
+      apply(name);
+      say("");
+      paintScope();
+    }}).catch(function () {{
+      say("The global theme cannot be changed from this site; set for this site only.");
+      try {{ localStorage.setItem(KEY, name); }} catch (e) {{}}
+      apply(name);
+      paintScope();
+    }});
+  }}
+  function useGlobal() {{
+    try {{ localStorage.removeItem(KEY); }} catch (e) {{}}
+    apply(pick());
+    say("");
+    paintScope();
   }}
   function cycle() {{ set(following(current() || pick())); }}
   function bind(el) {{
@@ -368,7 +441,7 @@ def render_js(document: dict) -> str:
     }});
     apply(root.getAttribute("data-theme") || pick());
   }});
-  window.PortfolioTheme = {{ themes: THEMES, set: set, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, bindType: bindType, showType: function () {{ applyType(pickType()); }}, setFont: function (name) {{ setType("font", name); }}, setSize: function (name) {{ setType("size", name); }}, cycleType: cycleType }};
+  window.PortfolioTheme = {{ themes: THEMES, set: set, setGlobal: setGlobal, useGlobal: useGlobal, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, bindType: bindType, showType: function () {{ applyType(pickType()); }}, setFont: function (name) {{ setType("font", name); }}, setSize: function (name) {{ setType("size", name); }}, cycleType: cycleType }};
 }})();
 """
     return script.replace("/*__TYPE__*/", type_runtime_js(document).rstrip("\n"))

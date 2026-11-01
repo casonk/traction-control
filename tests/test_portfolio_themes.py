@@ -598,5 +598,75 @@ class TrackedFilesTests(unittest.TestCase):
             del os.environ["PORTFOLIO_THEMES_LOCAL"]
 
 
+class GlobalThemeTests(Case):
+    def set(self, name):
+        return pt.set_global(name, self.local, self.rendered, self.shared)
+
+    def test_the_global_theme_is_kept_rendered_and_followed_until_a_site_chooses(self):
+        self.set("ember")
+        self.assertEqual(self.editor_state()["global"], "ember")
+        self.assertIn('var GLOBAL = "ember"', (self.rendered / "theme.js").read_text())
+        self.assertIn('var GLOBAL = "ember"', (self.rendered / "chrome.js").read_text())
+        script = (self.rendered / "theme.js").read_text()
+        order = [script.index(x) for x in ("known(kept)", "known(GLOBAL)", "prefers-color-scheme")]
+        self.assertEqual(order, sorted(order))  # your site's choice, then global, then the system
+        self.assertEqual(stat.S_IMODE(os.stat(self.local).st_mode), 0o600)
+
+    def test_clearing_it_and_unoffered_themes(self):
+        self.set("ember")
+        self.set(None)
+        self.assertIsNone(self.editor_state()["global"])
+        self.assertIn("var GLOBAL = null", (self.rendered / "theme.js").read_text())
+        for bad in ("nope", "Bad Name"):
+            with self.assertRaises(pt.LocalThemeError):
+                self.set(bad)
+        self.assertFalse(self.local.read_text().count("nope"))
+
+    def test_the_global_theme_must_stay_offered(self):
+        self.set("ember")
+        state = self.editor_state()
+        state["active"] = [n for n in state["active"] if n != "ember"]
+        with self.assertRaises(pt.LocalThemeError):
+            self.apply(state)
+
+    def test_the_menu_offers_this_site_everywhere_and_follow_global(self):
+        self.set("ember")
+        script = (self.rendered / "chrome.js").read_text()
+        for needle in ('data-theme-scope', 'data-theme-follow', "X-Portfolio-Global", "/_portfolio/global"):
+            self.assertIn(needle, script)
+
+
+class WriterTests(Case):
+    def setUp(self):
+        super().setUp()
+        import portfolio_theme_writer as w
+
+        self.w = w
+        self._set = pt.set_global
+        pt.set_global = lambda name: self._set(name, self.local, self.rendered, self.shared)
+        self.addCleanup(setattr, pt, "set_global", self._set)
+
+    def post(self, body, **headers):
+        base_headers = {"X-Portfolio-Global": "1", "Host": "site.test", "Origin": "https://site.test"}
+        base_headers.update(headers)
+        return self.w.handle(base_headers, body)
+
+    def test_a_same_origin_post_with_the_header_sets_it(self):
+        status, payload = self.post(b'{"theme": "ember"}')
+        self.assertEqual((status, payload), (200, {"global": "ember"}))
+        self.assertEqual(self.editor_state()["global"], "ember")
+
+    def test_other_origins_a_missing_header_and_bad_bodies_change_nothing(self):
+        for body, headers, status in (
+            (b'{"theme": "ember"}', {"Origin": "https://evil.test"}, 403),
+            (b'{"theme": "ember"}', {"X-Portfolio-Global": "0"}, 403),
+            (b"not json", {}, 400),
+            (b'{"theme": 3}', {}, 400),
+            (b'{"theme": "nope"}', {}, 422),
+        ):
+            self.assertEqual(self.post(body, **headers)[0], status)
+        self.assertFalse(self.local.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
