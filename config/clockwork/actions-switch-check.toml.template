@@ -1,0 +1,17 @@
+[[jobs]]
+name = "actions-switch-check"
+description = "Tell the owner when GitHub Actions is left off after a month ends, is off without a recorded reason, has a workflow stuck in disabled_inactivity, or minutes use nears the limit; reads GitHub, changes nothing"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "/usr/bin/python3 __REPO_ROOT__/scripts/actions_switch.py check --notify"
+environment_files = ["-%h/.config/traction-control/actions-switch.env"]
+after = ["network-online.target"]
+standard_output = "journal"
+standard_error = "journal"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* 08:30:00"
+persistent = true
+randomized_delay_sec = "300"

@@ -487,6 +487,7 @@ pre-commit run --all-files
 bash tests/test_repository_visibility_ci.sh
 bash tests/test_main_branch_guard.sh
 python3 -m unittest discover -s tests -p test_repo_settings.py
+python3 -m unittest discover -s tests -p test_actions_switch.py
 python3 -m unittest discover -s tests -p test_portfolio_theme.py
 ```
 
