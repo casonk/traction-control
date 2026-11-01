@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- A theme or library name that is refused now says why: it must start with a lowercase letter, then lowercase letters, digits and `-`, at most 24 characters for a theme and 32 for a library entry (the message used to omit the leading letter and the length).
 - The font and the page scale each have their own rotator, on the same pattern as the theme rotator: the button steps to the next choice, and the menu beside it lists that choice only.
 - Add a global colour and icon library (`themes/library.toml`: 72 colours in twelve hue families and a neutral ramp, 131 emoji in groups) and return it from `portfolio_themes.py show --json` as `library`, so an editor can offer pickers instead of empty lists. Validated on load (slug names, `#rrggbb`, non-ASCII icons up to 8 characters, unique names, safe group names).
 - The shared size is a page scale: tiny, small, medium, or large (80%, 90%, 100%, 125%). It zooms the whole page, so text that sets its own pixel size scales with the headings. Medium is the current page. The Aa control and `[type].size` use these names.

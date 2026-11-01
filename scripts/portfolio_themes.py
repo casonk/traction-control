@@ -204,7 +204,8 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
         for name, value in table.items():
             if not LIBRARY_NAME.fullmatch(name):
                 raise LocalThemeError(
-                    f"{key}.{name}: use lowercase letters, digits and -"
+                    f"{key}.{name}: start with a lowercase letter, then lowercase letters, "
+                    "digits and - (at most 32 characters)"
                 )
             if check == "colour":
                 if not base.HEX.fullmatch(str(value)):
@@ -237,7 +238,10 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
         raise LocalThemeError(f"at most {MAX_THEMES} themes of your own")
     for name, table in themes.items():
         if not base.NAME.fullmatch(name):
-            raise LocalThemeError(f"themes.{name}: use lowercase letters, digits and -")
+            raise LocalThemeError(
+                f"themes.{name}: start with a lowercase letter, then lowercase letters, "
+                "digits and - (at most 24 characters)"
+            )
         model["themes"][name] = _fields(f"themes.{name}", table, extra=("based_on",))
     model["type"] = _type(raw.get("type", {}))
     return model
