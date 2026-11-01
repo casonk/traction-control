@@ -1,0 +1,21 @@
+[[jobs]]
+name = "repository-description-sync-weekly"
+description = "Weekly sync of GitHub descriptions from merged repository settings"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/repository_description_sync.py"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Sync repository descriptions from canonical settings"
+
+[jobs.environment]
+PATH = "%h/.local/npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "Sun *-*-* 06:00:00"
+persistent = true
+randomized_delay_sec = "1800"

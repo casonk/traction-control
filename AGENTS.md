@@ -298,6 +298,14 @@ python3 scripts/repo_settings.py apply   # update GitHub to match (--dry-run to 
 Both read the file from `origin/main`, so a change reaches GitHub only after its
 pull request merges. Change a description by editing the file, never in the
 GitHub UI or with `gh repo edit`; the next `check` reports UI edits as drift.
+The weekly `repository-description-sync-weekly` job checks every repository in
+the paired visibility registry and applies only descriptions from each
+repository's merged `.github/repository.toml`. It does not alter branch
+rulesets, invent missing settings, or unarchive repositories. Missing settings
+and archived repositories with no description are reported for review.
+Install and enable the Linux user timer with
+`scripts/install_repository_description_sync_systemd.sh`; its default schedule
+is Sunday at 06:00, with up to 30 minutes of jitter.
 
 ### Main-Branch Guard
 
