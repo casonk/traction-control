@@ -94,6 +94,13 @@ class ValidationTests(Case):
             with self.assertRaises(pt.LocalThemeError, msg=str(raw)):
                 pt.clean(raw)
 
+    def test_a_bad_theme_name_says_what_is_allowed(self):
+        for name in ("Sunset", "2024", "x" * 25):
+            with self.assertRaises(pt.LocalThemeError) as ctx:
+                pt.clean({"themes": {name: {"based_on": "ember", "label": "x"}}})
+            self.assertIn("start with a lowercase letter", str(ctx.exception))
+            self.assertIn("24 characters", str(ctx.exception))
+
     def test_the_libraries_and_theme_count_are_capped(self):
         with self.assertRaises(pt.LocalThemeError):
             self.clean(palette={f"c{i}": "#000000" for i in range(pt.MAX_LIBRARY + 1)})
