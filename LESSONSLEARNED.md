@@ -12,6 +12,14 @@
 
 ## Lessons
 
+- GitHub Actions has two switches. The repository-level `enabled` flag is what a
+  pause changes, but GitHub also sets individual workflows to
+  `disabled_inactivity` after 60 days without activity, and a repository-level
+  re-enable does not clear that. Use `scripts/actions_switch.py` rather than a
+  one-off loop: `enable` clears both, and `disable` records the reason so
+  `check` can tell a deliberate pause from one that was forgotten after the
+  month turned over. The billing usage report needs the `user` token scope; a
+  token without it gets 404, not 403.
 - A privacy refactor that replaces a tracked private checkout path with a
   neutral placeholder is an operational migration, not only a code cleanup.
   Update ignored host manifests and installed service environments in the same
