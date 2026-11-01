@@ -19,10 +19,22 @@ follows this guide.
 | `liberty` | light | Red, white and blue, like a Bomb Pop: navy accent, red status colour, and a red/white/blue stripe under the top bar |
 
 With no saved choice a page follows the system: `daylight` when the system prefers
-light, `midnight` otherwise. A choice made with the switcher is saved in the
-browser (`localStorage`, key `portfolio-theme`). `?theme=ember` on any URL picks a
-theme for that visit and saves it. Each site is its own browser origin, so the
-choice is saved per site, not once for every site.
+light, `midnight` otherwise. A page picks its theme in this order: `?theme=ember` on the URL,
+then this site's own choice, then the **global theme**, then the system.
+
+**This site** and **Everywhere** are the two scopes of the theme menu in the top bar. Choosing a
+theme for *This site* is saved in the browser (`localStorage`, key `portfolio-theme`), and each
+site is its own origin, so it applies to that site only. Choosing it *Everywhere* sets the global
+theme on the server (`[global] theme` in the owner-only local layer, rendered into `theme.js` and
+`chrome.js`), clears this site's own choice, and every site that has no choice of its own follows
+it from its next page load. "Follow the global theme" in the menu drops a site's own choice.
+
+The write goes to `POST /_portfolio/global` on the site's own origin, answered by
+`scripts/portfolio_theme_writer.py` (127.0.0.1 only; the shared ingress routes the path to it and
+decides who may reach it). The service also requires the `X-Portfolio-Global: 1` header and, when
+the browser sends `Origin`, the same host, so a page on another origin cannot drive it. On a site
+with no such route the post fails and the choice is kept for that site only, with a note in the
+menu. Set it from a terminal with `scripts/portfolio_themes.py set-global NAME` (`none` clears it).
 
 ## Type
 

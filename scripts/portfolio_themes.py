@@ -60,7 +60,7 @@ PUBLISHED = {
 THEME_FIELDS = ("label", "description", "scheme", "icon", "stripe", *base.TOKENS)
 LIBRARY_NAME = re.compile(r"[a-z][a-z0-9-]{0,31}")
 MAX_THEMES, MAX_LIBRARY = 40, 200
-TOP_LEVEL = {"active", "palette", "emoji", "override", "themes", "labels", "type"}
+TOP_LEVEL = {"active", "palette", "emoji", "override", "themes", "labels", "type", "global"}
 # What a label is attached to: a Clockwork page by path (/groceries), a registry service by name, or a
 # fixed top-bar item (nav:lists). Names and icons for these are yours to change.
 LABEL_ID = re.compile(r"/[a-z0-9/_-]{0,63}|[a-z0-9][a-z0-9._-]{0,63}|nav:[a-z]{2,12}")
@@ -123,6 +123,7 @@ def empty() -> dict[str, Any]:
         "themes": {},
         "labels": {},
         "type": {},
+        "global": None,
     }
 
 
@@ -244,7 +245,20 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
             )
         model["themes"][name] = _fields(f"themes.{name}", table, extra=("based_on",))
     model["type"] = _type(raw.get("type", {}))
+    model["global"] = _global(raw.get("global", {}))
     return model
+
+
+def _global(raw: Any) -> str | None:
+    """The theme every site follows until it has its own choice, or None for the system default."""
+    if raw in ({}, None):
+        return None
+    if not isinstance(raw, dict) or set(raw) - {"theme"}:
+        raise LocalThemeError("global: a table with theme")
+    name = raw.get("theme")
+    if not isinstance(name, str) or not base.NAME.fullmatch(name):
+        raise LocalThemeError("global.theme: the name of an offered theme")
+    return name
 
 
 def _type(raw: Any) -> dict[str, Any]:
@@ -295,6 +309,8 @@ def dump_local(model: dict[str, Any]) -> str:
     ]
     if model["active"] is not None:
         lines += ["[active]", f"themes = {_toml_value(model['active'])}", ""]
+    if model["global"]:
+        lines += ["[global]", f"theme = {_toml_value(model['global'])}", ""]
     if model["type"]:
         lines.append("[type]")
         for key in ("font", "size"):
@@ -371,6 +387,11 @@ def merge(document: dict[str, Any], model: dict[str, Any]) -> dict[str, Any]:
     published = base.type_settings(document)
     published.update(model.get("type") or {})
     merged["type"] = base.type_settings({"type": published})
+    if model.get("global"):
+        resolved = meta.get("aliases", {}).get(model["global"], model["global"])
+        if resolved not in chosen:
+            raise LocalThemeError("global.theme: not one of the offered themes")
+        meta["global"] = resolved
     base.validate(merged)
     return merged
 
@@ -542,6 +563,7 @@ def state(path: Path = LOCAL_PATH) -> dict[str, Any]:
             "light": chosen["meta"]["default_light"],
         },
         "type": chosen["type"],
+        "global": chosen["meta"].get("global"),
         "fonts": [
             {"name": name, "label": face["label"]} for name, face in base.FONTS.items()
         ],
@@ -608,6 +630,8 @@ def from_state(desired: dict[str, Any]) -> dict[str, Any]:
                 "based_on": entry.get("based_on") or _nearest(builtin, fields),
                 **fields,
             }
+    if desired.get("global"):
+        raw["global"] = {"theme": desired["global"]}
     wanted = desired.get("type") or {}
     published = base.type_settings(document)
     local_type: dict[str, Any] = {}
@@ -646,6 +670,20 @@ def apply(
     return publish(path, rendered, shared)
 
 
+def set_global(
+    name: str | None,
+    path: Path = LOCAL_PATH,
+    rendered: Path = RENDERED_DIR,
+    shared: Path = STORE_SHARED,
+) -> dict[str, Any]:
+    """Make *name* the theme every site follows (None clears it); nothing else in the layer changes."""
+    model = load_local(path)
+    model["global"] = _global({"theme": name}) if name else None
+    merge(base.load(), model)  # an unoffered theme is refused before a file is touched
+    _atomic_write(path, dump_local(model), 0o600)
+    return publish(path, rendered, shared)
+
+
 def reset(
     path: Path = LOCAL_PATH, rendered: Path = RENDERED_DIR, shared: Path = STORE_SHARED
 ) -> dict[str, Any]:
@@ -662,7 +700,11 @@ def reset(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "command", choices=("show", "apply", "render", "reset", "path", "check")
+        "command",
+        choices=("show", "apply", "render", "reset", "path", "check", "set-global"),
+    )
+    parser.add_argument(
+        "theme", nargs="?", help="set-global: the theme every site follows ('none' clears it)"
     )
     parser.add_argument(
         "--json", action="store_true", help="show: machine-readable output"
@@ -708,6 +750,16 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 json.dumps(
                     apply(json.load(sys.stdin), args.local, args.rendered, args.shared),
+                    ensure_ascii=False,
+                )
+            )
+        elif args.command == "set-global":
+            if not args.theme:
+                parser.error("set-global needs a theme name or 'none'")
+            name = None if args.theme == "none" else args.theme
+            print(
+                json.dumps(
+                    set_global(name, args.local, args.rendered, args.shared),
                     ensure_ascii=False,
                 )
             )

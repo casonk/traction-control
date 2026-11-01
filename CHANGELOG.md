@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add a global theme. A page now picks `?theme=`, then its site's own choice, then the global theme, then the system. The top bar's theme menu has **This site** and **Everywhere**, plus "Follow the global theme"; Everywhere posts to `/_portfolio/global`, answered by the new `scripts/portfolio_theme_writer.py` (127.0.0.1, custom-header and same-origin checks) and stored as `[global] theme` in the owner-only local layer, rendered into `theme.js` and `chrome.js`. `portfolio_themes.py set-global NAME|none` does the same from a terminal and `show --json` returns `global`. A site with no ingress route keeps the choice for itself.
 - A theme or library name that is refused now says why: it must start with a lowercase letter, then lowercase letters, digits and `-`, at most 24 characters for a theme and 32 for a library entry (the message used to omit the leading letter and the length).
 - The font and the page scale each have their own rotator, on the same pattern as the theme rotator: the button steps to the next choice, and the menu beside it lists that choice only.
 - Add a global colour and icon library (`themes/library.toml`: 72 colours in twelve hue families and a neutral ramp, 131 emoji in groups) and return it from `portfolio_themes.py show --json` as `library`, so an editor can offer pickers instead of empty lists. Validated on load (slug names, `#rrggbb`, non-ASCII icons up to 8 characters, unique names, safe group names).
