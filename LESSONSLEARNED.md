@@ -89,6 +89,47 @@
   actually fixed by validating the real Codex exec path and installing the
   service-local SSH key instead of falling back to the personal GitHub key.
 
+### 2026-11-01 — Bringing CI back after a month with Actions off
+
+- **Heads have no run, and a push-only `ci.yml` cannot be started.** Commits made
+  while Actions was off have no run at all, so "latest run per workflow" looks
+  fine while the real head is unverified. Check the run on the head SHA, not the
+  last run. Every `ci.yml` now carries `workflow_dispatch:` so a run can be started
+  on demand (`gh workflow run ci.yml`); keep it in new repositories.
+- **Agent sessions run a newer Python than CI tests.** Local venvs are 3.14/3.15
+  while repositories declare `requires-python >=3.10` and CI runs 3.10, so
+  `datetime.UTC` (3.11+) and a bare `import tomllib` pass locally and fail only in
+  CI's 3.10 job (tradility, crew-chief). Use `timezone.utc`, and `tomllib` with a
+  `tomli` fallback declared as a dependency for `python_version < '3.11'` (a
+  stdlib-only package guards the import instead). Before pushing, `ast.parse(...,
+  feature_version=(3, 10))` every file in the local `python:3.10` image and grep for
+  `datetime import .*UTC` and `tomllib`; unit tests there need a dependency install,
+  so CI's 3.10 job stays the runtime check.
+- **`pytest` is not `python -m pytest`.** The console script does not put the repo
+  root on `sys.path`, so a test doing `from tests.test_x import ...` collects under
+  `python -m pytest` and fails under `pytest`, which is what CI and AGENTS.md run.
+  Give `tests/` an `__init__.py` (or stop importing across test modules), and run
+  the bare `pytest -q` before pushing.
+- **`ubuntu-latest` moves.** It became Ubuntu 26.04, which has no Python 3.9, so a
+  repo that still tests 3.9 cannot run `python-ci.yml`. The shared workflow takes
+  an optional `runs-on` (and `install-check.yml` takes `operating-systems`); pin
+  `ubuntu-24.04` there rather than dropping the declared floor.
+- **`gitleaks-action` has no `args` input.** The log says "Unexpected input(s)
+  'args'", so a `--baseline-path` passed that way is never applied and a full-history
+  scan fails on findings already accepted in `.gitleaks-baseline.json`. The shared
+  `secret-scan.yml` runs the CLI over full history with the baseline; the repository
+  that hit this now uses it. Twenty-three repositories still carry the older inline workflow (they pass
+  today); migrate them as they are touched. A baseline holds redacted findings only:
+  generate it with `--redact` and check that no value is in the file.
+- **A job registered in Clockwork's `examples/traction-control/` must be classified
+  in traction-control's `tests/test_clockwork_launchd_contract.py`.** The contract
+  requires that folder to equal the tier installer's `jobs.conf`, except for jobs
+  named in `STANDALONE_JOBS`. Hosted CI never sees the test (no sibling checkout),
+  so it breaks only in the local pre-commit hook. Run it from a portfolio-shaped
+  layout (`<root>/util-repos/<repo>` with shallow clones of the sibling repos): the
+  installer refuses symlinks that leave the portfolio root and a scratch clone
+  fails for layout reasons, not because the test is wrong.
+
 ### 2026-10-26 — Keep service-local SSH and file execution checks separate from the scheduler
 
 - A systemd user job can fail with a git worktree or remote-auth error even when
