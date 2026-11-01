@@ -104,7 +104,12 @@
   stdlib-only package guards the import instead). Before pushing, `ast.parse(...,
   feature_version=(3, 10))` every file in the local `python:3.10` image and grep for
   `datetime import .*UTC` and `tomllib`; unit tests there need a dependency install,
-  so CI's 3.10 job stays the runtime check.
+  so CI's 3.10 job stays the runtime check. This is now a test: a repository that
+  declares a floor below 3.11 carries `tests/test_python_floor.py`, copied unchanged from
+  `docs/templates/test_python_floor.py`. Its first run over the portfolio found real
+  unguarded `tomllib` imports in four repositories that CI had never exercised. Remember
+  that `pre-commit run --all-files` skips untracked files: `git add` a new file first, or
+  the lint that CI runs on it is never run locally.
 - **`pytest` is not `python -m pytest`.** The console script does not put the repo
   root on `sys.path`, so a test doing `from tests.test_x import ...` collects under
   `python -m pytest` and fails under `pytest`, which is what CI and AGENTS.md run.
