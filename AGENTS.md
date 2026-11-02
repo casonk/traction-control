@@ -396,6 +396,10 @@ New repos should initialize `BACKLOG.md` from `./util-repos/traction-control/doc
 A new repo with its own `CONTRIBUTING.md` should end it with the section in `./util-repos/traction-control/docs/templates/CONTRIBUTING-ai-disclosure.md` (see rule 13); one without inherits the account default, which already carries it.
 New repos should initialize `SECURITY.md` from `./util-repos/traction-control/docs/templates/SECURITY.md` and then add repo-specific boundaries such as localhost-only admin surfaces, private datasets, wallet material, or infrastructure topology where applicable.
 
+`README.md` should start with the generated badge block under its title (CI, license, Python floor,
+coverage where enabled), written by `scripts/readme_badges.py` and checked by the daily audit; see
+[the README badges guide](docs/readme-badges.md). Do not edit the block by hand.
+
 `README.md` should include:
 
 - project name and one-line description
@@ -421,6 +425,10 @@ Add:
 
 For Python repos:
 
+- when `requires-python` is below 3.11, seed `tests/test_python_floor.py` from
+  `./util-repos/traction-control/docs/templates/test_python_floor.py` and keep it
+  identical to the template; it is a standard-library static check that nothing needs
+  a newer Python than the declared floor (see `LESSONSLEARNED.md`)
 - use `pyproject.toml` as the primary package metadata source
 - keep `requirements.txt` only when it materially helps reproducibility or CI
 
@@ -496,6 +504,8 @@ bash tests/test_repository_visibility_ci.sh
 bash tests/test_main_branch_guard.sh
 python3 -m unittest discover -s tests -p test_repo_settings.py
 python3 -m unittest discover -s tests -p test_actions_switch.py
+python3 -m unittest discover -s tests -p test_codecov_secrets.py
+python3 -m unittest discover -s tests -p test_readme_badges.py
 python3 -m unittest discover -s tests -p test_portfolio_theme.py
 ```
 

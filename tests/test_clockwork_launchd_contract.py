@@ -25,6 +25,20 @@ CLOCKWORK_ROOT = REPO_ROOT.parent / "clockwork"
 INSTALLER = REPO_ROOT / "scripts" / "install_traction_control_agents.sh"
 JOBS_CONFIG = REPO_ROOT / "config" / "traction-control-agents" / "jobs.conf"
 
+# Registered in Clockwork's examples/traction-control so the Schedule page lists and
+# toggles them, but installed by their own scripts rather than by the tier installer,
+# so they have no jobs.conf record. A job in that folder that is in neither place fails
+# the contract below: classify it here or add it to jobs.conf.
+STANDALONE_JOBS = frozenset(
+    {
+        "actions-switch-check",
+        "github-ci-email-monitor",
+        "job-guard-notify",
+        "portfolio-purge",
+        "repository-description-sync-weekly",
+    }
+)
+
 
 def _job_records() -> dict[str, dict[str, str]]:
     fields = (
@@ -200,7 +214,12 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
 
     def test_ui_and_tier_installer_compose_exact_labels_and_explicit_adapters(self):
         records = _job_records()
-        clockwork_jobs = _clockwork_jobs()
+        all_clockwork_jobs = _clockwork_jobs()
+        clockwork_jobs = {
+            name: job
+            for name, job in all_clockwork_jobs.items()
+            if name not in STANDALONE_JOBS
+        }
         missing_jobs = set(records) - set(clockwork_jobs)
         self.assertFalse(
             missing_jobs,
@@ -306,7 +325,7 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
                 self.assertNotIn("StartInterval", payload)
                 self.assertNotIn("StartCalendarInterval", payload)
 
-            clockwork_timer = clockwork_jobs[name].get("timer")
+            clockwork_timer = managed_jobs[name].get("timer")
             if record["schedule_kind"] == "interval":
                 self.assertEqual(clockwork_timer["kind"], "interval")
                 self.assertEqual(

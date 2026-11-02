@@ -146,6 +146,165 @@
   actually fixed by validating the real Codex exec path and installing the
   service-local SSH key instead of falling back to the personal GitHub key.
 
+### 2026-11-02 — Closing coverage gaps
+
+- **Go by risk, not by percentage.** Codecov ranks files by missed lines, but the lines worth
+  covering first are the ones that rewrite or remove data (merge, restore, delete, prune) and
+  the failure branches of helpers whose job is to fail correctly. A test helper that fails to
+  fail is a silent bug in every suite that uses it. Assert what happened to the data, not that
+  a function ran; use temporary directories and a stub for the scanner or provider so a test
+  can never touch a real session.
+- **Mutation-check the new tests, then act on every miss.** Break the code in specific ways
+  (drop a guard, make a bound exclusive, keep the wrong item, let a dry run delete) and confirm a
+  test fails. The first round missed about a fifth, and each miss was a real gap: a defence-in-depth
+  layer cannot be isolated with an input that trips both layers, so test the input only the outer
+  one refuses (a path with `..` that would resolve harmlessly); a manifest whose folder and provider
+  disagree is refused by the folder check, so file the bogus provider under its own folder to
+  isolate the provider check; and a guard reached only through a version-dependent side effect
+  (`rglob` follows symlinks before Python 3.13) must be called directly. A mutation that survives
+  because Python cleans up for you (`TemporaryDirectory` on garbage collection) is a weak
+  mutation: keep the object alive and retry.
+- **Tests find real bugs in error handling.** `rotate()` caught `OSError` and `ValueError`, but a
+  helper it calls raises the module's own `SessionActionError` for a symlinked trash folder, so one
+  suspect entry aborted rotation of the whole trash. When an `except` lists built-in exceptions,
+  check which domain exceptions the calls inside can raise.
+- **`git add -A` after a coverage run stages `.coverage`.** Add `.coverage`, `.coverage.*`,
+  `coverage.xml` and `htmlcov/` to `.gitignore` when coverage is switched on, and look at the staged
+  file list before committing.
+- **Run mutation checks with `PYTHONDONTWRITEBYTECODE=1`.** Python reuses a cached `.pyc` when the
+  source's size and modification second match. A mutation that swaps two arguments keeps the size,
+  and restoring the file within the same second leaves the mutated bytecode in place, so the next
+  run fails against code that is no longer there. It looks like a flaky test and can make a later
+  result unreliable in either direction. Disable bytecode writing and clear `__pycache__` first.
+- **Run the suite on the oldest supported Python before pushing.** `podman run python:3.10` against
+  the checkout needs no install. Strict `parse_qsl` rejected an empty query string before 3.11, so
+  the most basic request to an endpoint was a 400 on a version the package claimed to support, and
+  only the oldest CI leg could see it. The matching test failed on the old code, which is what
+  proves a test is aimed at the bug.
+- **A refusal test that only asserts the exception type can pass for the wrong reason.** An
+  invalid-input case failed on an earlier field, so the guard it was written for never ran and the
+  mutation that removed it survived. Assert the message, or check with the coverage report that the
+  guard's own line was reached.
+- **Treat coverage of an untrusted-input path as a security review.** A file tool confined a
+  language model to its allowed directories with `path.startswith(prefix)` on the raw string, so
+  `<allowed>/../x` and `<allowed>-other/x` both passed, for writes as well as reads. Resolve the
+  path and each allowed root, compare by whole components, and refuse an embedded NUL. Writing the
+  escape as a test is what exposed it. A fix that tightens what a setting means (a directory, not a
+  text prefix) belongs in its own pull request and in the changelog, not inside a test-only one.
+- **Stub the credential and CLI lookups, not just the network.** A provider that resolves an API key
+  by running the password manager, or probes login state by running a vendor CLI, will do exactly
+  that under test. Replace `subprocess.run` at the module under test, in every test of the module,
+  and assert the secret never appears in a log line or an error message.
+- **Reword synthetic secrets in tests instead of allowlisting them.** A gitleaks rule matches a
+  `*_api_key*` assignment with a path-like value even when it is invented. A neutral placeholder
+  (`entry-one`) keeps the secret scan strict for everything else.
+
+### 2026-11-02 — README badges across the repository suite
+
+- **Ask GitHub how it will treat an image URL before choosing a badge source for private
+  repositories.** Render sample Markdown with `gh api markdown -f mode=gfm -f context=OWNER/REPO`:
+  a github.com workflow-badge URL comes back untouched (the viewer's browser fetches it with
+  their session, so it works in a private repository), while shields.io and codecov.io URLs are
+  rewritten to `camo.githubusercontent.com`, an anonymous fetch. So GitHub's own CI badge and
+  static shields badges work in private repositories; anything that needs a third party to read
+  the repository does not (dynamic shields badges, or Codecov without its graph token).
+- **A Codecov graph token is not an upload token.** It is about 10 characters and only draws
+  the badge and graph; the upload token is a 36-character UUID. Validate a value for the place
+  it is used (here: only URL-safe characters, because it is pasted into a Markdown URL), not by
+  copying another token's length rule, which made the first live run fail.
+- **A generated block stays true only if something checks it.** Derive it from facts (workflow
+  present, license GitHub detects, `requires-python`), fence it with markers, compare it in the
+  daily audit with secrets masked so a rotated token is not drift, and skip archived repositories.
+  Mutation-testing the suite found a gap: nothing proved that a block someone had moved stayed
+  where they put it, because replace-in-place and strip-and-reinsert give the same result when
+  the block started under the title.
+- **Hand-written badges are often already wrong.** One repository's CI badge pointed at a
+  workflow file deleted long ago. A sweep should list hand-made badges and let a person fold
+  them in repository by repository; it should not delete blindly, and it should leave badges it
+  does not manage (a PyPI badge) in place.
+
+### 2026-11-02 — Adding Codecov through the shared Python CI workflow
+
+- **GitHub expressions have no arithmetic.** `strategy.job-total - 1` made GitHub
+  reject the whole reusable workflow ("workflow file issue", no jobs created, every
+  caller red) and nothing local can lint it. To act on "the last matrix entry",
+  compare `matrix.python-version` with the last element of the versions list in a
+  small step and export the result through `$GITHUB_ENV`. Test a change to a shared
+  workflow from its branch on a real caller before merging, as the repository's rule
+  says, and expect the first attempt to fail at parse time, not at run time.
+- **`secrets` cannot be tested in a step `if`.** Expose whether one is set through a
+  job-level `env` flag (`HAS_X: ${{ secrets.X != '' }}`) and test the flag. That is
+  also what lets a repository adopt coverage before its token exists: the upload
+  step is skipped with a notice and the job stays green.
+- **Codecov's action v5 and later has no tokenless upload** except for pull requests
+  from forks of public repositories. A repository needs the `CODECOV_TOKEN` secret, or
+  `use_oidc: true` with `permissions: id-token: write` on the calling job. Starting
+  informational (`codecov.yml` with `informational: true`) keeps a new baseline from
+  blocking pull requests.
+- **Vault access for a script is a path grant, not a password.** The provisioning
+  allowlist names which repository may read which entry paths, per vault; grant the one
+  exact entry (the Codecov PAT, `codecov/codecov-pat-user` in the `infra` vault), not a
+  glob. After editing the allowlist, tell the running daemon to reload (a
+  `{"op": "reload"}` request on its socket) rather than restarting it, which would lock
+  the vault. Pass a secret to `gh secret set` on its standard input, never as an
+  argument, and scrub it from any message the script prints.
+- **Keep the root credential in the vault, derive the rest.** Codecov's API returns a
+  repository's upload token (`GET /repos/NAME/config/`) to a user PAT, so only the PAT
+  needs storing; the per-repository tokens are fetched at push time and never kept. The
+  repository detail endpoint does not include the token, and the published OpenAPI
+  schema (`/api/v2/schema/`) is the quick way to find which endpoint does.
+- **Coverage can break a test that was never wrong under ordinary runs.** Tracing slows
+  the code, so a test that measures real time and asserts an exact rounded value (here a
+  latency of `0.0`) fails every time under coverage while passing without it, and it can
+  pass once in CI by luck. Inject a clock. Reproduce a suspected case by running that
+  one test repeatedly with and without `--cov` before blaming the environment.
+
+### 2026-11-01 — Bringing CI back after a month with Actions off
+
+- **Heads have no run, and a push-only `ci.yml` cannot be started.** Commits made
+  while Actions was off have no run at all, so "latest run per workflow" looks
+  fine while the real head is unverified. Check the run on the head SHA, not the
+  last run. Every `ci.yml` now carries `workflow_dispatch:` so a run can be started
+  on demand (`gh workflow run ci.yml`); keep it in new repositories.
+- **Agent sessions run a newer Python than CI tests.** Local venvs are 3.14/3.15
+  while repositories declare `requires-python >=3.10` and CI runs 3.10, so
+  `datetime.UTC` (3.11+) and a bare `import tomllib` pass locally and fail only in
+  CI's 3.10 job (tradility, crew-chief). Use `timezone.utc`, and `tomllib` with a
+  `tomli` fallback declared as a dependency for `python_version < '3.11'` (a
+  stdlib-only package guards the import instead). Before pushing, `ast.parse(...,
+  feature_version=(3, 10))` every file in the local `python:3.10` image and grep for
+  `datetime import .*UTC` and `tomllib`; unit tests there need a dependency install,
+  so CI's 3.10 job stays the runtime check. This is now a test: a repository that
+  declares a floor below 3.11 carries `tests/test_python_floor.py`, copied unchanged from
+  `docs/templates/test_python_floor.py`. Its first run over the portfolio found real
+  unguarded `tomllib` imports in four repositories that CI had never exercised. Remember
+  that `pre-commit run --all-files` skips untracked files: `git add` a new file first, or
+  the lint that CI runs on it is never run locally.
+- **`pytest` is not `python -m pytest`.** The console script does not put the repo
+  root on `sys.path`, so a test doing `from tests.test_x import ...` collects under
+  `python -m pytest` and fails under `pytest`, which is what CI and AGENTS.md run.
+  Give `tests/` an `__init__.py` (or stop importing across test modules), and run
+  the bare `pytest -q` before pushing.
+- **`ubuntu-latest` moves.** It became Ubuntu 26.04, which has no Python 3.9, so a
+  repo that still tests 3.9 cannot run `python-ci.yml`. The shared workflow takes
+  an optional `runs-on` (and `install-check.yml` takes `operating-systems`); pin
+  `ubuntu-24.04` there rather than dropping the declared floor.
+- **`gitleaks-action` has no `args` input.** The log says "Unexpected input(s)
+  'args'", so a `--baseline-path` passed that way is never applied and a full-history
+  scan fails on findings already accepted in `.gitleaks-baseline.json`. The shared
+  `secret-scan.yml` runs the CLI over full history with the baseline; the repository
+  that hit this now uses it. Twenty-three repositories still carry the older inline workflow (they pass
+  today); migrate them as they are touched. A baseline holds redacted findings only:
+  generate it with `--redact` and check that no value is in the file.
+- **A job registered in Clockwork's `examples/traction-control/` must be classified
+  in traction-control's `tests/test_clockwork_launchd_contract.py`.** The contract
+  requires that folder to equal the tier installer's `jobs.conf`, except for jobs
+  named in `STANDALONE_JOBS`. Hosted CI never sees the test (no sibling checkout),
+  so it breaks only in the local pre-commit hook. Run it from a portfolio-shaped
+  layout (`<root>/util-repos/<repo>` with shallow clones of the sibling repos): the
+  installer refuses symlinks that leave the portfolio root and a scratch clone
+  fails for layout reasons, not because the test is wrong.
+
 ### 2026-10-26 — Keep service-local SSH and file execution checks separate from the scheduler
 
 - A systemd user job can fail with a git worktree or remote-auth error even when
@@ -2109,3 +2268,4 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - **Check which systemd scope a service runs in before handing the user a restart command.** `/proc/<pid>/cgroup` ending in `user@<uid>.service/app.slice/<unit>` means a user unit, so `sudo systemctl restart` reports "unit not found". The agent shell has no session bus, so `systemctl --user` fails there until `XDG_RUNTIME_DIR=/run/user/<uid>` and `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/<uid>/bus` are set; with them the agent can restart user units itself, with no sudo hand-off.
 - **A scripted text replacement must prove it matched.** `s.replace(old, new)` does nothing when `old` is not there, and the script still "succeeds". The usual cause is that a formatter (ruff-format, black) already rewrapped or reflowed the target after an earlier edit, so a string copied from memory no longer matches. In a patch script, `assert old in s` (or `assert s.count(old) == 1`) before replacing, and read the surrounding lines of the file as it now stands instead of the text you wrote earlier. The failure otherwise shows up later as an unrelated-looking test or a missing feature. For several edits to one file, prefer the Edit tool, which refuses a non-matching string.
 - **Publish a set of files by staging a directory and renaming it.** Writing `a` then `b` straight into the output can leave only `a` after a crash, and a "refuse to overwrite" check then blocks every retry. Write the whole set into a private sibling directory (`.<name>.staging-<random>`, owner-only, files fsynced), fsync it, then `os.rename` it to the final name, which is atomic and fails if the target appeared meanwhile, and fsync the parent. The output then either does not exist or is complete. A crash can only leave a staging directory, so clean those up on the next run, conservatively: a real directory of yours, exact name pattern, owner-only, older than an hour, holding only the files you write; never follow a symlink or empty a directory with anything else in it. Test it by simulating the crash (patch the cleanup out and make the rename raise a `BaseException`), and check that the new tests fail against the old code. Reference: `short-circuit/scripts/render_roaming_policy.py`.
+- **Run a worktree's tests against the worktree, not the live checkout.** When a package is installed editable from the live checkout, `python -m pytest` in a worktree imports the live source, so a new test fails against old code (or an old test passes against new). Check `python -c "import pkg; print(pkg.__file__)"` and run with `PYTHONPATH=src`. Related: a user-scope `systemctl --user` call from an agent shell needs `XDG_RUNTIME_DIR=/run/user/$(id -u)` and the matching `DBUS_SESSION_BUS_ADDRESS`.

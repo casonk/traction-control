@@ -179,9 +179,9 @@ assigned to the pilot scale set and that its runner pod is deleted after the
 job completes. Do not enable the pilot workflow for push, pull-request, or
 fork events.
 
-The dotfiles smoke workflow is a feature-branch change and cannot be dispatched
-until it is reviewed and merged to the default branch through the normal PR
-flow. Then open **Actions → Self-hosted Runner Smoke Test → Run workflow** on
+The pilot repository's smoke workflow is a feature-branch change and cannot be
+dispatched until it is reviewed and merged to the default branch through the
+normal PR flow. Then open **Actions → Self-hosted Runner Smoke Test → Run workflow** on
 the default branch. A successful run checks out the repository and runs
 `bash tests/test_install.sh` on the self-hosted scale set.
 
