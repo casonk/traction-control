@@ -214,6 +214,15 @@ class GraphTokenTests(unittest.TestCase):
     def test_it_returns_the_graph_token_and_never_the_upload_token(self):
         self.assertEqual(self.run_with()(), TOKEN)
 
+    def test_a_short_graph_token_is_accepted_but_one_that_could_break_markdown_is_not(self):
+        short = lambda url, bearer: (200, {"graph_token": "aB3_x-9.Zq"})  # noqa: E731 - 10 characters
+        self.assertEqual(self.run_with(http=short)(), "aB3_x-9.Zq")
+        for unsafe in ("has space", "a)b](http://evil", "x" * 200, "short", "", None):
+            with self.subTest(token=unsafe):
+                http = lambda url, bearer, t=unsafe: (200, {"graph_token": t})  # noqa: E731
+                with self.assertRaisesRegex(rb.BadgeError, "no usable graph token"):
+                    self.run_with(http=http)()
+
     def test_no_pat_or_no_token_is_a_clear_error(self):
         with self.assertRaisesRegex(rb.BadgeError, "cannot read the Codecov PAT"):
             self.run_with(pat=(1, "", "daemon is locked"))()
