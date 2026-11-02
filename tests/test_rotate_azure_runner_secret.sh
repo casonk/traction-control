@@ -45,6 +45,10 @@ check_status 0 "help is available without Azure credentials" "$SCRIPT" --help
 check_status 1 "missing token path is rejected" "$SCRIPT"
 check_status 1 "extra arguments are rejected" "$SCRIPT" first second
 check_status 1 "missing token file is rejected" "$SCRIPT" "${TEST_ROOT}/missing"
+check_status 1 "nonnumeric GitHub App ID is rejected" \
+  "$SCRIPT" --github-app invalid 123 "${TEST_ROOT}/missing"
+check_status 1 "zero GitHub App ID is rejected" \
+  "$SCRIPT" --github-app 000 123 "${TEST_ROOT}/missing"
 
 token_dir="${TEST_ROOT}/token"
 mkdir -m 700 "$token_dir"
@@ -84,6 +88,15 @@ if [[ "$output" == *"synthetic-placeholder-not-a-credential"* ]]; then
 else
   printf 'ok - token value is not printed during validation\n'
 fi
+
+app_dir="${TEST_ROOT}/app"
+mkdir -m 700 "$app_dir"
+app_key_file="${app_dir}/private-key.pem"
+printf 'not a private key\n' > "$app_key_file"
+chmod 600 "$app_key_file"
+output="$("$SCRIPT" --github-app 123 456 "$app_key_file" 2>&1 || true)"
+check_contains "$output" "must be an unencrypted RSA PEM file" \
+  "invalid GitHub App private key is rejected"
 
 fake_bin="${TEST_ROOT}/fake-bin"
 fake_state="${TEST_ROOT}/fake-state"
@@ -224,6 +237,7 @@ STUB
 cat > "${fake_bin}/ssh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
+printf '%s\n' "$*" >> "${TEST_SSH_ARGS_LOG:-/dev/null}"
 if [[ " $* " == *" true " ]]; then
   for argument in "$@"; do
     [[ "$argument" == "StrictHostKeyChecking=yes" ]] && exit 0
@@ -249,6 +263,7 @@ if output="$(printf 'ROTATE\n' | env \
   TEST_FAKE_STATE="$fake_state" \
   TEST_HOST_PUBLIC_KEY="${TEST_ROOT}/host-key.pub" \
   TEST_SSH_STDIN_CAPTURE="${TEST_ROOT}/ssh-stdin" \
+  TEST_SSH_ARGS_LOG="${TEST_ROOT}/ssh-args.log" \
   TEST_ENCRYPTION_OK=0 \
   "$SCRIPT" "$token_file" 2>&1)"; then
   printf 'not ok - rotation stops when Kubernetes encryption is unverified\n'
@@ -274,6 +289,7 @@ if output="$(printf 'ROTATE\n' | env \
   TEST_FAKE_STATE="$fake_state" \
   TEST_HOST_PUBLIC_KEY="${TEST_ROOT}/host-key.pub" \
   TEST_SSH_STDIN_CAPTURE="${TEST_ROOT}/ssh-stdin" \
+  TEST_SSH_ARGS_LOG="${TEST_ROOT}/ssh-args.log" \
   TEST_SSH_ROTATION_FAIL=1 \
   "$SCRIPT" "$token_file" 2>&1)"; then
   printf 'not ok - failed Secret update returns failure\n'
@@ -298,6 +314,7 @@ if output="$(printf 'ROTATE\n' | env \
   TEST_FAKE_STATE="$fake_state" \
   TEST_HOST_PUBLIC_KEY="${TEST_ROOT}/host-key.pub" \
   TEST_SSH_STDIN_CAPTURE="${TEST_ROOT}/ssh-stdin" \
+  TEST_SSH_ARGS_LOG="${TEST_ROOT}/ssh-args.log" \
   "$SCRIPT" "$token_file" 2>&1)"; then
   printf 'ok - rotation completes with a verified SSH host key\n'
 else
@@ -324,6 +341,58 @@ if [[ ! -e "${fake_state}/allow-rule" ]] \
   printf 'ok - temporary SSH access is removed and deny-all is restored\n'
 else
   printf 'not ok - temporary SSH access is removed and deny-all is restored\n'
+  failures=$((failures + 1))
+fi
+
+openssl genrsa -out "$app_key_file" 2048 >/dev/null 2>&1
+chmod 600 "$app_key_file"
+if output="$(printf 'ROTATE\n' | env \
+  PATH="${fake_bin}:${PATH}" \
+  AZURE_CONFIG_DIR="$azure_config" \
+  TEST_AZ_STUB="${fake_bin}/az" \
+  TEST_AZ_ARGS_LOG="${TEST_ROOT}/azure-args.log" \
+  TEST_FAKE_STATE="$fake_state" \
+  TEST_HOST_PUBLIC_KEY="${TEST_ROOT}/host-key.pub" \
+  TEST_SSH_STDIN_CAPTURE="${TEST_ROOT}/app-ssh-stdin" \
+  TEST_SSH_ARGS_LOG="${TEST_ROOT}/ssh-args.log" \
+  "$SCRIPT" --github-app 12345 67890 "$app_key_file" 2>&1)"; then
+  printf 'ok - GitHub App credentials rotate with a verified SSH host key\n'
+else
+  printf 'not ok - GitHub App credentials rotate with a verified SSH host key\n%s\n' "$output"
+  failures=$((failures + 1))
+fi
+app_id_encoded="$(printf '%s' '12345' | base64 -w0)"
+installation_id_encoded="$(printf '%s' '67890' | base64 -w0)"
+app_key_encoded="$(base64 -w0 "$app_key_file")"
+if [[ -f "${TEST_ROOT}/app-ssh-stdin" ]] \
+  && grep -Fq "  github_app_id: ${app_id_encoded}" "${TEST_ROOT}/app-ssh-stdin" \
+  && grep -Fq "  github_app_installation_id: ${installation_id_encoded}" "${TEST_ROOT}/app-ssh-stdin" \
+  && grep -Fq "  github_app_private_key: ${app_key_encoded}" "${TEST_ROOT}/app-ssh-stdin"; then
+  printf 'ok - App IDs and private key are streamed in the SSH payload\n'
+else
+  printf 'not ok - App IDs and private key are streamed in the SSH payload\n'
+  failures=$((failures + 1))
+fi
+if grep -Fq -- 'apply --filename=-' "${TEST_ROOT}/ssh-args.log" \
+  && grep -Fq -- 'github_app_private_key' "${TEST_ROOT}/ssh-args.log"; then
+  printf 'ok - remote command applies and verifies all GitHub App Secret keys\n'
+else
+  printf 'not ok - remote command applies and verifies all GitHub App Secret keys\n'
+  failures=$((failures + 1))
+fi
+if [[ -f "${TEST_ROOT}/azure-args.log" ]] \
+  && ! grep -Fq "$app_key_encoded" "${TEST_ROOT}/azure-args.log"; then
+  printf 'ok - App private key is never passed to Azure CLI arguments\n'
+else
+  printf 'not ok - App private key is never passed to Azure CLI arguments\n'
+  failures=$((failures + 1))
+fi
+if [[ ! -e "${fake_state}/allow-rule" ]] \
+  && [[ ! -e "${fake_state}/guest-key" ]] \
+  && [[ "$(cat "${fake_state}/deny-priority")" == "100" ]]; then
+  printf 'ok - App-mode temporary SSH access is removed and deny-all is restored\n'
+else
+  printf 'not ok - App-mode temporary SSH access is removed and deny-all is restored\n'
   failures=$((failures + 1))
 fi
 

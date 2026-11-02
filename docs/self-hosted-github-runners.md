@@ -9,12 +9,19 @@ zero idle runners and one concurrent job. The VM, not the runner pod, is the
 boundary protecting the host from workflow code.
 
 The GitHub account is a personal account, so runner scale sets are registered
-per repository rather than shared through an organization. ARC supports
-fine-grained personal access tokens for repository runners. For the pilot,
-scope the token to that one private repository and grant only
-**Administration: read and write**. Do not reuse the pilot token when enrolling
-other repositories; create a separately scoped token or explicitly review a
-broader token scope first.
+per repository rather than shared through an organization. ARC supports both
+fine-grained personal access tokens and GitHub Apps for repository runners.
+Prefer a GitHub App for unattended operation: ARC mints short-lived
+installation tokens from the App's private key. Give the App only repository
+**Administration: read and write** and **Metadata: read** access, and install
+it only where intended. The App private key remains a long-lived credential
+that must be protected and rotated. A fine-grained PAT is also supported; scope
+it to only the pilot repository with **Administration: read and write**. Do
+not reuse a pilot PAT when enrolling other repositories. GitHub's ARC
+authentication guide directs creating GitHub Apps under an organization. Since
+this pilot repository is under a personal account, use PAT mode unless you
+confirm that the App can be installed for this repository; App mode still
+requires a successful runner smoke test before relying on it.
 
 The pilot uses a dedicated `workflow_dispatch` workflow on the repository's
 default branch. Existing CI and all pull-request/fork workflows stay on
@@ -44,7 +51,7 @@ GitHub-hosted runners. Do not route untrusted code to self-hosted runners.
   before dispatching a job.
 - Dedicate the VM to this runner service. Do not mount host home directories,
   the Podman/Docker socket, or other host control interfaces into runner pods.
-- Enable Kubernetes secret encryption at rest before storing the GitHub token.
+- Enable Kubernetes secret encryption at rest before storing GitHub credentials.
   Keep the controller and runner workloads in separate namespaces.
 - Enforce network policy so runner pods can reach required public HTTPS
   services but cannot reach the VM host, Kubernetes API, private LAN, link-local
@@ -63,9 +70,11 @@ network isolation is applied and verified, and the zero-idle `dotfiles-pilot`
 scale set is registered with a Running listener. The test-only secret currently
 uses the existing broader GitHub CLI token. The manual smoke workflow has run
 successfully on the self-hosted runner, and Azure confirmed its ephemeral pod
-was removed. The user chose to keep the pilot online; replace the secret with a
-fine-grained token scoped to the pilot repository before dispatching another
-job. The VM, disk, and public IP remain billable while the pilot is kept online.
+was removed. The user chose to keep the pilot online; replace the broad test
+credential with repository-scoped GitHub App credentials or a fine-grained PAT
+before dispatching another job. The rotation helper supports both; App mode
+lets ARC mint short-lived tokens without periodic PAT replacement. The VM,
+disk, and public IP remain billable while the pilot is kept online.
 Use a dedicated resource group for the pilot. The example parameters must be
 supplied locally; never commit an SSH private key, GitHub token, or owner-only
 deployment values. Inbound traffic is denied by default; any temporary SSH
@@ -148,10 +157,32 @@ temporary pod: public HTTPS and DNS must work, while requests to the VM,
 Kubernetes API, private ranges, and Azure metadata endpoints must fail. It
 removes the probe pod after checking.
 
-Create a fine-grained token for only the pilot repository with
+Choose one authentication method. **GitHub App:** where supported, create and
+install an App for the pilot repository with
+**Administration: read and write** and **Metadata: read** repository
+permissions. Record its App ID and installation ID, generate an RSA private
+key, and save that PEM file in an owner-only directory. ARC uses the key to
+mint short-lived installation tokens. The helper does not create or install the
+App. For this personal-account pilot, confirm App installation compatibility
+before selecting this mode. Keep its private key protected; when rotating it,
+install a replacement with the helper before revoking the old key in GitHub.
+
+```sh
+install -d -m 700 "$HOME/.config/traction-control/arc-runner"
+chmod 700 "$HOME/.config/traction-control/arc-runner"
+app_key_file="$HOME/.config/traction-control/arc-runner/github-app-private-key.pem"
+app_id="YOUR_APP_ID"
+installation_id="YOUR_INSTALLATION_ID"
+install -m 600 /path/to/downloaded-app-private-key.pem "$app_key_file"
+chmod 600 "$app_key_file"
+./scripts/rotate_azure_runner_secret.sh --github-app \
+  "$app_id" "$installation_id" "$app_key_file"
+```
+
+**Fine-grained PAT:** create a token for only the pilot repository with
 **Administration: read and write**. The account owner creates the PAT in
-GitHub; the rotation helper does not create tokens. Enter the PAT locally into
-an owner-only file without placing it in shell history, command arguments,
+GitHub; the rotation helper does not create tokens. Enter it locally into an
+owner-only file without placing it in shell history, command arguments,
 environment variables, this repository, or Azure Run Command:
 
 ```bash
@@ -169,21 +200,22 @@ Run the rotation helper and type `ROTATE` after reviewing its target and
 temporary SSH source address:
 
 ```sh
-./scripts/rotate_azure_runner_secret.sh "$token_file"
+./scripts/rotate_azure_runner_secret.sh --pat "$token_file"
 ```
 
 The helper checks that k3s encryption is enabled and fully re-encrypted,
-validates the owner-only file and Azure CLI cache, opens SSH only from the
-current public IPv4, obtains the VM host key through Azure Run Command, and
-pins it for SSH. It sends the PAT only over verified SSH stdin and uses
-`kubectl apply` to replace the encrypted `runner-auth` Secret in place. It
-removes its temporary SSH key and rule and restores the deny-all priority on
-exit. Review any cleanup error before continuing. The helper deletes its
-private temporary copy; remove the original local token file after successful
-rotation. Do not dispatch another job while the broader temporary token
-remains installed. Do not revoke a general-purpose local GitHub CLI token;
-revoke only a dedicated PAT after replacement is verified or when tearing down
-the pilot.
+validates the owner-only credential file and Azure CLI cache, opens SSH only
+from the current public IPv4, obtains the VM host key through Azure Run
+Command, and pins it for SSH. It sends the PAT or App credentials only over
+verified SSH stdin and uses `kubectl apply` to replace the encrypted
+`runner-auth` Secret in place. It removes its temporary SSH key and rule and
+restores the deny-all priority on exit. Review any cleanup error before
+continuing. The helper deletes its private temporary copy. Remove the local
+PAT file after successful rotation; retain or remove the App key according to
+your local key-management practice. Do not dispatch another job while the
+broader temporary token remains installed. Do not revoke a general-purpose
+local GitHub CLI token; revoke only a dedicated PAT after replacement is
+verified or when tearing down the pilot.
 
 Copy `config/github-runners/scale-set-values.yaml.template` to an ignored,
 owner-only values file on the VM. Set its repository URL to the pilot repository
@@ -222,8 +254,9 @@ public repositories through the private-repository policy.
 
 To remove a pilot, uninstall its scale-set release, delete its Kubernetes
 credential, uninstall the controller only if no other scale sets use it, and
-revoke the fine-grained token in GitHub. For the Azure scaffold, also delete
-the dedicated resource group after confirming it contains only pilot resources.
+revoke the dedicated PAT or uninstall the GitHub App/revoke its private key.
+For the Azure scaffold, also delete the dedicated resource group after
+confirming it contains only pilot resources.
 
 ## References
 

@@ -69,6 +69,11 @@
   authorized, transfer a credential over verified SSH directly to the
   encrypted Kubernetes Secret, pipe it through stdin rather than arguments or
   files, and remove temporary SSH access and keys immediately.
+- ARC GitHub App authentication mints short-lived installation tokens, but the
+  App's RSA private key remains a long-lived credential. Verify that the App
+  can be installed for the target account/repository and pass a runner smoke
+  test before relying on this mode; for personal-account repositories, GitHub's
+  ARC guide currently directs App creation under an organization.
 - GitHub Actions has two switches. The repository-level `enabled` flag is what a
   pause changes, but GitHub also sets individual workflows to
   `disabled_inactivity` after 60 days without activity, and a repository-level

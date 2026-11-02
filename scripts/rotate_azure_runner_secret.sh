@@ -11,14 +11,18 @@ AZURE_CONFIG_DIR="${AZURE_CONFIG_DIR:-${HOME}/.azure}"
 
 usage() {
   cat <<'EOF'
-Usage: rotate_azure_runner_secret.sh OWNER_ONLY_TOKEN_FILE
+Usage:
+  rotate_azure_runner_secret.sh [--pat] OWNER_ONLY_TOKEN_FILE
+  rotate_azure_runner_secret.sh --github-app APP_ID INSTALLATION_ID OWNER_ONLY_PRIVATE_KEY_FILE
 
 Replace the encrypted ARC runner-auth Kubernetes Secret on the Azure pilot.
-The file must contain one fine-grained GitHub PAT for the pilot repository
-with Administration: read/write, without whitespace or a trailing newline.
-The script temporarily allows SSH from this machine's current public IPv4,
-pins the VM SSH host key obtained through Azure Run Command, streams the PAT
-over SSH stdin, and removes temporary access on exit.
+PAT mode requires a fine-grained GitHub PAT for the pilot repository with
+Administration: read/write, without whitespace or a trailing newline.
+GitHub App mode uses repository Administration: read/write and Metadata: read
+permissions; ARC mints short-lived installation tokens from the App key.
+Both modes temporarily allow SSH from this machine's current public IPv4, pin
+the VM SSH host key obtained through Azure Run Command, stream credentials over
+verified SSH stdin, and remove temporary access on exit.
 EOF
 }
 
@@ -31,49 +35,102 @@ if [[ "${1:-}" == "--help" ]]; then
   usage
   exit 0
 fi
-[[ "$#" == "1" ]] || fail "provide exactly one token-file path; use --help"
+AUTH_MODE="pat"
+APP_ID=""
+APP_INSTALLATION_ID=""
+if [[ "${1:-}" == "--github-app" ]]; then
+  [[ "$#" == "4" ]] || fail "GitHub App mode requires APP_ID INSTALLATION_ID PRIVATE_KEY_FILE; use --help"
+  AUTH_MODE="github-app"
+  APP_ID="$2"
+  APP_INSTALLATION_ID="$3"
+  APP_PRIVATE_KEY_FILE="$4"
+elif [[ "${1:-}" == "--pat" ]]; then
+  [[ "$#" == "2" ]] || fail "PAT mode requires exactly one token-file path; use --help"
+  TOKEN_FILE="$2"
+elif [[ "$#" == "1" ]]; then
+  TOKEN_FILE="$1"
+else
+  fail "provide one PAT file or GitHub App ID, installation ID, and private-key file; use --help"
+fi
 
-TOKEN_FILE="$1"
+if [[ "$AUTH_MODE" == "github-app" ]]; then
+  [[ "$APP_ID" =~ ^[0-9]+$ && "$APP_INSTALLATION_ID" =~ ^[0-9]+$ ]] \
+    || fail "GitHub App ID and installation ID must be positive integers"
+  [[ "$APP_ID" =~ [1-9] && "$APP_INSTALLATION_ID" =~ [1-9] ]] \
+    || fail "GitHub App ID and installation ID must be positive integers"
+  CREDENTIAL_FILE="$APP_PRIVATE_KEY_FILE"
+else
+  CREDENTIAL_FILE="$TOKEN_FILE"
+fi
+
 for command_name in podman stat find grep curl python3 ssh ssh-keygen base64 awk mktemp; do
   command -v "$command_name" >/dev/null 2>&1 \
     || fail "required command not found: ${command_name}"
 done
+if [[ "$AUTH_MODE" == "github-app" ]]; then
+  for command_name in openssl; do
+    command -v "$command_name" >/dev/null 2>&1 \
+      || fail "required command not found for GitHub App mode: ${command_name}"
+  done
+fi
 
-[[ -f "$TOKEN_FILE" && ! -L "$TOKEN_FILE" ]] \
-  || fail "token path must be a regular, non-symlink file"
-python3 - "$TOKEN_FILE" <<'PY'
+[[ -f "$CREDENTIAL_FILE" && ! -L "$CREDENTIAL_FILE" ]] \
+  || fail "credential path must be a regular, non-symlink file"
+python3 - "$AUTH_MODE" "$CREDENTIAL_FILE" <<'PY'
 import os
 import stat
 import sys
 
-path = sys.argv[1]
+mode, path = sys.argv[1:]
 try:
     parent_stat = os.stat(os.path.dirname(os.path.abspath(path)), follow_symlinks=False)
     if not stat.S_ISDIR(parent_stat.st_mode):
-        raise ValueError("token parent is not a directory")
+        raise ValueError("credential parent is not a directory")
     if parent_stat.st_uid != os.getuid():
-        raise ValueError("token file and parent directory must be owned by the current user")
+        raise ValueError("credential file and parent directory must be owned by the current user")
     if parent_stat.st_mode & 0o077:
-        raise ValueError("token parent directory must not grant group or other access")
+        raise ValueError("credential parent directory must not grant group or other access")
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     descriptor = os.open(path, flags)
     file_stat = os.fstat(descriptor)
     if not stat.S_ISREG(file_stat.st_mode):
-        raise ValueError("token path is not a regular file")
+        raise ValueError("credential path is not a regular file")
     if file_stat.st_uid != os.getuid():
-        raise ValueError("token file must be owned by the current user")
+        raise ValueError("credential file must be owned by the current user")
     if file_stat.st_mode & 0o077:
-        raise ValueError("token file must not grant group or other access")
-    if file_stat.st_size < 1 or file_stat.st_size > 4096:
-        raise ValueError("token file must contain between 1 and 4096 bytes")
+        raise ValueError("credential file must not grant group or other access")
+    maximum_size = 16384 if mode == "github-app" else 4096
+    if file_stat.st_size < 1 or file_stat.st_size > maximum_size:
+        raise ValueError(f"credential file must contain between 1 and {maximum_size} bytes")
     with os.fdopen(descriptor, "rb") as token_file:
-        value = token_file.read(4097)
-    if len(value) != file_stat.st_size or any(byte < 33 or byte > 126 for byte in value):
+        value = token_file.read(maximum_size + 1)
+    if len(value) != file_stat.st_size:
+        raise ValueError("credential file changed while being read")
+    if mode == "github-app":
+        pem_types = (
+            (
+                b"-----BEGIN " + b"RSA PRIVATE KEY-----\n",
+                b"-----END " + b"RSA PRIVATE KEY-----",
+            ),
+            (
+                b"-----BEGIN " + b"PRIVATE KEY-----\n",
+                b"-----END " + b"PRIVATE KEY-----",
+            ),
+        )
+        if b"\x00" in value or not any(
+            value.startswith(header) and value.rstrip().endswith(footer)
+            for header, footer in pem_types
+        ):
+            raise ValueError("GitHub App private key must be an unencrypted RSA PEM file")
+    elif any(byte < 33 or byte > 126 for byte in value):
         raise ValueError("token file must contain one nonempty printable ASCII value without whitespace")
 except (OSError, ValueError) as exc:
     print(f"error: {exc}", file=sys.stderr)
     raise SystemExit(1)
 PY
+if [[ "$AUTH_MODE" == "github-app" ]] && ! openssl rsa -in "$CREDENTIAL_FILE" -check -noout >/dev/null 2>&1; then
+  fail "GitHub App private key is not a valid unencrypted RSA private key"
+fi
 
 [[ -d "$AZURE_CONFIG_DIR" && ! -L "$AZURE_CONFIG_DIR" ]] \
   || fail "Azure CLI config directory is missing or is a symlink: ${AZURE_CONFIG_DIR}"
@@ -186,47 +243,83 @@ encryption_result="$(azure_cli vm run-command invoke \
 grep -Fq '__RUNNER_SECRET_ENCRYPTION_OK=1' <<< "$encryption_result" \
   || fail "k3s secret encryption is not enabled and fully re-encrypted"
 
-printf 'This rotates the encrypted runner-auth Secret for %s/%s.\n' "$RESOURCE_GROUP" "$VM_NAME"
-printf 'The token value will not be printed or sent through Azure Run Command.\n'
+printf 'This updates the encrypted runner-auth Secret for %s/%s using %s authentication.\n' \
+  "$RESOURCE_GROUP" "$VM_NAME" "$AUTH_MODE"
+printf 'Credential values will not be printed or sent through Azure Run Command.\n'
 printf 'Temporary SSH will be limited to %s; the VM remains billable.\n' "$OPERATOR_CIDR"
-printf 'Only proceed after creating a repo-scoped fine-grained PAT with Administration read/write.\n'
+if [[ "$AUTH_MODE" == "github-app" ]]; then
+  printf 'GitHub App ID: %s; installation ID: %s.\n' "$APP_ID" "$APP_INSTALLATION_ID"
+  printf 'Confirm this App is installed only where intended and has repository Administration read/write plus Metadata read.\n'
+else
+  printf 'Only proceed after creating a repo-scoped fine-grained PAT with Administration read/write.\n'
+fi
 printf 'Type ROTATE to continue: '
 read -r confirmation
 [[ "$confirmation" == "ROTATE" ]] || fail "operation cancelled"
 
 temporary_dir="$(mktemp -d "${TMPDIR:-/tmp}/arc-token-rotation.XXXXXX")"
 chmod 700 "$temporary_dir"
-python3 - "$TOKEN_FILE" "${temporary_dir}/github-token" <<'PY'
+python3 - "$AUTH_MODE" "$CREDENTIAL_FILE" "$temporary_dir" "$APP_ID" "$APP_INSTALLATION_ID" <<'PY'
 import os
 import stat
 import sys
 
-source, destination = sys.argv[1:]
+mode, source, destination_dir, app_id, installation_id = sys.argv[1:]
 try:
     parent_stat = os.stat(os.path.dirname(os.path.abspath(source)), follow_symlinks=False)
     if not stat.S_ISDIR(parent_stat.st_mode) or parent_stat.st_uid != os.getuid() or parent_stat.st_mode & 0o077:
-        raise ValueError("token parent directory must be current-user-owned and owner-only")
+        raise ValueError("credential parent directory must be current-user-owned and owner-only")
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     source_fd = os.open(source, flags)
     source_stat = os.fstat(source_fd)
     if not stat.S_ISREG(source_stat.st_mode) or source_stat.st_uid != os.getuid() or source_stat.st_mode & 0o077:
-        raise ValueError("token source must be a current-user-owned, owner-only regular file")
-    if source_stat.st_size < 1 or source_stat.st_size > 4096:
-        raise ValueError("token file must contain between 1 and 4096 bytes")
+        raise ValueError("credential source must be a current-user-owned, owner-only regular file")
+    maximum_size = 16384 if mode == "github-app" else 4096
+    if source_stat.st_size < 1 or source_stat.st_size > maximum_size:
+        raise ValueError(f"credential file must contain between 1 and {maximum_size} bytes")
     with os.fdopen(source_fd, "rb") as handle:
-        value = handle.read(4097)
-    if len(value) != source_stat.st_size or any(byte < 33 or byte > 126 for byte in value):
-        raise ValueError("token file must contain one nonempty printable ASCII value without whitespace")
-    destination_fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(destination_fd, "wb") as handle:
-        handle.write(value)
-        handle.flush()
-        os.fsync(handle.fileno())
+        value = handle.read(maximum_size + 1)
+    if len(value) != source_stat.st_size:
+        raise ValueError("credential file changed while being read")
+    if mode == "github-app":
+        pem_types = (
+            (
+                b"-----BEGIN " + b"RSA PRIVATE KEY-----\n",
+                b"-----END " + b"RSA PRIVATE KEY-----",
+            ),
+            (
+                b"-----BEGIN " + b"PRIVATE KEY-----\n",
+                b"-----END " + b"PRIVATE KEY-----",
+            ),
+        )
+        if b"\x00" in value or not any(
+            value.startswith(header) and value.rstrip().endswith(footer)
+            for header, footer in pem_types
+        ):
+            raise ValueError("GitHub App private key must be an unencrypted RSA PEM file")
+        files = {
+            "github_app_id": app_id.encode("ascii"),
+            "github_app_installation_id": installation_id.encode("ascii"),
+            "github_app_private_key": value,
+        }
+    else:
+        if any(byte < 33 or byte > 126 for byte in value):
+            raise ValueError("token file must contain one nonempty printable ASCII value without whitespace")
+        files = {"github_token": value}
+    for name, contents in files.items():
+        destination = os.path.join(destination_dir, name)
+        destination_fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(destination_fd, "wb") as handle:
+            handle.write(contents)
+            handle.flush()
+            os.fsync(handle.fileno())
 except (OSError, ValueError) as exc:
     print(f"error: {exc}", file=sys.stderr)
     raise SystemExit(1)
 PY
-TOKEN_FILE="${temporary_dir}/github-token"
+if [[ "$AUTH_MODE" == "github-app" ]] && ! openssl rsa -in "${temporary_dir}/github_app_private_key" -check -noout >/dev/null 2>&1; then
+  fail "GitHub App private key changed or became invalid before transfer"
+fi
 ROTATION_SUFFIX="${$}-${RANDOM}"
 SSH_RULE_NAME="runner-token-rotation-${ROTATION_SUFFIX}"
 DENY_PRIORITY_MAY_HAVE_CHANGED=0
@@ -425,7 +518,23 @@ for attempt in {1..12}; do
 done
 [[ "$connected" == "1" ]] || fail "could not establish SSH using the verified temporary key"
 
-remote_rotation_command="$(cat <<'REMOTE_COMMAND'
+if [[ "$AUTH_MODE" == "github-app" ]]; then
+  remote_rotation_command="$(cat <<'REMOTE_COMMAND'
+sudo -n /bin/bash -o pipefail -c '
+  kubectl=/usr/local/bin/kubectl
+  "$kubectl" apply --filename=-
+  for name in github_app_id github_app_installation_id github_app_private_key; do
+    secret_data="$("$kubectl" get secret runner-auth \
+      --namespace arc-runners \
+      --output=jsonpath="{.data.$name}")"
+    test -n "$secret_data"
+  done
+  printf "Encrypted runner-auth Secret replaced with GitHub App credentials and verified.\\n"
+'
+REMOTE_COMMAND
+)"
+else
+  remote_rotation_command="$(cat <<'REMOTE_COMMAND'
 sudo -n /bin/bash -o pipefail -c '
   kubectl=/usr/local/bin/kubectl
   "$kubectl" create secret generic runner-auth \
@@ -438,8 +547,37 @@ sudo -n /bin/bash -o pipefail -c '
     --namespace arc-runners \
     --output=jsonpath="{.data.github_token}")"
   test -n "$secret_data"
-  printf "Encrypted runner-auth Secret replaced and verified nonempty.\\n"
+  printf "Encrypted runner-auth Secret replaced with PAT and verified nonempty.\\n"
 '
 REMOTE_COMMAND
 )"
-ssh "${ssh_options[@]}" "${VM_USER}@${VM_PUBLIC_IP}" "$remote_rotation_command" < "$TOKEN_FILE"
+fi
+if [[ "$AUTH_MODE" == "github-app" ]]; then
+  python3 - "${temporary_dir}/github_app_id" \
+    "${temporary_dir}/github_app_installation_id" \
+    "${temporary_dir}/github_app_private_key" <<'PY' \
+    | ssh "${ssh_options[@]}" "${VM_USER}@${VM_PUBLIC_IP}" "$remote_rotation_command"
+import base64
+import pathlib
+import sys
+
+values = {
+    "github_app_id": pathlib.Path(sys.argv[1]).read_bytes(),
+    "github_app_installation_id": pathlib.Path(sys.argv[2]).read_bytes(),
+    "github_app_private_key": pathlib.Path(sys.argv[3]).read_bytes(),
+}
+print("apiVersion: v1")
+print("kind: Secret")
+print("metadata:")
+print("  name: runner-auth")
+print("  namespace: arc-runners")
+print("type: Opaque")
+print("data:")
+for name, value in values.items():
+    encoded = base64.b64encode(value).decode("ascii")
+    print(f"  {name}: {encoded}")
+PY
+else
+  ssh "${ssh_options[@]}" "${VM_USER}@${VM_PUBLIC_IP}" "$remote_rotation_command" \
+    < "${temporary_dir}/github_token"
+fi

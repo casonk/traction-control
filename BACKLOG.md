@@ -29,10 +29,17 @@ with a `README.md` pointing back here. The item names its id as
   The manual smoke workflow ran successfully on the self-hosted runner and the
   ephemeral pod was removed. The user chose to keep the pilot online. Its
   Kubernetes secret still contains the existing broader `gh` CLI token;
-  replace it with a fine-grained token scoped to the pilot repository and
-  Administration read/write before dispatching another job. Then agree on a
-  teardown date and delete the dedicated resource group when testing is
-  finished. Current estimate is ~$32.64/month plus variable charges.
+  replace it with repository-scoped GitHub App credentials (if compatible with
+  this personal-account repository) or a fine-grained token with Administration
+  read/write before dispatching another job. The rotation helper supports both
+  modes; GitHub App authentication lets ARC mint short-lived installation
+  tokens. Auto Pass was checked: the available classic token has account-wide
+  `repo` scope, while the available fine-grained token cannot read the pilot's
+  runner administration endpoint; neither is suitable for least-privilege
+  rotation. No App credential is provisioned. Do not dispatch another job
+  until an appropriately scoped credential replaces the current secret. Then
+  agree on a teardown date and delete the dedicated resource group when testing
+  is finished. Current estimate is ~$32.64/month plus variable charges.
 
 - [ ] [manual:2026-11-01] **Enable VT-x and finish KVM access for the ARC runner pilot.**
   When physically at the Fedora host with firmware access and `sudo`, enable
