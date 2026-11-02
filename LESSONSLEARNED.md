@@ -89,6 +89,32 @@
   actually fixed by validating the real Codex exec path and installing the
   service-local SSH key instead of falling back to the personal GitHub key.
 
+### 2026-11-02 — Adding Codecov through the shared Python CI workflow
+
+- **GitHub expressions have no arithmetic.** `strategy.job-total - 1` made GitHub
+  reject the whole reusable workflow ("workflow file issue", no jobs created, every
+  caller red) and nothing local can lint it. To act on "the last matrix entry",
+  compare `matrix.python-version` with the last element of the versions list in a
+  small step and export the result through `$GITHUB_ENV`. Test a change to a shared
+  workflow from its branch on a real caller before merging, as the repository's rule
+  says, and expect the first attempt to fail at parse time, not at run time.
+- **`secrets` cannot be tested in a step `if`.** Expose whether one is set through a
+  job-level `env` flag (`HAS_X: ${{ secrets.X != '' }}`) and test the flag. That is
+  also what lets a repository adopt coverage before its token exists: the upload
+  step is skipped with a notice and the job stays green.
+- **Codecov's action v5 and later has no tokenless upload** except for pull requests
+  from forks of public repositories. A repository needs the `CODECOV_TOKEN` secret, or
+  `use_oidc: true` with `permissions: id-token: write` on the calling job. Starting
+  informational (`codecov.yml` with `informational: true`) keeps a new baseline from
+  blocking pull requests.
+- **Vault access for a script is a path grant, not a password.** The provisioning
+  allowlist names which repository may read which entry paths; the Codecov tokens
+  live under `dev/codecov/<repo>` and the Codecov login lives elsewhere, outside that
+  glob. After editing the allowlist, tell the running daemon to reload (a
+  `{"op": "reload"}` request on its socket) rather than restarting it, which would
+  lock the vault. Pass a secret to `gh secret set` on its standard input, never as an
+  argument, and scrub it from any message the script prints.
+
 ### 2026-11-01 — Bringing CI back after a month with Actions off
 
 - **Heads have no run, and a push-only `ci.yml` cannot be started.** Commits made
