@@ -53,6 +53,9 @@ END = "<!-- badges:end -->"
 BLOCK_RE = re.compile(re.escape(START.split(" - ")[0]) + r".*?" + re.escape(END) + r"\n?", re.S)
 TOKEN_RE = re.compile(r"token=[^)&\s]+")
 GRAPH_TOKEN_MASK = "<graph-token>"
+# Codecov graph tokens are short (10 characters at the time of writing), unlike upload tokens.
+# They are pasted into a Markdown URL, so accept only characters that cannot break it.
+GRAPH_TOKEN_SHAPE = re.compile(r"^[A-Za-z0-9._~-]{6,128}$")
 HAND_BADGE_RE = re.compile(
     r"!\[[^\]]*\]\(https?://(?:img\.shields\.io|badge\.fury\.io|codecov\.io|github\.com/[^)\s]*badge\.svg)[^)]*\)"
 )
@@ -230,8 +233,11 @@ def graph_token(slug: str, run: cs.Runner = cs.default_runner, http: cs.Http = c
     owner, _, name = slug.partition("/")
     status, body = cs.codecov_get(owner, name, "config/", pat.token, http)
     token = body.get("graph_token") if status == 200 and isinstance(body, dict) else None
-    if not isinstance(token, str) or not cs.TOKEN_SHAPE.fullmatch(token):
-        raise BadgeError(f"no graph token for {slug}: {cs.explain(status)}")
+    if not isinstance(token, str) or not GRAPH_TOKEN_SHAPE.fullmatch(token):
+        raise BadgeError(
+            f"no usable graph token for {slug}: "
+            + (cs.explain(status) if status != 200 else "Codecov returned none, or one with unsafe characters")
+        )
     return token
 
 
