@@ -38,3 +38,9 @@ config/air-primary.local.toml
 # canonical work items remain in each repository's tracked BACKLOG.md.
 /config/portfolio/backlog-index.local.json
 /reports/portfolio-backlog.md
+
+# coverage output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
