@@ -148,33 +148,42 @@ temporary pod: public HTTPS and DNS must work, while requests to the VM,
 Kubernetes API, private ranges, and Azure metadata endpoints must fail. It
 removes the probe pod after checking.
 
-Create the Kubernetes secret from a fine-grained token without putting it in
-this repository, a Helm values file, shell history, command-line arguments, or
-Azure Run Command payloads. Grant only **Administration: read and write** for
-the single pilot repository. Prefer verified SSH with a short-lived source
-allowlist; stream the token through stdin directly into the encrypted Secret.
-For credential rotation, replace the existing `runner-auth` Secret rather than
-leaving old credentials alongside the new one. Do not revoke a general-purpose
-local GitHub CLI token as part of rotation; revoke only a dedicated token after
-its replacement is verified or when tearing down the pilot.
+Create a fine-grained token for only the pilot repository with
+**Administration: read and write**. The account owner creates the PAT in
+GitHub; the rotation helper does not create tokens. Enter the PAT locally into
+an owner-only file without placing it in shell history, command arguments,
+environment variables, this repository, or Azure Run Command:
 
-```sh
-kubectl create namespace arc-runners \
-  --dry-run=client \
-  --output=yaml \
-  | kubectl apply --filename=-
-kubectl create secret generic runner-auth \
-  --namespace arc-runners \
-  --from-file=github_token=/path/to/owner-only/github-token \
-  --dry-run=client \
-  --output=yaml \
-  | kubectl apply --filename=-
+```bash
+install -d -m 700 "$HOME/.config/traction-control/arc-runner"
+chmod 700 "$HOME/.config/traction-control/arc-runner"
+token_file="$HOME/.config/traction-control/arc-runner/github-token"
+read -r -s -p "Fine-grained GitHub PAT: " runner_pat
+printf '\n'
+(umask 077; printf '%s' "$runner_pat" > "$token_file")
+unset runner_pat
+chmod 600 "$token_file"
 ```
 
-The dry-run/apply pipeline creates or replaces the Secret in place, so rotation
-does not leave the old token in a second Secret. Ensure the source token file
-is owner-only and remove it after the encrypted Secret is updated. Do not
-dispatch another job while the broader temporary token remains installed.
+Run the rotation helper and type `ROTATE` after reviewing its target and
+temporary SSH source address:
+
+```sh
+./scripts/rotate_azure_runner_secret.sh "$token_file"
+```
+
+The helper checks that k3s encryption is enabled and fully re-encrypted,
+validates the owner-only file and Azure CLI cache, opens SSH only from the
+current public IPv4, obtains the VM host key through Azure Run Command, and
+pins it for SSH. It sends the PAT only over verified SSH stdin and uses
+`kubectl apply` to replace the encrypted `runner-auth` Secret in place. It
+removes its temporary SSH key and rule and restores the deny-all priority on
+exit. Review any cleanup error before continuing. The helper deletes its
+private temporary copy; remove the original local token file after successful
+rotation. Do not dispatch another job while the broader temporary token
+remains installed. Do not revoke a general-purpose local GitHub CLI token;
+revoke only a dedicated PAT after replacement is verified or when tearing down
+the pilot.
 
 Copy `config/github-runners/scale-set-values.yaml.template` to an ignored,
 owner-only values file on the VM. Set its repository URL to the pilot repository

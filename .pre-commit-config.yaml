@@ -28,6 +28,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: azure-runner-secret-rotation-tests
+        name: Azure runner secret rotation tests
+        entry: bash tests/test_rotate_azure_runner_secret.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: portfolio-theme-current
         name: portfolio theme outputs match themes/themes.toml
         entry: python3 scripts/render_portfolio_theme.py --check
