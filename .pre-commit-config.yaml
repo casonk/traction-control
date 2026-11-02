@@ -76,6 +76,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: codecov-secrets-tests
+        name: Codecov secrets script tests
+        entry: python3 -m unittest discover -s tests -p test_codecov_secrets.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: main-branch-guard-tests
         name: main-branch guard hook tests
         entry: /bin/bash tests/test_main_branch_guard.sh
