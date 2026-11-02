@@ -551,6 +551,38 @@ else
     fi
 fi
 
+# ── README badges ────────────────────────────────────────────────────────────
+# Every active repository's README carries a generated badge block under its title
+# (docs/readme-badges.md). It is rebuilt from facts about the repository, so a renamed
+# workflow, a changed license or a new Python floor shows up here as drift.
+log ""
+log "=== README badges ==="
+BADGE_COUNT=0
+if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+    log "README badges SKIPPED: gh is not installed or not authenticated"
+elif [[ ! -f "${PRIVATE_REGISTRY}" || ! -f "${PUBLIC_REGISTRY}" ]]; then
+    log "README badges SKIPPED: no visibility registry"
+else
+    badge_args=(--private "${PRIVATE_REGISTRY}" --public "${PUBLIC_REGISTRY}")
+    [[ -f "${LOCAL_PRIVATE_REGISTRY}" ]] && badge_args+=(--local-private "${LOCAL_PRIVATE_REGISTRY}")
+    set +e
+    badge_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/readme_badges.py" "${badge_args[@]}" check --all 2>&1)"
+    badge_status=$?
+    set -e
+    case "${badge_status}" in
+        0) log "every README badge block is current" ;;
+        1)
+            while IFS= read -r line; do
+                [[ -n "${line}" ]] || continue
+                [[ "${line}" == *" repositories checked, "* ]] && continue
+                warn "README badges: ${line}"
+                BADGE_COUNT=$(( BADGE_COUNT + 1 ))
+            done <<< "${badge_output}"
+            ;;
+        *) warn "README badge check could not run: $(tail -1 <<< "${badge_output}")" ;;
+    esac
+fi
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
@@ -560,6 +592,7 @@ log "serving policy : ${POLICY_COUNT}"
 log "vault access   : ${VAULT_COUNT}"
 log "stale checkouts: ${STALE_COUNT}"
 log "stale open PRs : ${STALE_PR_COUNT}"
+log "README badges  : ${BADGE_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -568,7 +601,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
