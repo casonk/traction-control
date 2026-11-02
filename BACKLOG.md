@@ -16,7 +16,7 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
-- [ ] [manual:2026-11-01] **Install and test ARC on the Azure pilot, then tear it down.**
+- [ ] [manual:2026-11-01] **Replace the pilot credential and decide when to tear down ARC.**
   An enabled subscription is verified and the reviewed North Central US Bicep
   plan is deployed: a Standard_B2als_v2 VM, network interface, deny-all-inbound
   NSG, static public IP, VNet, and managed OS disk. The VM is running with
@@ -26,12 +26,13 @@ with a `README.md` pointing back here. The item names its id as
   tested: public HTTPS works, while the Kubernetes API, VM node, Azure
   metadata, and Azure platform endpoints are blocked. The `dotfiles-pilot`
   scale set is registered and its listener is Running with zero idle runners.
-  Its test-only credential is the existing broader `gh` CLI token; replace it
-  with a repo-scoped token or delete it after the smoke test. The smoke
-  workflow must be merged to the default branch before dispatch. Delete the
-  dedicated resource group after testing. Current estimate is
-  ~$32.64/month plus variable charges; do not leave the VM, disk, or public IP
-  deployed after the pilot.
+  The manual smoke workflow ran successfully on the self-hosted runner and the
+  ephemeral pod was removed. The user chose to keep the pilot online. Its
+  Kubernetes secret still contains the existing broader `gh` CLI token;
+  replace it with a fine-grained token scoped to the pilot repository and
+  Administration read/write before dispatching another job. Then agree on a
+  teardown date and delete the dedicated resource group when testing is
+  finished. Current estimate is ~$32.64/month plus variable charges.
 
 - [ ] [manual:2026-11-01] **Enable VT-x and finish KVM access for the ARC runner pilot.**
   When physically at the Fedora host with firmware access and `sudo`, enable

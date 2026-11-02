@@ -61,13 +61,16 @@ and its node is Ready. The ARC 0.15.1 controller is installed in `arc-systems`,
 and k3s secret encryption is enabled with re-encryption complete. Runner
 network isolation is applied and verified, and the zero-idle `dotfiles-pilot`
 scale set is registered with a Running listener. The test-only secret currently
-uses the existing broader GitHub CLI token; replace it with a repo-scoped
-fine-grained token or remove it after the smoke test. No runner job has been
-dispatched yet. Use a dedicated resource group for the pilot. The example
-parameters must be supplied locally; never commit an SSH private key, GitHub
-token, or owner-only deployment values. Inbound traffic is denied by default;
-any temporary SSH exception must be limited to the operator's current `/32`
-and removed immediately after secret provisioning.
+uses the existing broader GitHub CLI token. The manual smoke workflow has run
+successfully on the self-hosted runner, and Azure confirmed its ephemeral pod
+was removed. The user chose to keep the pilot online; replace the secret with a
+fine-grained token scoped to the pilot repository before dispatching another
+job. The VM, disk, and public IP remain billable while the pilot is kept online.
+Use a dedicated resource group for the pilot. The example parameters must be
+supplied locally; never commit an SSH private key, GitHub token, or owner-only
+deployment values. Inbound traffic is denied by default; any temporary SSH
+exception must be limited to the operator's current `/32` and removed
+immediately after secret provisioning.
 
 After installing Azure CLI and signing in, select the intended subscription,
 create a dedicated resource group, and review the deployment:
@@ -147,15 +150,31 @@ removes the probe pod after checking.
 
 Create the Kubernetes secret from a fine-grained token without putting it in
 this repository, a Helm values file, shell history, command-line arguments, or
-Azure Run Command payloads. Prefer verified SSH with a short-lived source
+Azure Run Command payloads. Grant only **Administration: read and write** for
+the single pilot repository. Prefer verified SSH with a short-lived source
 allowlist; stream the token through stdin directly into the encrypted Secret.
+For credential rotation, replace the existing `runner-auth` Secret rather than
+leaving old credentials alongside the new one. Do not revoke a general-purpose
+local GitHub CLI token as part of rotation; revoke only a dedicated token after
+its replacement is verified or when tearing down the pilot.
 
 ```sh
-kubectl create namespace arc-runners
+kubectl create namespace arc-runners \
+  --dry-run=client \
+  --output=yaml \
+  | kubectl apply --filename=-
 kubectl create secret generic runner-auth \
   --namespace arc-runners \
-  --from-file=github_token=/path/to/owner-only/github-token
+  --from-file=github_token=/path/to/owner-only/github-token \
+  --dry-run=client \
+  --output=yaml \
+  | kubectl apply --filename=-
 ```
+
+The dry-run/apply pipeline creates or replaces the Secret in place, so rotation
+does not leave the old token in a second Secret. Ensure the source token file
+is owner-only and remove it after the encrypted Secret is updated. Do not
+dispatch another job while the broader temporary token remains installed.
 
 Copy `config/github-runners/scale-set-values.yaml.template` to an ignored,
 owner-only values file on the VM. Set its repository URL to the pilot repository
@@ -179,11 +198,10 @@ assigned to the pilot scale set and that its runner pod is deleted after the
 job completes. Do not enable the pilot workflow for push, pull-request, or
 fork events.
 
-The pilot repository's smoke workflow is a feature-branch change and cannot be
-dispatched until it is reviewed and merged to the default branch through the
-normal PR flow. Then open **Actions → Self-hosted Runner Smoke Test → Run workflow** on
-the default branch. A successful run checks out the repository and runs
-`bash tests/test_install.sh` on the self-hosted scale set.
+The pilot's manual smoke workflow is merged to the default branch and has
+passed once on the self-hosted scale set. For a repeat test, open
+**Actions → Self-hosted Runner Smoke Test → Run workflow** on the default
+branch. It checks out the repository and runs `bash tests/test_install.sh`.
 
 ## Expansion and teardown
 
