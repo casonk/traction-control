@@ -141,6 +141,29 @@
 - **Reword synthetic secrets in tests instead of allowlisting them.** A gitleaks rule matches a
   `*_api_key*` assignment with a path-like value even when it is invented. A neutral placeholder
   (`entry-one`) keeps the secret scan strict for everything else.
+- **A mutation that makes a test hang can take the whole shell down and leave the source
+  mutated.** Removing a loop's exit or a body-size cap turns a test into an endless wait, and the
+  tool kills the session (exit 137) mid-run, before the harness restores the file. Run each
+  mutation under `timeout -s KILL`, restore with `git checkout -- file` rather than writing the
+  saved text back, keep each foreground call under about thirty seconds, run long jobs detached and
+  watch their output, and check `git status` for a modified source file after any killed run. A
+  hang counts as caught.
+- **Look at `git status` before every commit, not only after.** A stash pop can leave a source change
+  unstaged next to a staged test, so the commit carries tests for a fix it does not contain; CI then
+  fails against the old code. Confirm the staged list names every file the message describes.
+- **Pull `main` before measuring coverage or running a baseline.** A scratch clone left on a stale
+  `main` reported the number from before the merged work, and nearly became a wrong report.
+- **A cancelled job with no steps is a queue timeout, not a failure.** `gh api
+  repos/OWNER/REPO/actions/jobs/ID` shows `conclusion: cancelled` and an empty step list. Re-run
+  only the cancelled jobs with `gh run rerun RUN --failed`; if the substantive legs passed and the
+  change only adds tests, say so when merging rather than waiting indefinitely on a congested
+  runner pool.
+- **Test a vendored, hash-pinned file once, at its source, and exclude the copies.** A byte-identical
+  copy cannot be edited per repository, so measuring it in every consumer only repeats the same
+  uncovered lines. Cover it where it lives and omit the vendored path in each consumer's
+  `codecov.yml` and `[tool.coverage.run] omit`. A defect found in such a file (a call outside its
+  `try` that the docstring says is guarded) is its own change, because fixing it means re-vendoring
+  everywhere.
 
 ### 2026-11-02 — README badges across the repository suite
 
