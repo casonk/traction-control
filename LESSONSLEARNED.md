@@ -108,12 +108,22 @@
   informational (`codecov.yml` with `informational: true`) keeps a new baseline from
   blocking pull requests.
 - **Vault access for a script is a path grant, not a password.** The provisioning
-  allowlist names which repository may read which entry paths; the Codecov tokens
-  live under `dev/codecov/<repo>` and the Codecov login lives elsewhere, outside that
+  allowlist names which repository may read which entry paths, per vault; grant the one
+  exact entry (the Codecov PAT, `codecov/codecov-pat-user` in the `infra` vault), not a
   glob. After editing the allowlist, tell the running daemon to reload (a
-  `{"op": "reload"}` request on its socket) rather than restarting it, which would
-  lock the vault. Pass a secret to `gh secret set` on its standard input, never as an
+  `{"op": "reload"}` request on its socket) rather than restarting it, which would lock
+  the vault. Pass a secret to `gh secret set` on its standard input, never as an
   argument, and scrub it from any message the script prints.
+- **Keep the root credential in the vault, derive the rest.** Codecov's API returns a
+  repository's upload token (`GET /repos/NAME/config/`) to a user PAT, so only the PAT
+  needs storing; the per-repository tokens are fetched at push time and never kept. The
+  repository detail endpoint does not include the token, and the published OpenAPI
+  schema (`/api/v2/schema/`) is the quick way to find which endpoint does.
+- **Coverage can break a test that was never wrong under ordinary runs.** Tracing slows
+  the code, so a test that measures real time and asserts an exact rounded value (here a
+  latency of `0.0`) fails every time under coverage while passing without it, and it can
+  pass once in CI by luck. Inject a clock. Reproduce a suspected case by running that
+  one test repeatedly with and without `--cov` before blaming the environment.
 
 ### 2026-11-01 — Bringing CI back after a month with Actions off
 

@@ -1,4 +1,4 @@
-"""Tests for codecov_secrets: the token reaches GitHub and nowhere else."""
+"""Tests for codecov_secrets: the PAT stays in a header, the upload token on gh's stdin."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import codecov_secrets as cs  # noqa: E402
 
-TOKEN = "11111111-2222-3333-4444-555555555555"
+PAT = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+UPLOAD = "11111111-2222-3333-4444-555555555555"
 
 
 def done(returncode=0, stdout="", stderr=""):
@@ -24,8 +25,8 @@ def done(returncode=0, stdout="", stderr=""):
 class FakeRunner:
     """Stands in for auto-pass and gh; records every call and the standard input."""
 
-    def __init__(self, vault=None, secrets=None, set_error=None):
-        self.vault = vault if vault is not None else {}  # entry -> (returncode, stdout, stderr)
+    def __init__(self, pat=(0, PAT + "\n", ""), secrets=None, set_error=None):
+        self.pat = pat
         self.secrets = secrets if secrets is not None else {}  # "owner/repo" -> set of names
         self.set_error = set_error
         self.calls: list[tuple[list[str], str | None]] = []
@@ -33,7 +34,7 @@ class FakeRunner:
     def __call__(self, command, stdin):
         self.calls.append((list(command), stdin))
         if command[:2] == ["auto-pass", "provision-get"]:
-            return done(*self.vault.get(command[2], (1, "", "Could not find entry with path x.")))
+            return done(*self.pat)
         if command[:3] == ["gh", "secret", "list"]:
             names = self.secrets.get(command[command.index("-R") + 1])
             if names is None:
@@ -51,118 +52,183 @@ class FakeRunner:
         return json.dumps([c for c, _ in self.calls])
 
 
-def present(repo):
-    return {f"dev/codecov/{repo}": (0, TOKEN + "\n", "")}
+class FakeHttp:
+    """Codecov's API: per-repo config (upload token) and detail (active flag)."""
+
+    def __init__(self, repos=None, status=200):
+        self.repos = repos if repos is not None else {}  # name -> {"active": bool}
+        self.status = status
+        self.calls: list[tuple[str, str]] = []
+
+    def __call__(self, url, bearer):
+        self.calls.append((url, bearer))
+        if self.status != 200:
+            return self.status, None
+        tail = url.split("/repos/", 1)[1]
+        name, _, rest = tail.partition("/")
+        if name not in self.repos:
+            return 404, None
+        if rest == "config/":
+            return 200, {"upload_token": UPLOAD, "graph_token": "g" * 36}
+        return 200, {"name": name, "active": self.repos[name]["active"]}
 
 
-class EntryTests(unittest.TestCase):
-    def test_the_entry_path_is_derived_from_a_validated_name(self):
-        self.assertEqual(cs.entry_path("dyno-lab"), "dev/codecov/dyno-lab")
-        for bad in ("", "../x", "a/b", "a b", "a*", "-lead", "x" * 101, "a\nb"):
+def run_main(args, runner, http):
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = cs.main(args, run=runner, http=http)
+    return code, out.getvalue(), err.getvalue()
+
+
+class NameTests(unittest.TestCase):
+    def test_a_usable_name_passes_and_unsafe_ones_do_not(self):
+        self.assertEqual(cs.check_repo("dyno-lab"), "dyno-lab")
+        for bad in ("", "../x", "a/b", "a b", "a?x=1", "-lead", "x" * 101, "a\nb"):
             with self.subTest(name=bad), self.assertRaises(cs.CodecovSecretsError):
-                cs.entry_path(bad)
+                cs.check_repo(bad)
 
     def test_a_bad_name_stops_the_whole_command_before_any_call(self):
-        fake = FakeRunner(present("good"))
-        err = io.StringIO()
-        with contextlib.redirect_stderr(err):
-            code = cs.main(["push", "--repo", "good", "--repo", "../evil"], run=fake)
+        runner, http = FakeRunner(), FakeHttp({"good": {"active": True}})
+        code, _, err = run_main(["push", "--repo", "good", "--repo", "../evil"], runner, http)
         self.assertEqual(code, 2)
-        self.assertEqual(fake.calls, [])
+        self.assertEqual((runner.calls, http.calls), ([], []))
+        self.assertIn("not a usable repository name", err)
 
 
-class VaultTests(unittest.TestCase):
-    def read(self, outcome):
-        return cs.read_vault("r", FakeRunner({"dev/codecov/r": outcome}))
-
+class PatTests(unittest.TestCase):
     def test_each_failure_is_named_in_plain_words(self):
-        self.assertEqual(self.read((0, TOKEN, "")).state, "present")
-        self.assertEqual(self.read((1, "", "error: ... Could not find entry with path dev/codecov/r.")).state, "missing")
-        self.assertEqual(self.read((1, "", "repo 'x' is not permitted to access 'y'")).state, "denied")
-        self.assertEqual(self.read((1, "", "daemon is locked")).state, "locked")
-        self.assertEqual(self.read((1, "", "boom")).state, "error")
+        cases = {
+            (0, PAT, ""): "present",
+            (1, "", "Could not find entry with path codecov/codecov-pat-user."): "missing",
+            (1, "", "repo 'x' is not permitted to access 'y' in vault 'infra'"): "denied",
+            (1, "", "daemon is locked"): "locked",
+            (1, "", "boom"): "error",
+        }
+        for outcome, state in cases.items():
+            with self.subTest(state=state):
+                self.assertEqual(cs.read_pat(FakeRunner(pat=outcome)).state, state)
 
     def test_a_value_that_is_not_shaped_like_a_token_is_refused(self):
         for value in ("", "   ", "two words in here that is a sentence"):
             with self.subTest(value=value):
-                self.assertEqual(self.read((0, value, "")).state, "error")
+                self.assertEqual(cs.read_pat(FakeRunner(pat=(0, value, ""))).state, "error")
 
-    def test_it_asks_the_daemon_in_the_master_vault(self):
-        fake = FakeRunner(present("r"))
-        cs.read_vault("r", fake)
-        self.assertEqual(fake.calls[0][0], ["auto-pass", "provision-get", "dev/codecov/r", "--db", "master"])
+    def test_it_asks_the_daemon_for_exactly_the_one_entry_in_the_infra_vault(self):
+        runner = FakeRunner()
+        cs.read_pat(runner)
+        self.assertEqual(
+            runner.calls[0][0],
+            ["auto-pass", "provision-get", "codecov/codecov-pat-user", "--db", "infra"],
+        )
 
 
 class PushTests(unittest.TestCase):
-    def test_the_token_goes_to_standard_input_and_nowhere_else(self):
-        fake = FakeRunner(present("r"))
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = cs.main(["push", "--repo", "r"], run=fake)
+    def setUp(self):
+        self.http = FakeHttp({"r": {"active": False}, "ok": {"active": True}})
+
+    def test_the_upload_token_goes_to_standard_input_and_nowhere_else(self):
+        runner = FakeRunner()
+        code, out, err = run_main(["push", "--repo", "r"], runner, self.http)
         self.assertEqual(code, 0)
-        sets = [(c, s) for c, s in fake.calls if c[:3] == ["gh", "secret", "set"]]
+        sets = [(c, s) for c, s in runner.calls if c[:3] == ["gh", "secret", "set"]]
         self.assertEqual(len(sets), 1)
         command, stdin = sets[0]
         self.assertEqual(command, ["gh", "secret", "set", "CODECOV_TOKEN", "-R", "casonk/r"])
-        self.assertEqual(stdin, TOKEN)
-        self.assertNotIn(TOKEN, fake.everything_said)  # not in any argument list
-        self.assertNotIn(TOKEN, out.getvalue())
+        self.assertEqual(stdin, UPLOAD)
+        for secret in (PAT, UPLOAD):
+            self.assertNotIn(secret, runner.everything_said)  # not in any argument list
+            self.assertNotIn(secret, out + err)
 
-    def test_dry_run_changes_nothing_and_says_so(self):
-        fake = FakeRunner(present("r"))
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = cs.main(["push", "--repo", "r", "--dry-run"], run=fake)
+    def test_the_pat_is_sent_only_as_the_bearer_of_a_codecov_request(self):
+        runner = FakeRunner()
+        run_main(["push", "--repo", "r"], runner, self.http)
+        self.assertTrue(self.http.calls)
+        for url, bearer in self.http.calls:
+            self.assertEqual(bearer, PAT)
+            self.assertTrue(url.startswith("https://api.codecov.io/api/v2/github/casonk/repos/r/"))
+            self.assertNotIn(PAT, url)
+
+    def test_dry_run_fetches_to_prove_it_works_but_sets_nothing(self):
+        runner = FakeRunner()
+        code, out, _ = run_main(["push", "--repo", "r", "--dry-run"], runner, self.http)
         self.assertEqual(code, 0)
-        self.assertFalse([c for c, _ in fake.calls if c[:3] == ["gh", "secret", "set"]])
-        self.assertIn("would set CODECOV_TOKEN on casonk/r", out.getvalue())
+        self.assertTrue(self.http.calls)
+        self.assertFalse([c for c, _ in runner.calls if c[:3] == ["gh", "secret", "set"]])
+        self.assertIn("would set CODECOV_TOKEN on casonk/r", out)
+        self.assertNotIn(UPLOAD, out)
 
-    def test_only_missing_leaves_an_existing_secret_alone(self):
-        fake = FakeRunner(present("r"), secrets={"casonk/r": {"CODECOV_TOKEN"}})
-        report, failures = cs.push(["r"], "casonk", fake, only_missing=True, dry_run=False)
+    def test_only_missing_leaves_an_existing_secret_alone_without_asking_codecov(self):
+        runner = FakeRunner(secrets={"casonk/r": {"CODECOV_TOKEN"}})
+        report, failures = cs.push(["r"], "casonk", runner, self.http, only_missing=True, dry_run=False)
         self.assertEqual(failures, 0)
         self.assertIn("skip r", report[0])
-        self.assertFalse([c for c, _ in fake.calls if c[:3] == ["gh", "secret", "set"]])
+        self.assertEqual(self.http.calls, [])
 
-    def test_a_missing_entry_is_a_failure_for_that_repo_and_the_others_still_run(self):
-        fake = FakeRunner(present("ok"))
-        report, failures = cs.push(["gone", "ok"], "casonk", fake, only_missing=False, dry_run=False)
+    def test_a_repo_codecov_cannot_see_fails_alone_and_says_how_to_fix_it(self):
+        runner = FakeRunner()
+        report, failures = cs.push(["gone", "ok"], "casonk", runner, self.http, only_missing=False, dry_run=False)
         self.assertEqual(failures, 1)
-        self.assertTrue(report[0].startswith("FAIL gone: missing"))
+        self.assertIn("install the Codecov GitHub app", report[0])
         self.assertEqual(report[1], "set CODECOV_TOKEN on casonk/ok")
 
-    def test_an_error_from_gh_cannot_carry_the_token_out(self):
-        fake = FakeRunner(present("r"), set_error=f"HTTP 422: bad value {TOKEN}")
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = cs.main(["push", "--repo", "r"], run=fake)
-        self.assertEqual(code, 1)
-        self.assertNotIn(TOKEN, out.getvalue())
-        self.assertIn("<token>", out.getvalue())
+    def test_without_the_pat_nothing_is_attempted(self):
+        runner = FakeRunner(pat=(1, "", "daemon is locked"))
+        report, failures = cs.push(["r"], "casonk", runner, self.http, only_missing=False, dry_run=False)
+        self.assertEqual(failures, 1)
+        self.assertIn("locked", report[0])
+        self.assertEqual(self.http.calls, [])
 
-    def test_owner_is_configurable(self):
-        fake = FakeRunner(present("r"))
-        cs.push(["r"], "someone", fake, only_missing=False, dry_run=False)
-        self.assertIn("someone/r", [part for c, _ in fake.calls for part in c])
+    def test_codecov_errors_are_explained_without_leaking(self):
+        for status, words in ((401, "rejected the PAT"), (403, "not allowed"), (0, "could not be reached"), (500, "HTTP 500")):
+            with self.subTest(status=status):
+                http = FakeHttp({"r": {"active": True}}, status=status)
+                report, failures = cs.push(["r"], "casonk", FakeRunner(), http, only_missing=False, dry_run=False)
+                self.assertEqual(failures, 1)
+                self.assertIn(words, report[0])
+                self.assertNotIn(PAT, report[0])
+
+    def test_a_response_without_a_usable_token_is_a_failure(self):
+        class Empty(FakeHttp):
+            def __call__(self, url, bearer):
+                return 200, {"graph_token": "g" * 36}
+
+        report, failures = cs.push(["r"], "casonk", FakeRunner(), Empty(), only_missing=False, dry_run=False)
+        self.assertEqual(failures, 1)
+        self.assertIn("no usable upload token", report[0])
+
+    def test_an_error_from_gh_cannot_carry_either_token_out(self):
+        runner = FakeRunner(set_error=f"HTTP 422: bad value {UPLOAD} and {PAT}")
+        code, out, err = run_main(["push", "--repo", "r"], runner, self.http)
+        self.assertEqual(code, 1)
+        for secret in (PAT, UPLOAD):
+            self.assertNotIn(secret, out + err)
+        self.assertIn("<token>", out)
 
 
 class StatusTests(unittest.TestCase):
-    def test_status_reports_both_sides_without_a_value(self):
-        fake = FakeRunner(present("have"), secrets={"casonk/have": set(), "casonk/none": set()})
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = cs.main(["status", "--repo", "have", "--repo", "none"], run=fake)
-        text = out.getvalue()
+    def test_status_reports_every_side_without_a_value(self):
+        http = FakeHttp({"have": {"active": True}, "new": {"active": False}})
+        runner = FakeRunner(secrets={"casonk/have": {"CODECOV_TOKEN"}, "casonk/new": set(), "casonk/none": set()})
+        code, out, _ = run_main(["status", "--repo", "have", "--repo", "new", "--repo", "none"], runner, http)
         self.assertEqual(code, 0)
-        self.assertIn("have", text)
-        self.assertIn("vault entry: present", text)
-        self.assertIn("vault entry: missing", text)
-        self.assertIn("GitHub secret: not set", text)
-        self.assertNotIn(TOKEN, text)
+        self.assertIn("PAT (infra/codecov/codecov-pat-user): present", out)
+        self.assertIn("Codecov: has coverage; GitHub secret: set", out)
+        self.assertIn("Codecov: visible, no coverage yet; GitHub secret: not set", out)
+        self.assertIn("install the Codecov GitHub app", out)
+        for secret in (PAT, UPLOAD):
+            self.assertNotIn(secret, out)
+
+    def test_status_without_the_pat_makes_no_codecov_call(self):
+        http = FakeHttp({"r": {"active": True}})
+        runner = FakeRunner(pat=(1, "", "repo 'x' is not permitted to access"))
+        lines = cs.status(["r"], "casonk", runner, http)
+        self.assertIn("denied", lines[0])
+        self.assertIn("unknown (no PAT)", lines[1])
+        self.assertEqual(http.calls, [])
 
     def test_status_says_unknown_when_github_cannot_be_asked(self):
-        fake = FakeRunner(present("r"))  # no secrets entry: gh answers 404
-        self.assertIn("GitHub secret: unknown", cs.status(["r"], "casonk", fake)[0])
+        http = FakeHttp({"r": {"active": True}})
+        self.assertIn("GitHub secret: unknown", cs.status(["r"], "casonk", FakeRunner(), http)[1])
 
 
 if __name__ == "__main__":

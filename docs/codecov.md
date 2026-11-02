@@ -1,8 +1,10 @@
 # Codecov
 
 Codecov shows test coverage per repository and per pull request. This portfolio
-uses it on a few repositories, from CI, with the upload credential kept in the
-auto-pass vault. Nothing here needs a paid plan.
+uses it on a few repositories, from CI. The one credential kept in the auto-pass
+vault is a Codecov user API token (a PAT); each repository's upload token is
+fetched from Codecov's API when needed and goes straight into that repository's
+GitHub secret, so it is never typed, stored in a file or shown.
 
 ## What the free plan gives
 
@@ -20,47 +22,43 @@ scripted.
 
 1. Sign in at <https://app.codecov.io> with **Sign in with GitHub** and authorise
    Codecov. Pick the free **Developer** plan.
-2. Install the Codecov GitHub app on the account and choose the repositories to
-   try. A private repository must be granted explicitly.
-3. Store the account login in the vault, under a path this repository is **not**
-   allowed to read:
+2. Create a user API token (a personal access token) in your Codecov account
+   settings and store it in the `infra` vault as `codecov/codecov-pat-user`
+   (group `codecov`, entry `codecov-pat-user`, token in the password field).
+3. Let this repository read exactly that entry. In auto-pass's ignored
+   `config/provisioning-allowlist.local.toml`:
 
-   ```bash
-   auto-pass set web/codecov --url https://app.codecov.io --username YOUR_LOGIN --password-stdin
+   ```toml
+   [repos.traction-control.vaults.infra]
+   allowed_paths = [
+     "codecov/codecov-pat-user",
+   ]
    ```
+
+   Then tell the running daemon to reload, without restarting it (a restart locks the
+   vault): send `{"op": "reload"}` on `~/.cache/auto-pass/provisioning.sock`.
+   `auto-pass daemon-status` must show it running and unlocked.
 
 ## Add a repository
 
 Do this per repository, `NAME` being its name without the owner.
 
-1. In Codecov, open the repository, then **Settings > General**, and copy the
-   **Repository Upload Token**.
-2. Store it in the vault. The entry path is fixed (`dev/codecov/NAME`); the token
-   is typed without echo and never lands in shell history:
+1. Install the Codecov GitHub app on it (a private repository must be granted
+   explicitly). Codecov must be able to see it: `status` below says so.
+2. Copy its upload token into the repository's `CODECOV_TOKEN` Actions secret:
 
    ```bash
-   read -rs -p 'Codecov upload token: ' CODECOV_TOKEN_VALUE; echo
-   printf '%s' "$CODECOV_TOKEN_VALUE" | auto-pass set dev/codecov/NAME --password-stdin \
-     --url https://app.codecov.io/gh/casonk/NAME
-   unset CODECOV_TOKEN_VALUE
-   ```
-
-3. Copy it to the repository's `CODECOV_TOKEN` Actions secret:
-
-   ```bash
-   scripts/codecov_secrets.py status --repo NAME        # vault entry and secret state
-   scripts/codecov_secrets.py push --repo NAME --dry-run
+   scripts/codecov_secrets.py status --repo NAME
+   scripts/codecov_secrets.py push --repo NAME --dry-run   # fetches, sets nothing
    scripts/codecov_secrets.py push --repo NAME
    ```
 
-   `push` reads the entry through the auto-pass provisioning daemon (it must be
-   running and unlocked: `auto-pass daemon-status`), sets the secret over the
-   standard input of `gh secret set`, and prints nothing secret. `--only-missing`
-   leaves a secret that is already set. The allowlist entry that lets this
-   repository read `dev/codecov/*` lives in auto-pass's ignored
-   `config/provisioning-allowlist.local.toml`.
+   `push` reads the PAT through the provisioning daemon, asks Codecov's API
+   (`GET /repos/NAME/config/`) for the upload token, and sets the secret over the
+   standard input of `gh secret set`. Neither token appears in an argument list or
+   a message. `--only-missing` leaves a secret that is already set.
 
-4. Turn coverage on in the repository's `.github/workflows/ci.yml`:
+3. Turn coverage on in the repository's `.github/workflows/ci.yml`:
 
    ```yaml
    jobs:
@@ -78,10 +76,14 @@ Do this per repository, `NAME` being its name without the owner.
    secret the coverage is still measured and the upload is skipped with a notice, so
    this can be merged before the token exists.
 
+4. Start a run (`gh workflow run ci.yml`) and check `status`: the repository shows
+   "has coverage" once Codecov has received it. Totals appear a minute or so later at
+   `GET /repos/NAME/totals/`.
+
 ## Without a stored token (OIDC)
 
 Codecov can verify the workflow's own GitHub identity instead of a token, so there
-is nothing to store or rotate:
+is nothing to copy or rotate:
 
 ```yaml
 jobs:
@@ -96,7 +98,7 @@ jobs:
 ```
 
 The repository still has to be added in Codecov. Use this for a repository where you
-would rather not keep a token; the token route above is the one that uses the vault.
+would rather not keep an upload token in its GitHub secrets.
 
 ## Reading the result
 
@@ -104,23 +106,29 @@ would rather not keep a token; the token route above is the one that uses the va
   Codecov and as a pull-request comment once the app is installed.
 - `fail_ci_if_error` is off (`coverage-fail-on-error: false`), so a Codecov outage
   warns and does not fail CI. Turn it on for a repository once uploads are reliable.
-- Start with Codecov's default status checks informational; add a `codecov.yml`
-  target only once the baseline number is known.
+- `codecov.yml` in each trial repository makes every status check informational, so
+  nothing blocks a pull request. Add a target there once the baseline is known.
+- A test that asserts an exact timing can fail only under coverage, because tracing
+  slows the code. Give such a test an injected clock.
 
 ## Rotate or remove
 
-- **Rotate:** regenerate the token in Codecov, repeat the `auto-pass set` command,
-  then `scripts/codecov_secrets.py push --repo NAME`.
-- **Remove:** delete the repository's token in Codecov, `gh secret delete
-  CODECOV_TOKEN -R casonk/NAME`, remove the vault entry, and drop `coverage: true`.
+- **Rotate the PAT:** create a new one in Codecov, update the `infra` vault entry,
+  revoke the old one. Nothing else changes.
+- **Rotate a repository's upload token:** regenerate it in Codecov, then
+  `scripts/codecov_secrets.py push --repo NAME`.
+- **Remove a repository:** `gh secret delete CODECOV_TOKEN -R casonk/NAME`, drop
+  `coverage: true`, and remove it in Codecov.
 
 ## Troubleshooting
 
 | Symptom | Cause |
 |---|---|
-| `status` shows `vault entry: denied` | the auto-pass allowlist does not list `dev/codecov/*` for this repository, or the daemon was not reloaded after the edit |
-| `vault entry: locked` | run `auto-pass unlock` |
-| `vault entry: missing` | the entry path must be exactly `dev/codecov/NAME` |
+| `PAT ...: denied` | the allowlist does not list `codecov/codecov-pat-user` in the `infra` vault for this repository, or the daemon was not reloaded after the edit |
+| `PAT ...: locked` | run `auto-pass unlock` |
+| `PAT ...: missing` | the entry must be exactly `codecov/codecov-pat-user` in the `infra` vault |
+| `install the Codecov GitHub app on it` | Codecov cannot see the repository: grant the app access to it |
+| `Codecov rejected the PAT` | the token expired or was revoked: create a new one |
 | CI says "Coverage was measured but not uploaded" | no `CODECOV_TOKEN` secret and `coverage-use-oidc` is false |
 | Upload fails with "token required" | the secret is empty or belongs to a different repository |
 | Private repository shows nothing | the Codecov app has not been granted that repository |
