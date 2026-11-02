@@ -89,6 +89,30 @@
   actually fixed by validating the real Codex exec path and installing the
   service-local SSH key instead of falling back to the personal GitHub key.
 
+### 2026-11-02 — README badges across the repository suite
+
+- **Ask GitHub how it will treat an image URL before choosing a badge source for private
+  repositories.** Render sample Markdown with `gh api markdown -f mode=gfm -f context=OWNER/REPO`:
+  a github.com workflow-badge URL comes back untouched (the viewer's browser fetches it with
+  their session, so it works in a private repository), while shields.io and codecov.io URLs are
+  rewritten to `camo.githubusercontent.com`, an anonymous fetch. So GitHub's own CI badge and
+  static shields badges work in private repositories; anything that needs a third party to read
+  the repository does not (dynamic shields badges, or Codecov without its graph token).
+- **A Codecov graph token is not an upload token.** It is about 10 characters and only draws
+  the badge and graph; the upload token is a 36-character UUID. Validate a value for the place
+  it is used (here: only URL-safe characters, because it is pasted into a Markdown URL), not by
+  copying another token's length rule, which made the first live run fail.
+- **A generated block stays true only if something checks it.** Derive it from facts (workflow
+  present, license GitHub detects, `requires-python`), fence it with markers, compare it in the
+  daily audit with secrets masked so a rotated token is not drift, and skip archived repositories.
+  Mutation-testing the suite found a gap: nothing proved that a block someone had moved stayed
+  where they put it, because replace-in-place and strip-and-reinsert give the same result when
+  the block started under the title.
+- **Hand-written badges are often already wrong.** One repository's CI badge pointed at a
+  workflow file deleted long ago. A sweep should list hand-made badges and let a person fold
+  them in repository by repository; it should not delete blindly, and it should leave badges it
+  does not manage (a PyPI badge) in place.
+
 ### 2026-11-02 — Adding Codecov through the shared Python CI workflow
 
 - **GitHub expressions have no arithmetic.** `strategy.job-total - 1` made GitHub
