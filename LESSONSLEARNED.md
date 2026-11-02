@@ -114,6 +114,33 @@
 - **`git add -A` after a coverage run stages `.coverage`.** Add `.coverage`, `.coverage.*`,
   `coverage.xml` and `htmlcov/` to `.gitignore` when coverage is switched on, and look at the staged
   file list before committing.
+- **Run mutation checks with `PYTHONDONTWRITEBYTECODE=1`.** Python reuses a cached `.pyc` when the
+  source's size and modification second match. A mutation that swaps two arguments keeps the size,
+  and restoring the file within the same second leaves the mutated bytecode in place, so the next
+  run fails against code that is no longer there. It looks like a flaky test and can make a later
+  result unreliable in either direction. Disable bytecode writing and clear `__pycache__` first.
+- **Run the suite on the oldest supported Python before pushing.** `podman run python:3.10` against
+  the checkout needs no install. Strict `parse_qsl` rejected an empty query string before 3.11, so
+  the most basic request to an endpoint was a 400 on a version the package claimed to support, and
+  only the oldest CI leg could see it. The matching test failed on the old code, which is what
+  proves a test is aimed at the bug.
+- **A refusal test that only asserts the exception type can pass for the wrong reason.** An
+  invalid-input case failed on an earlier field, so the guard it was written for never ran and the
+  mutation that removed it survived. Assert the message, or check with the coverage report that the
+  guard's own line was reached.
+- **Treat coverage of an untrusted-input path as a security review.** A file tool confined a
+  language model to its allowed directories with `path.startswith(prefix)` on the raw string, so
+  `<allowed>/../x` and `<allowed>-other/x` both passed, for writes as well as reads. Resolve the
+  path and each allowed root, compare by whole components, and refuse an embedded NUL. Writing the
+  escape as a test is what exposed it. A fix that tightens what a setting means (a directory, not a
+  text prefix) belongs in its own pull request and in the changelog, not inside a test-only one.
+- **Stub the credential and CLI lookups, not just the network.** A provider that resolves an API key
+  by running the password manager, or probes login state by running a vendor CLI, will do exactly
+  that under test. Replace `subprocess.run` at the module under test, in every test of the module,
+  and assert the secret never appears in a log line or an error message.
+- **Reword synthetic secrets in tests instead of allowlisting them.** A gitleaks rule matches a
+  `*_api_key*` assignment with a path-like value even when it is invented. A neutral placeholder
+  (`entry-one`) keeps the secret scan strict for everything else.
 
 ### 2026-11-02 — README badges across the repository suite
 
