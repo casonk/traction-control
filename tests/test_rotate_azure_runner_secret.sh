@@ -190,6 +190,7 @@ case "${1:-} ${2:-} ${3:-} ${4:-}" in
       fi
       shift
     done
+    printf '%s\n' "$scripts" | /bin/sh -n
     if [[ "$scripts" == *"RUNNER_SECRET_ENCRYPTION_OK"* ]]; then
       if [[ "${TEST_ENCRYPTION_OK:-1}" == "1" ]]; then
         printf '__RUNNER_SECRET_ENCRYPTION_OK=1\n'

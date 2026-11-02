@@ -243,12 +243,15 @@ cleanup() {
     remove_key_script="$(cat <<REMOTE_SCRIPT
 set -eu
 authorized_keys=/home/${VM_USER}/.ssh/authorized_keys
+test -f "\$authorized_keys" && test ! -L "\$authorized_keys"
 temporary_file="\$(mktemp /home/${VM_USER}/.ssh/authorized_keys.XXXXXX)"
+trap 'rm -f -- "\$temporary_file"' EXIT
 key="\$(printf '%s' '${TEMP_PUBLIC_KEY_B64}' | base64 -d)"
 awk -v key="\$key" '\$0 != key' "\$authorized_keys" > "\$temporary_file"
 chown ${VM_USER}:${VM_USER} "\$temporary_file"
 chmod 600 "\$temporary_file"
 mv "\$temporary_file" "\$authorized_keys"
+trap - EXIT
 printf '__RUNNER_ROTATION_KEY_REMOVED=1\\n'
 REMOTE_SCRIPT
 )"
@@ -365,7 +368,11 @@ set -eu
 ssh_directory=/home/${VM_USER}/.ssh
 install -d -o ${VM_USER} -g ${VM_USER} -m 700 "\$ssh_directory"
 authorized_keys="\$ssh_directory/authorized_keys"
-touch "\$authorized_keys"
+test ! -L "\$authorized_keys"
+if [ ! -e "\$authorized_keys" ]; then
+  touch "\$authorized_keys"
+fi
+test -f "\$authorized_keys"
 chown ${VM_USER}:${VM_USER} "\$authorized_keys"
 chmod 600 "\$authorized_keys"
 key="\$(printf '%s' '${TEMP_PUBLIC_KEY_B64}' | base64 -d)"
