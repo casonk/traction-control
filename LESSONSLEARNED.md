@@ -89,6 +89,32 @@
   actually fixed by validating the real Codex exec path and installing the
   service-local SSH key instead of falling back to the personal GitHub key.
 
+### 2026-11-02 — Closing coverage gaps
+
+- **Go by risk, not by percentage.** Codecov ranks files by missed lines, but the lines worth
+  covering first are the ones that rewrite or remove data (merge, restore, delete, prune) and
+  the failure branches of helpers whose job is to fail correctly. A test helper that fails to
+  fail is a silent bug in every suite that uses it. Assert what happened to the data, not that
+  a function ran; use temporary directories and a stub for the scanner or provider so a test
+  can never touch a real session.
+- **Mutation-check the new tests, then act on every miss.** Break the code in specific ways
+  (drop a guard, make a bound exclusive, keep the wrong item, let a dry run delete) and confirm a
+  test fails. The first round missed about a fifth, and each miss was a real gap: a defence-in-depth
+  layer cannot be isolated with an input that trips both layers, so test the input only the outer
+  one refuses (a path with `..` that would resolve harmlessly); a manifest whose folder and provider
+  disagree is refused by the folder check, so file the bogus provider under its own folder to
+  isolate the provider check; and a guard reached only through a version-dependent side effect
+  (`rglob` follows symlinks before Python 3.13) must be called directly. A mutation that survives
+  because Python cleans up for you (`TemporaryDirectory` on garbage collection) is a weak
+  mutation: keep the object alive and retry.
+- **Tests find real bugs in error handling.** `rotate()` caught `OSError` and `ValueError`, but a
+  helper it calls raises the module's own `SessionActionError` for a symlinked trash folder, so one
+  suspect entry aborted rotation of the whole trash. When an `except` lists built-in exceptions,
+  check which domain exceptions the calls inside can raise.
+- **`git add -A` after a coverage run stages `.coverage`.** Add `.coverage`, `.coverage.*`,
+  `coverage.xml` and `htmlcov/` to `.gitignore` when coverage is switched on, and look at the staged
+  file list before committing.
+
 ### 2026-11-02 — README badges across the repository suite
 
 - **Ask GitHub how it will treat an image URL before choosing a badge source for private
