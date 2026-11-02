@@ -36,10 +36,13 @@ with a `README.md` pointing back here. The item names its id as
   tokens. Auto Pass was checked: the available classic token has account-wide
   `repo` scope, while the available fine-grained token cannot read the pilot's
   runner administration endpoint; neither is suitable for least-privilege
-  rotation. No App credential is provisioned. Do not dispatch another job
-  until an appropriately scoped credential replaces the current secret. Then
-  agree on a teardown date and delete the dedicated resource group when testing
-  is finished. Current estimate is ~$32.64/month plus variable charges.
+  rotation. No App credential is provisioned. The user authorized one
+  temporary rotation with the broad classic PAT, but Azure CLI authentication
+  was blocked by tenant security defaults (AADSTS530035) before any VM or
+  Kubernetes change; the existing runner Secret is unchanged. Do not dispatch
+  another job until the replacement succeeds. Then agree on a teardown date and
+  delete the dedicated resource group when testing is finished. Current
+  estimate is ~$32.64/month plus variable charges.
 
 - [ ] [manual:2026-11-01] **Enable VT-x and finish KVM access for the ARC runner pilot.**
   When physically at the Fedora host with firmware access and `sudo`, enable
