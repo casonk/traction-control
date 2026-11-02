@@ -16,6 +16,31 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-01] **Install and test ARC on the Azure pilot, then tear it down.**
+  An enabled subscription is verified and the reviewed North Central US Bicep
+  plan is deployed: a Standard_B2als_v2 VM, network interface, deny-all-inbound
+  NSG, static public IP, VNet, and managed OS disk. The VM is running with
+  k3s v1.36.5+k3s1 and a Ready node. ARC controller 0.15.1 is installed in
+  `arc-systems`; k3s secret encryption is enabled, all hashes match, and
+  re-encryption finished. The `dotfiles-pilot` runner policy is applied and
+  tested: public HTTPS works, while the Kubernetes API, VM node, Azure
+  metadata, and Azure platform endpoints are blocked. The `dotfiles-pilot`
+  scale set is registered and its listener is Running with zero idle runners.
+  Its test-only credential is the existing broader `gh` CLI token; replace it
+  with a repo-scoped token or delete it after the smoke test. The smoke
+  workflow must be merged to the default branch before dispatch. Delete the
+  dedicated resource group after testing. Current estimate is
+  ~$32.64/month plus variable charges; do not leave the VM, disk, or public IP
+  deployed after the pilot.
+
+- [ ] [manual:2026-11-01] **Enable VT-x and finish KVM access for the ARC runner pilot.**
+  When physically at the Fedora host with firmware access and `sudo`, enable
+  Intel Virtualization Technology (VT-x) in UEFI/BIOS and reboot. Verify `vmx`
+  appears in `/proc/cpuinfo`, load `kvm_intel`, and confirm `/dev/kvm` exists.
+  Then configure and verify the user's libvirt access, create the dedicated
+  KVM-backed VM, and continue the ARC runner pilot deployment. Do not use
+  software-emulated QEMU or run workflow jobs on the Fedora host as a substitute.
+
 - [ ] [manual:2026-10-30] **Move the Clockwork pages onto the system theme tokens.**
   Clockwork's templates each carry their own copy of the Midnight values. Replace
   them with the `var(--token)` names from `themes/portfolio-theme.css`, include the

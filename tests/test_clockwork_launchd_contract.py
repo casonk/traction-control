@@ -201,7 +201,13 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
     def test_ui_and_tier_installer_compose_exact_labels_and_explicit_adapters(self):
         records = _job_records()
         clockwork_jobs = _clockwork_jobs()
-        ui_labels = _ui_labels(clockwork_jobs)
+        missing_jobs = set(records) - set(clockwork_jobs)
+        self.assertFalse(
+            missing_jobs,
+            f"traction-control agent jobs missing from Clockwork: {sorted(missing_jobs)}",
+        )
+        managed_jobs = {name: clockwork_jobs[name] for name in records}
+        ui_labels = _ui_labels(managed_jobs)
         self.assertEqual(set(ui_labels), set(records))
 
         with tempfile.TemporaryDirectory(
