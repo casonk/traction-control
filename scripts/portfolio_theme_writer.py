@@ -24,6 +24,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "themes"))  # portfolio_site
 import portfolio_site as seam  # noqa: E402
 import portfolio_themes as pt  # noqa: E402
 

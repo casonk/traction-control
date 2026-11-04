@@ -194,6 +194,24 @@ class ThemeWriterTests(unittest.TestCase):
         self.set_global.assert_not_called()
 
 
+class ThemeWriterStartupTests(unittest.TestCase):
+    def test_the_script_starts_as_a_program_from_any_directory(self):
+        """systemd runs it by path; the test modules put the right folders on sys.path for us."""
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as elsewhere:
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "portfolio_theme_writer.py"), "--help"],
+                cwd=elsewhere,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env={"PATH": "/usr/bin:/bin", "HOME": elsewhere},
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--port", result.stdout)
+
+
 class ThemeWriterAllowedHostsTests(unittest.TestCase):
     def setUp(self):
         import portfolio_theme_writer
