@@ -645,6 +645,10 @@ class WriterTests(Case):
         self._set = pt.set_global
         pt.set_global = lambda name: self._set(name, self.local, self.rendered, self.shared)
         self.addCleanup(setattr, pt, "set_global", self._set)
+        # "site.test" stands for a site the shared Caddy fronts (registry/store hostname).
+        self._hosts = w.allowed_hosts
+        w.allowed_hosts = lambda: frozenset({"site.test"})
+        self.addCleanup(setattr, w, "allowed_hosts", self._hosts)
 
     def post(self, body, **headers):
         base_headers = {"X-Portfolio-Global": "1", "Host": "site.test", "Origin": "https://site.test"}
@@ -659,6 +663,8 @@ class WriterTests(Case):
     def test_other_origins_a_missing_header_and_bad_bodies_change_nothing(self):
         for body, headers, status in (
             (b'{"theme": "ember"}', {"Origin": "https://evil.test"}, 403),
+            # DNS rebinding: an unknown hostname sends itself as both Host and Origin.
+            (b'{"theme": "ember"}', {"Host": "evil.test", "Origin": "https://evil.test"}, 403),
             (b'{"theme": "ember"}', {"X-Portfolio-Global": "0"}, 403),
             (b"not json", {}, 400),
             (b'{"theme": 3}', {}, 400),
