@@ -5,8 +5,9 @@ A site's top bar posts here (same origin, through the shared ingress) when "Ever
 chosen. The service binds to 127.0.0.1 only and the ingress decides who may reach it (mTLS on
 the home ingress). It adds two checks of its own so a page on another origin cannot drive it:
 the request must carry ``X-Portfolio-Global: 1`` (a custom header forces a CORS preflight, which
-this service never grants) and, when the browser sends ``Origin``, its host must be the ``Host``
-the request was addressed to. The body is ``{"theme": "<name>"}``; the name must be one of the
+this service never grants), its ``Host`` must be loopback or the name of a site the shared Caddy
+fronts (a DNS-rebinding page sends its own hostname, which matches its own ``Origin``), and, when
+the browser sends ``Origin``, its host must be the ``Host`` the request was addressed to. The body is ``{"theme": "<name>"}``; the name must be one of the
 offered themes, and anything else changes nothing.
 
     python3 scripts/portfolio_theme_writer.py [--port 8767]
@@ -23,11 +24,29 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import portfolio_site as seam  # noqa: E402
 import portfolio_themes as pt  # noqa: E402
 
 PATH = "/_portfolio/global"
 MAX_BODY = 1024
 DEFAULT_PORT = 8767
+
+
+def allowed_hosts() -> frozenset[str]:
+    """The names this writer is reached by: every site the shared Caddy fronts.
+
+    Each Caddy site proxies ``/_portfolio/global`` here with its own ``Host``, so the list is
+    the wiring-harness registry's hostnames plus the central store's (and
+    ``PORTFOLIO_ALLOWED_HOSTS``); loopback is always allowed.
+    """
+    portfolio_root = Path(__file__).resolve().parents[3]
+    from_env = seam.Site(Path("."), None, "none", {}).allowed_hosts()  # PORTFOLIO_ALLOWED_HOSTS
+    return seam.registry_hostnames(portfolio_root) | seam.store_hostnames() | from_env
+
+
+def host_ok(headers) -> bool:
+    """DNS-rebinding guard: the request's own Host must be a name this writer is reached by."""
+    return seam.host_allowed(headers.get("Host", ""), allowed_hosts())
 
 
 def same_origin(headers) -> bool:
@@ -37,7 +56,7 @@ def same_origin(headers) -> bool:
 
 def handle(headers, body: bytes) -> tuple[int, dict]:
     """The status and JSON reply for one POST; the only place a request reaches the theme layer."""
-    if headers.get("X-Portfolio-Global") != "1" or not same_origin(headers):
+    if headers.get("X-Portfolio-Global") != "1" or not host_ok(headers) or not same_origin(headers):
         return HTTPStatus.FORBIDDEN, {"error": "not allowed"}
     try:
         name = json.loads(body).get("theme")
