@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,6 +34,23 @@ MAX_BODY = 1024
 DEFAULT_PORT = 8767
 
 
+def portfolio_root() -> Path:
+    """The portfolio checkout root (the folder holding ``util-repos/``).
+
+    ``PORTFOLIO_ROOT`` wins; otherwise the first ancestor of this script that has
+    ``util-repos/wiring-harness`` (so a copy of this script kept outside the portfolio can be
+    pointed at it with the variable); otherwise the layout's usual depth.
+    """
+    configured = os.environ.get("PORTFOLIO_ROOT", "").strip()
+    if configured:
+        return Path(configured)
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "util-repos" / "wiring-harness").is_dir():
+            return parent
+    return here.parents[3] if len(here.parents) > 3 else here.parent
+
+
 def allowed_hosts() -> frozenset[str]:
     """The names this writer is reached by: every site the shared Caddy fronts.
 
@@ -40,9 +58,8 @@ def allowed_hosts() -> frozenset[str]:
     the wiring-harness registry's hostnames plus the central store's (and
     ``PORTFOLIO_ALLOWED_HOSTS``); loopback is always allowed.
     """
-    portfolio_root = Path(__file__).resolve().parents[3]
     from_env = seam.Site(Path("."), None, "none", {}).allowed_hosts()  # PORTFOLIO_ALLOWED_HOSTS
-    return seam.registry_hostnames(portfolio_root) | seam.store_hostnames() | from_env
+    return seam.registry_hostnames(portfolio_root()) | seam.store_hostnames() | from_env
 
 
 def host_ok(headers) -> bool:

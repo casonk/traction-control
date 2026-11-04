@@ -194,6 +194,47 @@ class ThemeWriterTests(unittest.TestCase):
         self.set_global.assert_not_called()
 
 
+class ThemeWriterPortfolioRootTests(unittest.TestCase):
+    def setUp(self):
+        import portfolio_theme_writer
+
+        self.writer = portfolio_theme_writer
+
+    def test_the_environment_variable_wins(self):
+        with mock.patch.dict("os.environ", {"PORTFOLIO_ROOT": "/some/where"}):
+            self.assertEqual(self.writer.portfolio_root(), Path("/some/where"))
+
+    def test_a_blank_variable_is_ignored(self):
+        with mock.patch.dict("os.environ", {"PORTFOLIO_ROOT": "  "}):
+            self.assertNotEqual(self.writer.portfolio_root(), Path("  "))
+
+    def test_the_root_is_found_by_walking_up_from_the_script(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            (root / "util-repos" / "wiring-harness").mkdir(parents=True)
+            # One level deeper than the usual layout, so the fixed-depth fallback would be wrong.
+            script = root / "util-repos" / "traction-control" / "deeper" / "scripts" / "portfolio_theme_writer.py"
+            script.parent.mkdir(parents=True)
+            with (
+                mock.patch.dict("os.environ", {}, clear=False),
+                mock.patch.object(self.writer, "__file__", str(script)),
+            ):
+                os_environ = __import__("os").environ
+                os_environ.pop("PORTFOLIO_ROOT", None)
+                self.assertEqual(self.writer.portfolio_root(), root)
+
+    def test_registry_hostnames_come_from_that_root(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw) / "util-repos" / "wiring-harness"
+            base.mkdir(parents=True)
+            (base / "services.toml").write_text('[[services]]\nhostname = "fronted.internal"\n')
+            with (
+                mock.patch.dict("os.environ", {"PORTFOLIO_ROOT": raw}),
+                mock.patch.object(self.writer.seam, "store_hostnames", return_value=frozenset()),
+            ):
+                self.assertIn("fronted.internal", self.writer.allowed_hosts())
+
+
 class ThemeWriterStartupTests(unittest.TestCase):
     def test_the_script_starts_as_a_program_from_any_directory(self):
         """systemd runs it by path; the test modules put the right folders on sys.path for us."""
