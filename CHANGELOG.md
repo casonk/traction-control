@@ -4,6 +4,8 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Fix `scripts/portfolio_theme_writer.py` failing to start (`ModuleNotFoundError: portfolio_site`) when run as a program: it now puts `themes/` on its import path, and a test runs it as a subprocess from another directory.
+
 - Add a shared DNS-rebinding guard to the portfolio site seam (`host_allowed`, `Site.host_allowed`, `store_hostnames`, `registry_hostnames`) and use it in the global theme writer, which now refuses any `Host` that is not loopback or a registry/store site name. Enroll Clockwork in the seam so it can use the same guard. See `docs/portfolio-sites.md`.
 
 - Add generated README badges. `scripts/readme_badges.py` (`render`, `check`, `apply`) keeps a block between markers under each README's title: GitHub's CI badge when `ci.yml` exists, a static license badge from the SPDX id GitHub detects, a static Python badge from `requires-python`, and Codecov coverage where `ci.yml` turns it on (a private repository's coverage badge carries Codecov's badge-only graph token, fetched with the vault PAT). A repository only gets a badge it can show, archived repositories are skipped, and the daily audit reports any block that has drifted. See `docs/readme-badges.md`.
