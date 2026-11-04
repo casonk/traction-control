@@ -15,6 +15,9 @@
 ## Documentation and Specifications
 
 - https://docs.github.com/en/actions - GitHub Actions reference for the control-plane CI workflow
+- https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work - Git commit and tag signing concepts used by the portfolio signing standard
+- https://docs.github.com/en/authentication/managing-commit-signature-verification - GitHub hosted signature-verification behavior
+- https://cli.github.com/manual/gh_gpg-key - GitHub CLI public GPG-key registration commands
 - https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html - user timer semantics for the scheduled audit and install scripts
 
 ## Notes
