@@ -29,12 +29,13 @@ theme on the server (`[global] theme` in the owner-only local layer, rendered in
 `chrome.js`), clears this site's own choice, and every site that has no choice of its own follows
 it from its next page load. "Follow the global theme" in the menu drops a site's own choice.
 
-The write goes to `POST /_portfolio/global` on the site's own origin, answered by
-`scripts/portfolio_theme_writer.py` (127.0.0.1 only; the shared ingress routes the path to it and
-decides who may reach it). The service also requires the `X-Portfolio-Global: 1` header and, when
-the browser sends `Origin`, the same host, so a page on another origin cannot drive it. On a site
-with no such route the post fails and the choice is kept for that site only, with a note in the
-menu. Set it from a terminal with `scripts/portfolio_themes.py set-global NAME` (`none` clears it).
+The global theme can be read as JSON from `GET /_portfolio/global` on the site's own origin.
+The write goes to `POST /_portfolio/global`, answered by `scripts/portfolio_theme_writer.py`
+(127.0.0.1 only; the shared ingress routes the path to it and decides who may reach it). The
+service also requires the `X-Portfolio-Global: 1` header and, when the browser sends `Origin`, the
+same host, so a page on another origin cannot drive it. On a site with no such route the post fails
+and the choice is kept for that site only, with a note in the menu. Set it from a terminal with
+`scripts/portfolio_themes.py set-global NAME` (`none` clears it).
 
 ## Type
 

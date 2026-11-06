@@ -277,12 +277,20 @@ class LibraryTests(Case):
             self.assertEqual(len(names), len(set(names)), kind)
             self.assertTrue(all(row["group"] for row in library[kind]), kind)
         self.assertTrue(all(base.HEX.fullmatch(c["hex"]) for c in library["colours"]))
-        self.assertTrue(all(0 < len(e["glyph"]) <= 8 and ord(e["glyph"][0]) > 127 for e in library["emoji"]))
+        self.assertTrue(
+            all(
+                0 < len(e["glyph"]) <= 8 and ord(e["glyph"][0]) > 127
+                for e in library["emoji"]
+            )
+        )
 
     def test_every_library_name_can_be_saved_as_your_own(self):
         library = pt.load_library()
         saved = pt.clean(
-            {"palette": {c["name"]: c["hex"] for c in library["colours"]}, "emoji": {e["name"]: e["glyph"] for e in library["emoji"]}}
+            {
+                "palette": {c["name"]: c["hex"] for c in library["colours"]},
+                "emoji": {e["name"]: e["glyph"] for e in library["emoji"]},
+            }
         )
         self.assertEqual(len(saved["palette"]), len(library["colours"]))
         self.assertEqual(len(saved["emoji"]), len(library["emoji"]))
@@ -292,7 +300,16 @@ class LibraryTests(Case):
         groups = {c["group"] for c in library["colours"]}
         self.assertTrue({"Red", "Green", "Blue", "Neutrals"} <= groups)
         glyphs = {e["name"]: e["glyph"] for e in library["emoji"]}
-        for name in ("home", "cart", "film", "laptop", "money", "rocket", "ok", "warning"):
+        for name in (
+            "home",
+            "cart",
+            "film",
+            "laptop",
+            "money",
+            "rocket",
+            "ok",
+            "warning",
+        ):
             self.assertIn(name, glyphs)
 
     def test_a_bad_library_file_is_refused(self):
@@ -608,8 +625,13 @@ class GlobalThemeTests(Case):
         self.assertIn('var GLOBAL = "ember"', (self.rendered / "theme.js").read_text())
         self.assertIn('var GLOBAL = "ember"', (self.rendered / "chrome.js").read_text())
         script = (self.rendered / "theme.js").read_text()
-        order = [script.index(x) for x in ("known(kept)", "known(GLOBAL)", "prefers-color-scheme")]
-        self.assertEqual(order, sorted(order))  # your site's choice, then global, then the system
+        order = [
+            script.index(x)
+            for x in ("known(kept)", "known(GLOBAL)", "prefers-color-scheme")
+        ]
+        self.assertEqual(
+            order, sorted(order)
+        )  # your site's choice, then global, then the system
         self.assertEqual(stat.S_IMODE(os.stat(self.local).st_mode), 0o600)
 
     def test_clearing_it_and_unoffered_themes(self):
@@ -632,7 +654,13 @@ class GlobalThemeTests(Case):
     def test_the_menu_offers_this_site_everywhere_and_follow_global(self):
         self.set("ember")
         script = (self.rendered / "chrome.js").read_text()
-        for needle in ('data-theme-scope', 'data-theme-follow', "X-Portfolio-Global", "/_portfolio/global"):
+        for needle in (
+            "data-theme-scope",
+            "data-theme-follow",
+            "X-Portfolio-Global",
+            "/_portfolio/global",
+            "function followGlobal(name)",
+        ):
             self.assertIn(needle, script)
 
 
@@ -643,15 +671,24 @@ class WriterTests(Case):
 
         self.w = w
         self._set = pt.set_global
-        pt.set_global = lambda name: self._set(name, self.local, self.rendered, self.shared)
+        pt.set_global = lambda name: self._set(
+            name, self.local, self.rendered, self.shared
+        )
         self.addCleanup(setattr, pt, "set_global", self._set)
         # "site.test" stands for a site the shared Caddy fronts (registry/store hostname).
         self._hosts = w.allowed_hosts
         w.allowed_hosts = lambda: frozenset({"site.test"})
         self.addCleanup(setattr, w, "allowed_hosts", self._hosts)
+        self._state = pt.state
+        pt.state = lambda path=None: self._state(path or self.local)
+        self.addCleanup(setattr, pt, "state", self._state)
 
     def post(self, body, **headers):
-        base_headers = {"X-Portfolio-Global": "1", "Host": "site.test", "Origin": "https://site.test"}
+        base_headers = {
+            "X-Portfolio-Global": "1",
+            "Host": "site.test",
+            "Origin": "https://site.test",
+        }
         base_headers.update(headers)
         return self.w.handle(base_headers, body)
 
@@ -659,6 +696,27 @@ class WriterTests(Case):
         status, payload = self.post(b'{"theme": "ember"}')
         self.assertEqual((status, payload), (200, {"global": "ember"}))
         self.assertEqual(self.editor_state()["global"], "ember")
+
+    def test_global_theme_can_be_read_without_exposing_the_local_layer(self):
+        from http.client import HTTPConnection
+        from http.server import ThreadingHTTPServer
+        from threading import Thread
+
+        pt.set_global("ember")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.w.Handler)
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        conn = HTTPConnection("127.0.0.1", server.server_port)
+        try:
+            conn.request("GET", self.w.PATH)
+            response = conn.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read()), {"global": "ember"})
+        finally:
+            conn.close()
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_other_origins_a_missing_header_and_bad_bodies_change_nothing(self):
         for body, headers, status in (

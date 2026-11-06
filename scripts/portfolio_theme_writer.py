@@ -79,14 +79,23 @@ def handle(headers, body: bytes) -> tuple[int, dict]:
     try:
         name = json.loads(body).get("theme")
     except (ValueError, AttributeError):
-        return HTTPStatus.BAD_REQUEST, {"error": "send {\"theme\": name}"}
+        return HTTPStatus.BAD_REQUEST, {"error": 'send {"theme": name}'}
     if not isinstance(name, str):
-        return HTTPStatus.BAD_REQUEST, {"error": "send {\"theme\": name}"}
+        return HTTPStatus.BAD_REQUEST, {"error": 'send {"theme": name}'}
     try:
         pt.set_global(name)
     except pt.LocalThemeError as exc:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": str(exc)}
     return HTTPStatus.OK, {"global": name}
+
+
+def current_global() -> dict:
+    """Return only the validated global theme name for trusted same-origin consumers."""
+    state = pt.state()
+    name = state["global"]
+    if name is not None and not any(theme["name"] == name for theme in state["themes"]):
+        raise pt.LocalThemeError("global theme is unavailable")
+    return {"global": name}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -101,6 +110,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != PATH:
+            return self._reply(HTTPStatus.NOT_FOUND, {"error": "not found"})
+        try:
+            payload = current_global()
+        except pt.LocalThemeError:
+            return self._reply(
+                HTTPStatus.SERVICE_UNAVAILABLE, {"error": "theme unavailable"}
+            )
+        self._reply(HTTPStatus.OK, payload)
+
     def do_POST(self) -> None:  # noqa: N802
         if self.path != PATH:
             return self._reply(HTTPStatus.NOT_FOUND, {"error": "not found"})
@@ -110,7 +130,9 @@ class Handler(BaseHTTPRequestHandler):
         status, payload = handle(self.headers, self.rfile.read(length))
         self._reply(status, payload)
 
-    def log_message(self, *args) -> None:  # keep names of themes out of logs; status is enough
+    def log_message(
+        self, *args
+    ) -> None:  # keep names of themes out of logs; status is enough
         pass
 
 
