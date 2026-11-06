@@ -220,7 +220,13 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
             for name, job in all_clockwork_jobs.items()
             if name not in STANDALONE_JOBS
         }
-        ui_labels = _ui_labels(clockwork_jobs)
+        missing_jobs = set(records) - set(clockwork_jobs)
+        self.assertFalse(
+            missing_jobs,
+            f"traction-control agent jobs missing from Clockwork: {sorted(missing_jobs)}",
+        )
+        managed_jobs = {name: clockwork_jobs[name] for name in records}
+        ui_labels = _ui_labels(managed_jobs)
         self.assertEqual(set(ui_labels), set(records))
 
         with tempfile.TemporaryDirectory(
@@ -319,7 +325,7 @@ class ClockworkLaunchdContractTests(unittest.TestCase):
                 self.assertNotIn("StartInterval", payload)
                 self.assertNotIn("StartCalendarInterval", payload)
 
-            clockwork_timer = clockwork_jobs[name].get("timer")
+            clockwork_timer = managed_jobs[name].get("timer")
             if record["schedule_kind"] == "interval":
                 self.assertEqual(clockwork_timer["kind"], "interval")
                 self.assertEqual(

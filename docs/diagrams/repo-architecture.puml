@@ -33,6 +33,13 @@ package "Containerized Installer Validation (test-only)" #F8FAFC {
   rectangle "Offline assertions\nexact support downloads + unit sets\nuser-scope verify: private runtime, no bus\nidempotent rerun + --activate refusal\nno workloads or timers run" as container_checks #F0FDFA
 }
 
+package "Self-hosted GitHub Actions Runner Pilot (Azure VM deployed)" #F8FAFC {
+  file "infra/azure-runner/main.bicep\nNorth Central US VM + VNet + inbound-deny NSG\nno credentials in source" as azure_runner_iac #FCE7F3
+  node "Deployed short-lived Linux VM\nStandard_B2als_v2 + 32-GiB disk\nstatic IPv4; no inbound access" as azure_runner_vm #E0F2FE
+  component "k3s installed + Ready node\nARC scale set pending\nzero idle; one ephemeral job" as arc_runner #CCFBF1
+  rectangle "Reviewed what-if + explicit approval\nVM/network and k3s deployed\nconfigure ARC, test, then delete pilot group" as runner_gate #FEF3C7
+}
+
 package "Temporary Air-Primary Render (inactive)" #F8FAFC {
   file "ignored owner-only air-primary.local.toml\nutun + Air/mini/pro /32s + paths/ports\nindependent native-SMB + web switches" as air_config #FCE7F3
   component "scripts/render_air_primary.py\nstrict preflight + API probes + private staging" as air_coordinator #DBEAFE
@@ -86,6 +93,11 @@ bootstrap ..> container_runner : validation-only source
 container_runner --> container_image : narrow staged context
 container_image --> tier_containers : one fresh container / tier
 tier_containers --> container_checks
+
+operator --> runner_gate
+runner_gate --> azure_runner_iac : reviewed plan
+azure_runner_iac ..> azure_runner_vm : create only after confirmation
+azure_runner_vm ..> arc_runner : later manual setup
 
 operator --> air_config : private declaration
 air_config --> air_coordinator

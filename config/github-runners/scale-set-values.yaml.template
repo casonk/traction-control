@@ -1,0 +1,16 @@
+githubConfigUrl: https://github.com/OWNER/REPOSITORY
+githubConfigSecret: runner-auth
+runnerScaleSetName: private-ephemeral-pilot
+minRunners: 0
+maxRunners: 1
+
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-gha-rs-controller
+
+template:
+  spec:
+    automountServiceAccountToken: false
+    securityContext:
+      seccompProfile:
+        type: RuntimeDefault

@@ -12,6 +12,68 @@
 
 ## Lessons
 
+- For a personal GitHub account, Actions Runner Controller scale sets are
+  repository-scoped; its current API-auth guide supports a fine-grained token
+  with only repository `Administration: read/write`. Keep each pilot token
+  restricted to its repository, use zero idle and one ephemeral job runner,
+  and leave fork/untrusted pull-request workflows on GitHub-hosted runners.
+  ARC runner pods are containers rather than a VM security boundary, so place
+  the service in a dedicated KVM-backed VM and never expose host sockets or
+  host paths to jobs. For Azure estimates, include resources that keep billing
+  after VM deallocation (such as managed disks and public IPs): Azure budgets
+  alert but do not cap spend, so use an explicit teardown boundary for
+  short-lived pilots. When using the Azure CLI container with a host-mounted
+  config directory, verify the CLI-created files are owner-only; the container
+  can otherwise leave its cache/config files world-readable. Recheck before
+  each use because later CLI commands can create new 0644 files; fail closed
+  and restore owner-only modes before mounting the cache.
+- Azure free-account enrollment is a user-led signup and identity-verification
+  flow, not a CLI subscription-creation shortcut. It can require phone and
+  payment-card verification, and trial eligibility is not guaranteed. Never
+  request payment details in chat; have the account owner complete signup in
+  Microsoft's portal, then verify the resulting subscription through CLI.
+- Azure regional VM SKU listings do not guarantee deployment capacity:
+  `what-if` can reject an otherwise listed size. If selecting a comparable
+  alternative, verify architecture and memory, refresh the retail estimate,
+  and obtain approval for the revised plan before provisioning. When several
+  rootless Podman containers use the same owner-only Azure CLI config, avoid
+  concurrent `:Z` mounts, which can race SELinux relabeling. Prefer mounting
+  the config read-only and copying it to an ephemeral container directory via
+  `AZURE_CONFIG_DIR`; Azure CLI still needs writable command logs and state.
+- k3s installation can return before its API has registered a node. Do not
+  treat an empty successful `kubectl get nodes` as health; wait for at least one
+  node and its `Ready` condition with a bounded timeout. Make setup scripts
+  safe to rerun so a readiness check does not needlessly reinstall software.
+  Azure VM Run Command can report provisioning succeeded even when the guest
+  script exited nonzero; have the guest emit an explicit exit-status marker
+  and validate it in the caller instead of trusting the CLI exit code.
+- On an existing k3s cluster, adding `secrets-encryption: true` and restarting
+  may leave the config identity-only and report encryption disabled at stage
+  `start`. Wait for the node's encryption annotation to settle, use
+  `secrets-encrypt rotate-keys` from `start`, and verify `Enabled`,
+  `reencrypt_finished`, and matching server hashes before storing credentials.
+  When invoking Helm against k3s, explicitly set
+  `KUBECONFIG=/etc/rancher/k3s/k3s.yaml`; otherwise it may try
+  `localhost:8080`.
+- A Kubernetes NetworkPolicy manifest is not proof of isolation. Before
+  dispatching trusted workflow code, run a pod with the exact runner labels and
+  verify required public HTTPS/DNS works while node, API, metadata, and private
+  network destinations fail. Keep the scope as narrow as ARC's runner labels,
+  and document if public egress is broader than an FQDN allowlist.
+- Cross-repository contract tests should compare the exact subset owned by the
+  component under test, while separately asserting every owned item exists in
+  the broader registry. Unrelated valid entries in a shared registry should
+  not break a consumer's contract.
+- Do not pass PATs or other credentials through Azure VM Run Command: command
+  payloads and results belong to the cloud control plane. When explicitly
+  authorized, transfer a credential over verified SSH directly to the
+  encrypted Kubernetes Secret, pipe it through stdin rather than arguments or
+  files, and remove temporary SSH access and keys immediately.
+- ARC GitHub App authentication mints short-lived installation tokens, but the
+  App's RSA private key remains a long-lived credential. Verify that the App
+  can be installed for the target account/repository and pass a runner smoke
+  test before relying on this mode; for personal-account repositories, GitHub's
+  ARC guide currently directs App creation under an organization.
 - GitHub Actions has two switches. The repository-level `enabled` flag is what a
   pause changes, but GitHub also sets individual workflows to
   `disabled_inactivity` after 60 days without activity, and a repository-level

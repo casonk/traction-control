@@ -398,6 +398,9 @@ for arg in "$@"; do printf '\t%s' "${arg}" >> "${TEST_COMMAND_LOG}"; done
 printf '\n' >> "${TEST_COMMAND_LOG}"
 case "${1:-} ${2:-}" in
   "run list") printf '[]\n' ;;
+  "auth status")
+    [[ "${TEST_GH_AUTH_STATUS:-authenticated}" == "unauthenticated" ]] && exit 1
+    ;;
 esac
 exit 0
 STUB
@@ -1431,11 +1434,16 @@ smoke_wrapper() {
   local label="$1"
   local portfolio_root="$2"
   local log_dir="$3"
+  local gh_auth_status=authenticated
   shift 3
+  if [[ "$1" == *"/portfolio-audit.sh" ]]; then
+    gh_auth_status=unauthenticated
+  fi
   mkdir -p "${log_dir}"
   run_command env \
     PATH="${FAKE_BIN}:${ORIGINAL_PATH}" \
     TEST_COMMAND_LOG="${COMMAND_LOG}" \
+    TEST_GH_AUTH_STATUS="${gh_auth_status}" \
     HOME="${TEST_ROOT}/wrapper-home" \
     PORTFOLIO_ROOT="${portfolio_root}" \
     LOG_DIR="${log_dir}" \
@@ -1515,6 +1523,7 @@ ${REPO_ROOT}/scripts/archility-weekly.sh
   run_command env \
     PATH="${FAKE_BIN}:${ORIGINAL_PATH}" \
     TEST_COMMAND_LOG="${COMMAND_LOG}" \
+    TEST_GH_AUTH_STATUS=unauthenticated \
     HOME="${TEST_ROOT}/wrapper-home" \
     PORTFOLIO_ROOT="${sample_portfolio}" \
     LOG_DIR="${TEST_ROOT}/logs/portfolio" \
