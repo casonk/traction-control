@@ -102,6 +102,12 @@ python3 scripts/portfolio_materializer.py reconcile \
 the registry; removal needs an explicit lifecycle/tombstone design rather
 than silent lineage loss.
 
+If reviewed local checkouts include linked worktrees or remotes that cannot be
+bound safely, `reconcile` accepts the same explicit discovery overrides as
+`init`: `--skip-linked-worktrees` and `--skip-unverified-checkouts`. Skipped
+checkouts receive their normal proposed catalog path; inspect the plan before
+materializing any such path.
+
 After reviewing paths and storage impact, `materialize` clones only missing
 desired checkouts. `sync` fetches `origin` only for clean `fetch-only`
 checkouts. `audit` performs no writes:

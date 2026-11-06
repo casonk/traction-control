@@ -819,6 +819,48 @@ class PortfolioMaterializerHardeningTests(unittest.TestCase):
             "github/synthetic-owner/private-synthetic",
         )
 
+    def test_reconcile_can_skip_registered_linked_worktrees(self) -> None:
+        seed_checkout = self.root / "seed-checkout"
+        self._clone_checkout(self.PRIVATE_SLUG, seed_checkout)
+        linked_checkout = self.portfolio / "linked" / "private-synthetic"
+        linked_checkout.parent.mkdir(parents=True)
+        self._git(
+            "-C",
+            str(seed_checkout),
+            "worktree",
+            "add",
+            "--detach",
+            str(linked_checkout),
+            "HEAD",
+        )
+        new_id = "R_growth_synthetic"
+        new_slug = "synthetic-owner/growth-synthetic"
+        self._create_remote(new_slug)
+        self._write_registry(
+            generation=2,
+            private_entries=(
+                (self.PRIVATE_ID, self.PRIVATE_SLUG),
+                (new_id, new_slug),
+            ),
+            public_entries=((self.PUBLIC_ID, self.PUBLIC_SLUG),),
+        )
+
+        reconciled, added = materializer.reconcile_catalog(
+            self._load_pair(),
+            self.catalog_path,
+            self.portfolio,
+            skip_linked_worktrees=True,
+        )
+
+        self.assertEqual(added, 1)
+        self.assertEqual(
+            {
+                entry.repository_id: entry.relative_path
+                for entry in reconciled.repositories
+            }[new_id],
+            "github/synthetic-owner/growth-synthetic",
+        )
+
     def test_init_rejects_registered_checkout_with_unclassified_backup(
         self,
     ) -> None:
@@ -901,6 +943,21 @@ class PortfolioMaterializerHardeningTests(unittest.TestCase):
             allow_stale_registry=True,
         )
         self.assertEqual(stale.registry_generation, 1)
+        reconciled, added = materializer.reconcile_catalog(
+            grown_pair,
+            self.catalog_path,
+            self.portfolio,
+            skip_unverified_checkouts=True,
+        )
+        self.assertEqual(added, 1)
+        self.assertEqual(
+            {
+                entry.repository_id: entry.relative_path
+                for entry in reconciled.repositories
+            }[new_id],
+            "github/synthetic-owner/growth-synthetic",
+        )
+        self.assertEqual(reconciled.registry_generation, 2)
 
     def test_plan_redacts_private_and_unmanaged_locations_by_default(
         self,
