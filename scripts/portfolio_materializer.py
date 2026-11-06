@@ -1069,6 +1069,9 @@ def reconcile_catalog(
     pair: visibility.RegistryPair,
     catalog_path: Path,
     root: Path,
+    *,
+    skip_linked_worktrees: bool = False,
+    skip_unverified_checkouts: bool = False,
 ) -> tuple[CatalogDocument, int]:
     with _locked_registry_snapshot(pair) as current_pair:
         with _CatalogLock(catalog_path):
@@ -1095,7 +1098,12 @@ def reconcile_catalog(
                 )
             new_ids = current_ids - existing_ids
             discovered = (
-                _discover_registered_mappings(current_pair, root.resolve())
+                _discover_registered_mappings(
+                    current_pair,
+                    root.resolve(),
+                    skip_linked_worktrees=skip_linked_worktrees,
+                    skip_unverified_checkouts=skip_unverified_checkouts,
+                )
                 if new_ids
                 else {}
             )
@@ -1402,6 +1410,22 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_common_arguments(reconcile_parser)
+    reconcile_parser.add_argument(
+        "--skip-linked-worktrees",
+        action="store_true",
+        help=(
+            "Ignore registered linked worktrees during local path discovery; "
+            "they receive the normal proposed path."
+        ),
+    )
+    reconcile_parser.add_argument(
+        "--skip-unverified-checkouts",
+        action="store_true",
+        help=(
+            "Ignore registered checkouts whose remotes cannot be safely "
+            "bound; they receive the normal proposed path."
+        ),
+    )
 
     validate_parser = subparsers.add_parser("validate")
     _add_common_arguments(validate_parser)
@@ -1464,6 +1488,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 pair,
                 Path(args.catalog),
                 root,
+                skip_linked_worktrees=args.skip_linked_worktrees,
+                skip_unverified_checkouts=args.skip_unverified_checkouts,
             )
             print(
                 f"reconciled catalog generation {catalog.catalog_generation}: "

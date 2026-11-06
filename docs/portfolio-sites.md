@@ -64,6 +64,25 @@ which is the last resort and is always present. `nav.json` falls back to an empt
 bar shows just the theme control. A link or slug entry outside the store is ignored, only the four
 names are served, and a file must be a regular file inside the directory it was looked up in.
 
+## Host guard (DNS rebinding)
+
+A page on an attacker's hostname that resolves to `127.0.0.1` sends that hostname as both `Host` and
+`Origin`, so a service that only compares the two treats it as same-origin; a CSRF token does not help
+because the page can fetch it. The seam therefore also decides which `Host` values a service answers
+to, from one place:
+
+- `host_allowed(host_header, allowed)`: true for a loopback name (`localhost`, `127.0.0.0/8`, `::1`) or a
+  name in `allowed`; ports, case and a trailing dot are ignored, only the first `Host` value counts, and
+  `X-Forwarded-Host` never authorises anything.
+- `Site.host_allowed(host_header)`: `allowed` is the site's registered `hostname` plus optional
+  `allowed_hosts` from its store entry's `site.local.toml` and `PORTFOLIO_ALLOWED_HOSTS` (comma
+  separated), so private names never appear in a tracked file and a reverse proxy needs no extra setup.
+- `store_hostnames()` and `registry_hostnames(portfolio_root)` list every site's name, for a service that
+  all sites share (the global theme writer, which also refuses any other `Host`).
+
+Every enrolled web service calls `Site.host_allowed` on **every** request before doing anything else and
+answers 403 otherwise. Re-vendor after changing the seam (`portfolio_sites.py vendor --apply`).
+
 ## Commands
 
 ```bash

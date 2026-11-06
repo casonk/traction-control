@@ -4,6 +4,12 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Let the global theme writer find the portfolio root without relying on its own location: `PORTFOLIO_ROOT`, else the nearest ancestor holding `util-repos/wiring-harness`, else the usual depth. A copy of the script kept outside the portfolio (to run `main` while the live checkout is on another branch) now still reads the wiring-harness registry for its allowed hosts.
+
+- Fix `scripts/portfolio_theme_writer.py` failing to start (`ModuleNotFoundError: portfolio_site`) when run as a program: it now puts `themes/` on its import path, and a test runs it as a subprocess from another directory.
+
+- Add a shared DNS-rebinding guard to the portfolio site seam (`host_allowed`, `Site.host_allowed`, `store_hostnames`, `registry_hostnames`) and use it in the global theme writer, which now refuses any `Host` that is not loopback or a registry/store site name. Enroll Clockwork in the seam so it can use the same guard. See `docs/portfolio-sites.md`.
+
 - Add `scripts/rotate_azure_runner_secret.sh` to replace the encrypted ARC
   runner credential from an owner-only local PAT or GitHub App key over
   verified, temporary SSH; the helper restricts its inbound rule to the

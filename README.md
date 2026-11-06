@@ -206,6 +206,26 @@ Private shared utilities are resolved through the ignored local registry and
 catalog. They are intentionally not named or located in this tracked public
 document.
 
+## Portfolio Git Signing Standard
+
+The portfolio-standard OpenPGP signing utility, resolved through the ignored
+local registry and catalog, owns the local Git signing implementation. Each
+present catalog-managed checkout uses a distinct passphrase-protected OpenPGP
+signing key. The passphrase and armored backup are stored through `auto-pass`;
+the checkout contains only non-secret local Git configuration selecting its
+fingerprint and Git-compatible signing wrapper. Automatic commit and
+annotated-tag signing are enabled locally so future objects use the
+repository-specific key.
+
+Rollouts and audits must use the signing utility's catalog-driven helpers. They
+preflight conflicts, skip absent catalog paths, reuse existing bundles, roll
+back a new key after a failed vault write, and perform a non-committing signing
+probe. Hosted verification is a separate public-key-only step: register the
+exported public key with the authenticated Git host, compare key IDs before
+upload, and rerun registration as a no-op audit. Never upload private keys or
+passphrases, place key material in a checkout, or record it in tracked docs or
+logs.
+
 ## Architecture Layout Standard
 
 Across the portfolio, the starter architecture surface should now be consistent:
