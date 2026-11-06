@@ -238,6 +238,11 @@ if (!window.PortfolioTheme) {
     say("");
     paintScope();
   }
+  function followGlobal(name) {
+    GLOBAL = known(name);
+    if (!overridden()) apply(pick());
+    paintScope();
+  }
   function cycle() { set(following(current() || pick())); }
   function bind(el) {
     if (el.pfBound) return;
@@ -377,7 +382,7 @@ if (!window.PortfolioTheme) {
     });
     apply(root.getAttribute("data-theme") || pick());
   });
-  window.PortfolioTheme = { themes: THEMES, set: set, setGlobal: setGlobal, useGlobal: useGlobal, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, bindType: bindType, showType: function () { applyType(pickType()); }, setFont: function (name) { setType("font", name); }, setSize: function (name) { setType("size", name); }, cycleType: cycleType };
+  window.PortfolioTheme = { themes: THEMES, set: set, setGlobal: setGlobal, useGlobal: useGlobal, followGlobal: followGlobal, cycle: cycle, bind: bind, fill: fill, current: current, fillType: fillType, bindType: bindType, showType: function () { applyType(pickType()); }, setFont: function (name) { setType("font", name); }, setSize: function (name) { setType("size", name); }, cycleType: cycleType };
 })();
 }
 /* Portfolio top bar: builds the shared navigation from /_portfolio/nav.json (or
