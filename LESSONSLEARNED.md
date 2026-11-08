@@ -12,6 +12,8 @@
 
 ## Lessons
 
+- **Sunday Secret Scan `not in gzip format` is a failed Gitleaks download.** The weekly jobs start together and the GitHub release CDN sometimes returns HTML instead of the archive. `tar` then fails before gitleaks runs. Retry the download, reject a body that is not a tar archive, and sleep a short random time on `schedule`. The live shared workflow is `casonk/.github/.github/workflows/secret-scan.yml`; inline workflows and `docs/templates/secret-scan.yml` must keep the same install step.
+
 - For a personal GitHub account, Actions Runner Controller scale sets are
   repository-scoped; its current API-auth guide supports a fine-grained token
   with only repository `Administration: read/write`. Keep each pilot token
