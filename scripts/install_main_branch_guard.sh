@@ -44,7 +44,7 @@ if [ -n "${current}" ] && [ "${current}" != "${DEST}" ] && [ "${FORCE}" -ne 1 ];
 fi
 
 mkdir -p "${DEST}"
-for name in main-branch-guard.sh pre-commit pre-push; do
+for name in main-branch-guard.sh pre-commit pre-push commit-msg; do
   install -m 0755 "${SOURCE_DIR}/${name}" "${DEST}/${name}"
 done
 git config --global core.hooksPath "${DEST}"

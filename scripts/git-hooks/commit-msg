@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Refuse commit messages that name an AI model, agent or tool as author or origin.
+#
+# Portfolio rule 13 (AGENTS.md): AI involvement is disclosed once per repository in
+# CONTRIBUTING.md and nowhere else, so commit messages and trailers carry no
+# attribution to Claude, Anthropic, or any other assistant. Human co-authors stay
+# welcome. There is deliberately no bypass variable; fix the message instead.
+#
+# After the check passes, the repo's own .git/hooks/commit-msg runs, because a
+# global core.hooksPath otherwise hides repo-local hooks.
+set -euo pipefail
+
+# shellcheck source=main-branch-guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/main-branch-guard.sh"
+
+message_file="${1:?commit-msg hook needs the message file}"
+
+# Names that mark a line as AI attribution (matched case-insensitively).
+ai_names='claude|anthropic|chatgpt|openai|copilot|codex|gemini|cursor|aider|devin|windsurf|grok|antigravity'
+
+# Drop comment lines git adds to the editor template, then look for attribution.
+offending="$(
+  grep -v '^#' "${message_file}" | grep -inE \
+    -e "^[[:space:]]*co-authored-by:.*(${ai_names}|noreply@anthropic\\.com)" \
+    -e '^[[:space:]]*(claude-session|assisted-by|generated-by|ai-assisted|ai-generated)[a-z-]*:' \
+    -e "(generated|created|written|authored|assisted|made)[[:space:]]+(with|by)[[:space:]]+(\\[)?(${ai_names})" \
+    -e 'claude\.ai/code|claude\.com/claude-code' || true
+)"
+
+if [ -n "${offending}" ]; then
+  {
+    echo "commit-msg: refusing a commit message that attributes the work to an AI tool."
+    echo "  Portfolio rule 13: disclose AI involvement once per repository in CONTRIBUTING.md,"
+    echo "  never in commit messages or trailers. Offending line(s):"
+    printf '%s\n' "${offending}" | sed 's/^/    /'
+    echo "  Remove them and commit again."
+  } >&2
+  exit 1
+fi
+
+guard_chain commit-msg ${1+"$@"}
