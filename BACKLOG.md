@@ -16,6 +16,13 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-11] **Resolve the `snowbridge` catalog path.** The `snowbridge` checkout has an
+  `upstream` fork remote, and `verify_checkout` requires every remote of a checkout to be the same
+  registered repository, so the checkout is unverifiable. Its catalog row therefore points at
+  `github/casonk/snowbridge`, which does not exist, and a `materialize` would clone a second copy.
+  `reconcile --skip-unverified-checkouts` only avoids the error. Choose: remove the `upstream` remote from
+  the checkout (then re-bind the row), or teach the materializer to ignore non-origin remotes (or take an
+  allowlist).
 - [ ] [manual:2026-11-01] **Replace the pilot credential and decide when to tear down ARC.**
   An enabled subscription is verified and the reviewed North Central US Bicep
   plan is deployed: a Standard_B2als_v2 VM, network interface, deny-all-inbound
