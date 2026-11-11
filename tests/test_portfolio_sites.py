@@ -141,6 +141,15 @@ class EnrollmentTests(unittest.TestCase):
         self.overlay = self.root / "overlay.conf"
         self.classes = {"o/pub": "public", "o/priv": "private", "o/unknown": "unclassified"}
         self.classify = lambda slug: self.classes.get(slug, "unclassified")
+        # `check` validates against the machine's local theme layer when one exists, so a developer
+        # who has one would get different results from CI. Point the layer at a file that is absent.
+        saved = os.environ.get("PORTFOLIO_THEMES_LOCAL")
+        os.environ["PORTFOLIO_THEMES_LOCAL"] = str(self.root / "no-local-themes.toml")
+        self.addCleanup(
+            lambda: os.environ.pop("PORTFOLIO_THEMES_LOCAL", None)
+            if saved is None
+            else os.environ.__setitem__("PORTFOLIO_THEMES_LOCAL", saved)
+        )
         # the temp directory may itself be inside a stray work tree; test that rule separately
         self._exposed = ps._exposed_by_git
         ps._exposed_by_git = lambda path: False
