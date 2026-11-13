@@ -12,6 +12,7 @@
 
 ## Lessons
 
+- **Restarting a systemd service kills every process it started, including ones you meant to outlive it.** A tmux server first created by a web service's "Open" action lived in that service's cgroup, so `systemctl --user restart` closed every web-terminal window and the agent shell running in one. Start long-lived children in their own transient scope (`systemd-run --user --scope`, falling back to a plain start when there is no user manager), and check `/proc/<pid>/cgroup` before restarting a service you or an agent are working inside. Keep tests from depending on the host having `systemd-run`: stub the scope helper in `conftest.py`, because CI runners have a user manager and a developer shell may not.
 - **Sunday Secret Scan `not in gzip format` is a failed Gitleaks download.** The weekly jobs start together and the GitHub release CDN sometimes returns HTML instead of the archive. `tar` then fails before gitleaks runs. Retry the download, reject a body that is not a tar archive, and sleep a short random time on `schedule`. The live shared workflow is `casonk/.github/.github/workflows/secret-scan.yml`; inline workflows and `docs/templates/secret-scan.yml` must keep the same install step.
 
 - For a personal GitHub account, Actions Runner Controller scale sets are
