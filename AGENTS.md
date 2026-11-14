@@ -168,6 +168,10 @@ Current strong baseline across the portfolio:
 Re-scan before making claims based on exact counts. This layer should stay accurate without becoming stale.
 For periodic content review, use [the baseline content review guide](docs/baseline-content-review.md). A scaffold-era commit date is a triage signal, not proof that a file needs to change.
 
+## Python Logging Convention
+
+Python services, CLIs and timers log through the standard library to stderr (the systemd journal) with one format, a `--log-level` flag plus `<REPO>_LOG_LEVEL`, `SyslogIdentifier=<repo>` on their units, and secret redaction before emission. Swallowed exceptions in fallbacks and background workers must log a warning. See [`docs/python-logging.md`](docs/python-logging.md).
+
 ## Local Session Memory Standard
 
 - Each repository should use repo-root `LESSONSLEARNED.md` as the tracked durable-lessons file.
