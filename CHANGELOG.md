@@ -4,6 +4,8 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the Python logging convention (`docs/python-logging.md`, summarised in `AGENTS.md`): stdlib `logging` configured once at the entry point, stderr/journal output in one format, `--log-level` and `<REPO>_LOG_LEVEL`, `SyslogIdentifier` per repo, redaction before emission, and a warning for every swallowed exception. `session-control` is the reference implementation.
+
 - Add a `commit-msg` hook to the portfolio git hooks that refuses commit messages attributing work to an AI model or tool: AI co-author trailers, session trailers, "generated with" footers and hosted session links. It enforces rule 13 from any tool. Human co-authors are unaffected, the hook chains to a repo's own `commit-msg` hook, and `install_main_branch_guard.sh` now installs it. Re-run the installer on each machine to pick it up.
 
 - Let the global theme writer find the portfolio root without relying on its own location: `PORTFOLIO_ROOT`, else the nearest ancestor holding `util-repos/wiring-harness`, else the usual depth. A copy of the script kept outside the portfolio (to run `main` while the live checkout is on another branch) now still reads the wiring-harness registry for its allowed hosts.
