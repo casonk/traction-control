@@ -12,9 +12,15 @@ Reference implementation: `session-control/src/session_control/logging_setup.py`
 2. **Configure once, at the entry point.** The CLI `main()` or service start-up calls a
    single `configure_logging(level)`. Library modules never call `basicConfig`, add
    handlers or change levels. The call is idempotent: a second call does not stack handlers.
-3. **Log to stderr.** Under systemd stderr is the journal, so no log files and no rotation
-   to maintain. Normal command output (results, JSON) stays on stdout; `print` is not a
-   logging call.
+3. **Log to stderr.** Under systemd stderr is the journal, so Linux needs no log file and no
+   rotation. Normal command output (results, JSON) stays on stdout; `print` is not a logging
+   call. **A file is optional and for platforms without a journal** (macOS, Windows, cron
+   hosts): `--log-file {PATH|default|off}` and `<REPO>_LOG_FILE`; unset means on for macOS
+   and Windows and off on Linux. The file is a `RotatingFileHandler` (5 MB, 3 backups),
+   owner-only (`0600` in a `0700` directory), carries the same redacting filter, and failing to
+   open or rotate it is never fatal. Platform defaults: `$XDG_STATE_HOME/<repo>/<repo>.log`
+   (`~/.local/state`), `~/Library/Logs/<repo>/`, `%LOCALAPPDATA%\<repo>\Logs\`. Tests set the
+   variable to `off` so CI never writes to a real profile.
 4. **One format:** `%(asctime)s %(levelname)s %(name)s: %(message)s`.
 5. **Level control:** a global `--log-level {debug,info,warning,error,critical}` option and
    a `<REPO>_LOG_LEVEL` environment variable (for example `SESSION_CONTROL_LOG_LEVEL`).
