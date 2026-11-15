@@ -149,10 +149,11 @@ renderers without activating them.
    - `docs/self-hosted-github-runners.md` and the generic ARC scale-set values
      template define the guarded, repository-scoped ephemeral runner pilot.
      The controller belongs in a dedicated VM; local operation requires KVM,
-     while the Azure Bicep scaffold is short-lived and does not provision
-     automatically. `infra/azure-runner/main.bicep` declares the Azure VM,
-     outbound network path, and deny-all inbound boundary; a cost and approval
-     gate precedes any deployment. The pilot smoke workflow remains manual and
+     while the Azure Terraform scaffold is short-lived and does not provision
+     automatically. `infra/azure-runner/terraform` declares the Azure VM,
+     outbound network path, and deny-all inbound boundary;
+     `scripts/azure_runner_stack.sh` plans, applies, and destroys it. A cost
+     and approval gate precedes any deployment. The pilot smoke workflow remains manual and
      does not replace hosted pull-request CI.
    - `tests/test_install_traction_control_agents_containers.sh` stages a narrow
      image context with this repo plus the real local Clockwork and Archility

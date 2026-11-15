@@ -32,10 +32,11 @@ GitHub-hosted runners. Do not route untrusted code to self-hosted runners.
 - For a local deployment, require working KVM acceleration on the host. Do not
   substitute software emulation or run jobs directly on the Fedora host.
 - For the Azure pilot, use the short-lived single-VM scaffold in
-  `infra/azure-runner/main.bicep`. It creates a North Central US Ubuntu VM,
+  `infra/azure-runner/terraform`. It creates a North Central US Ubuntu VM,
   isolated VNet/subnet, static public IPv4 for outbound runner traffic, and an
   NSG that denies all inbound traffic. It does not install Kubernetes or ARC,
   create credentials, or deploy any Azure resources by itself.
+  `infra/azure-runner/main.bicep` declares the same shape.
 - The Azure VM's outbound access is needed for GitHub and image/package
   downloads. The subnet NSG is not a pod-level egress boundary; enforce the
   runner network policies below before dispatching jobs.
@@ -62,42 +63,41 @@ GitHub-hosted runners. Do not route untrusted code to self-hosted runners.
 
 ## Azure infrastructure scaffold
 
-The Bicep file is infrastructure-as-code only. The short-lived Azure VM and
-network pilot has been deployed after a reviewed `what-if`; k3s is installed
-and its node is Ready. The ARC 0.15.1 controller is installed in `arc-systems`,
-and k3s secret encryption is enabled with re-encryption complete. Runner
-network isolation is applied and verified, and the zero-idle `dotfiles-pilot`
-scale set is registered with a Running listener. The test-only secret currently
-uses the existing broader GitHub CLI token. The manual smoke workflow has run
-successfully on the self-hosted runner, and Azure confirmed its ephemeral pod
-was removed. The user chose to keep the pilot online; replace the broad test
-credential with repository-scoped GitHub App credentials or a fine-grained PAT
-before dispatching another job. The rotation helper supports both; App mode
-lets ARC mint short-lived tokens without periodic PAT replacement. The VM,
-disk, and public IP remain billable while the pilot is kept online.
-Use a dedicated resource group for the pilot. The example parameters must be
-supplied locally; never commit an SSH private key, GitHub token, or owner-only
-deployment values. Inbound traffic is denied by default; any temporary SSH
-exception must be limited to the operator's current `/32` and removed
-immediately after secret provisioning.
-
-After installing Azure CLI and signing in, select the intended subscription,
-create a dedicated resource group, and review the deployment:
+Terraform is the way to create and delete the billable pilot.
+`scripts/azure_runner_stack.sh` runs `infra/azure-runner/terraform` with the
+active Azure CLI account. `plan` previews the change, `apply` creates the
+resource group, and `destroy` deletes that group, including the VM, managed
+disk, and static public IP. State is stored under the owner-only XDG state
+directory (`~/.local/share/traction-control/azure-runner` unless
+`XDG_STATE_HOME` is set). Do not commit state, `.terraform/`, or a copied
+subscription id. `adopt` imports an already deployed pilot into that state so
+a later `destroy` removes it.
 
 ```sh
 az login
-az account set --subscription <subscription-id>
-az group create --name rg-arc-pilot --location northcentralus
-az deployment group what-if \
-  --resource-group rg-arc-pilot \
-  --template-file infra/azure-runner/main.bicep \
-  --parameters adminUsername=runneradmin \
-    adminSshPublicKey="$(cat ~/.ssh/id_ed25519.pub)"
+./scripts/azure_runner_stack.sh plan
+./scripts/azure_runner_stack.sh apply    # type APPLY
+./scripts/azure_runner_stack.sh destroy  # type DESTROY
 ```
 
-`what-if` previews resource changes; it is not a monetary cost estimate and
-does not create the VM. Do not run `az deployment group create` until the user
-has reviewed the resource plan and separately confirmed billable provisioning.
+`plan` is not a monetary cost estimate and does not create the VM. Do not
+apply until the resource plan and cost have been reviewed. `apply` shows the
+plan first and asks for `APPLY` only when something would change. It refuses
+a plan that would replace an existing resource unless
+`AZURE_RUNNER_ALLOW_REPLACE=1`. A plan that only updates tags does not need
+to be applied before destroy. `adopt` imports the current pilot into local
+state and restores that state if an import fails, so a partial import cannot
+become a later destroy of the whole group. The default SSH public key file is
+`~/.ssh/id_ed25519.pub`; override it with
+`AZURE_RUNNER_SSH_PUBLIC_KEY_FILE`. Never pass a private key. Inbound traffic
+is denied by default. Any temporary SSH exception must be limited to the
+operator's current `/32` and removed immediately after secret provisioning.
+
+The Bicep file remains the reviewed resource shape. Keep the Terraform module
+aligned with it: North Central US, `Standard_B2als_v2`, a 32 GiB Standard HDD
+OS disk, `10.240.0.0/16`, and a single deny-all inbound rule. Terraform does
+not install Kubernetes or ARC. After apply, use the guarded helpers below.
+Stopping or deallocating the VM does not stop the disk and public IP charges.
 
 On the Fedora host, Azure CLI is run from the official rootless Podman image.
 Use the guarded helper to install k3s on the deployed VM through Azure Run
@@ -123,15 +123,11 @@ in North Central US because of capacity restrictions. The comparable
 rate is $0.0376/hour; the VM, disk, and static IPv4 estimate is about
 $32.64/month at 730 hours, before bandwidth and other charges. Deallocating the
 VM stops compute charges but does not remove the managed disk or public IP
-charges. Delete the dedicated resource group after a short pilot to stop those
-recurring charges. Azure budgets are alerts, not a hard spending cap.
-
-When deployment is explicitly approved, first review the plan with
-`az deployment group what-if`, then create the resources only after confirming
-the subscription, region, and cost. The final confirmation is required before
-running `az deployment group create`. After use, verify the resource group
-contains only pilot resources before deleting it. Keep the Azure subscription
-and resource-group identifiers out of tracked files.
+charges. The deployed OS disk is set to detach when the VM is deleted, so
+removing only the VM leaves the disk billing. `./scripts/azure_runner_stack.sh destroy`
+deletes the resource group and stops those recurring charges. Azure budgets
+are alerts, not a hard spending cap. Keep the Azure subscription and
+resource-group identifiers out of tracked files.
 
 ## Pilot deployment
 
@@ -255,14 +251,16 @@ public repositories through the private-repository policy.
 To remove a pilot, uninstall its scale-set release, delete its Kubernetes
 credential, uninstall the controller only if no other scale sets use it, and
 revoke the dedicated PAT or uninstall the GitHub App/revoke its private key.
-For the Azure scaffold, also delete the dedicated resource group after
-confirming it contains only pilot resources.
+For the Azure scaffold, run `./scripts/azure_runner_stack.sh destroy` after
+confirming the resource group contains only pilot resources.
 
 ## References
 
 - [Actions Runner Controller quickstart](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started)
 - [Authenticating ARC to the GitHub API](https://docs.github.com/en/actions/how-tos/manage-runners/use-actions-runner-controller/authenticate-to-the-api)
 - [Secure use of self-hosted runners](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#hardening-for-self-hosted-runners)
+- [Terraform language](https://developer.hashicorp.com/terraform/language)
+- [AzureRM provider 4.81](https://registry.terraform.io/providers/hashicorp/azurerm/4.81.0/docs)
 - [Bicep overview](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview)
 - [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices)
 - [Azure public IP addresses](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses)

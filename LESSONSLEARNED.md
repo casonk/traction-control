@@ -77,6 +77,35 @@
   can be installed for the target account/repository and pass a runner smoke
   test before relying on this mode; for personal-account repositories, GitHub's
   ARC guide currently directs App creation under an organization.
+- A successful Azure browser sign-in does not prove Azure Resource Manager
+  access. When Azure CLI returns `AADSTS530035`, inspect the tenant security
+  defaults or sign-in policy for that exact event in Entra sign-in logs; do not
+  create another billed subscription to work around an authorization block.
+- A headless Azure CLI container may not be able to launch the host browser and
+  can fall back to device-code login. When that flow is blocked by tenant
+  policy, authenticate with Azure CLI on a browser-capable host instead of
+  repeating login attempts from the container.
+- Replacing an Actions Runner Controller credential updates the Kubernetes
+  Secret only. Recreate the listener pod afterward, then confirm it polls
+  GitHub, because the running listener keeps the previous credential until it
+  starts again.
+- Do not set a self-hosted scale set's maximum from the GitHub-hosted runner
+  allowance. That allowance meters hosted compute and hosted concurrency.
+  Self-hosted runners do not draw on it, and the pilot VM only has capacity
+  for the configured maximum of one job.
+- Create and delete the Azure runner pilot with
+  `scripts/azure_runner_stack.sh`. Stopping the VM, or deleting only the VM,
+  leaves the disk and public IP billing because the OS disk detaches.
+  `destroy` removes the resource group. Keep Terraform state in the
+  owner-only XDG state directory and never in Git. Trim the SSH public key
+  for a new VM, and ignore `admin_ssh_key` after import: the deployed key
+  was stored with a trailing space, so planning the trimmed key proposes an
+  authorized-keys update. `apply` must refuse a plan that replaces an
+  existing resource unless that replacement is intentional, and a failed
+  `adopt` must restore the previous state: a partial state that contains
+  only the resource group would delete the disk and public IP on destroy.
+  Ignore resolved image-build drift so a refresh does not plan a VM
+  replacement. Terraform does not install k3s or the runner controller.
 - GitHub Actions has two switches. The repository-level `enabled` flag is what a
   pause changes, but GitHub also sets individual workflows to
   `disabled_inactivity` after 60 days without activity, and a repository-level
