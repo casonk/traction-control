@@ -16,28 +16,28 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
-- [ ] [manual:2026-11-15] **Portfolio standards review: first audit and what to standardise.** A read-only audit of 54
-  repositories (35 public, 19 private) against the files and metadata the portfolio expects found:
-  - **Code of Conduct is the least consistent standard.** About 24 repositories share one short "simple professional
-    standard" text, many carry bespoke wording, eight cite or reproduce the Contributor Covenant (v2.1 where a version is stated), and
-    four have no `CODE_OF_CONDUCT.md` or `CONTRIBUTING.md` at all. No README carries a Contributor Covenant badge, so the
-    "2.0 badge" seen on a repository is not in these checkouts' own files; find where it is displayed (GitHub's community
-    profile, a rendered page, or a repository outside this workspace) before changing anything. Decide the standard first:
-    adopt the Contributor Covenant 3.0 text everywhere via the account-level `.github` repository (repositories without
-    their own file inherit it), keep a short portfolio text, or a deliberate mix. Then change the generator and the files
-    together, not one repository at a time.
-  - **Repository metadata:** one private repository has no description; three public repositories share one description;
-    every repository (54 of 54) has no GitHub topics, which hurts discoverability; one description is under 40 characters.
-    The weekly description sync does not set topics.
-  - **Licences:** 43 MIT, 2 Apache-2.0, 1 LGPL-2.1 and 8 that GitHub reports as "other". Three public documentation
-    repositories use Creative Commons, which is deliberate but should be written down as policy. Four **public** utility
-    repositories (a torrent UI, a remote-access config repo, a VPN config repo and a file-sharing repo) carry an
-    all-rights-reserved licence, one reading "Private - not for distribution", while the rest of the public portfolio is MIT.
-    Decide each on purpose: relicense under MIT, or keep reserved and say why.
-  - **Smaller gaps:** four repositories show no generated badge block; four have `CLAUDE.md` as a copy or missing instead
-    of the link to `AGENTS.md`; two had an unfilled `LESSONSLEARNED.md` template header (fixed 2026-11-15).
-  Next: turn the audit into a checked-in, read-only script with tests, wire it into `portfolio-audit.sh`, and fix the
-  findings the owner approves in batches, with the generator and the account-level defaults changed first.
+- [ ] [manual:2026-11-15] **Portfolio standards review: what is done and what is left.** A read-only audit of the 52
+  repositories (33 public, 19 private; two directories that look like repositories are git worktrees of `crew-chief`
+  and are not counted) found the gaps below. Done 2026-11-15: the Contributor Covenant 3.0 is the account default in
+  `.github` and 42 repositories were moved onto it (generic or old-Covenant local copies removed so they inherit it;
+  those with repository-specific rules keep them under the 3.0 text); `repo_settings.py` now validates, checks and
+  applies `topics`, and 43 repositories have topics and corrected descriptions applied on GitHub.
+  - **Held by GitHub Actions billing:** nine private repositories' pull requests (Covenant and topics) failed before any
+    job started ("recent account payments have failed or your spending limit needs to be increased"). Fix the billing or
+    spending limit, re-run the failed jobs, then merge them (the rollout state files record which) and run
+    `repo_settings.py apply`.
+  - **Licences (owner decision):** 43 MIT, 2 Apache-2.0, 1 LGPL-2.1 and 8 that GitHub reports as "other". Three public
+    documentation repositories use Creative Commons, which is deliberate but should be written down as policy. Four
+    **public** utility repositories (a torrent UI, a remote-access config repo, a VPN config repo and a file-sharing
+    repo) carry an all-rights-reserved licence, one reading "Private - not for distribution", while the rest of the
+    public portfolio is MIT. Decide each on purpose: relicense under MIT, or keep reserved and say why.
+  - **Index accuracy:** the repository tables in the portfolio `AGENTS.md` files list two repositories that are
+    worktrees of `crew-chief`, not repositories of their own. Remove them from the index or give them real repositories.
+  - **Smaller gaps:** two repositories show no generated badge block; four have `CLAUDE.md` as a copy or missing instead
+    of the link to `AGENTS.md`; the weekly description sync does not set topics (only `repo_settings.py apply` does).
+  - **Not found:** a "2.0 Contributor Covenant badge" is not in any checked-out README; locate where it is displayed.
+  Next: turn the audit into a checked-in, read-only script with tests, wire it into `portfolio-audit.sh`, and add the
+  topics and Covenant checks to it.
 - [ ] [manual:2026-11-11] **Resolve the `snowbridge` catalog path.** The `snowbridge` checkout has an
   `upstream` fork remote, and `verify_checkout` requires every remote of a checkout to be the same
   registered repository, so the checkout is unverifiable. Its catalog row therefore points at
