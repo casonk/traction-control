@@ -176,11 +176,39 @@ Do not use 8081 (the password UI), 8090 and 8091 (the remote-desktop dev contain
 console); one forward already failed on a taken port. Allocate new ClusterIPs in `10.43.0.50`-`10.43.0.99` and
 add them here in the same change.
 
-## Adding a new service
+## Adding a new service: scaffold, fill in, check
 
-1. Write the app so every mode-dependent value is an environment variable defaulting to standalone behaviour.
-2. Add `deploy/deploy.sh`, `config/deploy.example.env`, `docs/deployment.md`, and a README link; add the
-   gitignore rule for `config/deploy.local.env` and check it.
-3. Add `deploy/k3s/` (Containerfile, `build-image.sh`, `prepare-host.sh`, `apply.sh`, `verify.sh`, manifests).
-4. Copy the tests above and run the mutation checks.
-5. Add the service to the reference table here and its address and ports to the table above.
+Do not copy a `deploy.sh` from another repository by hand: the fixes learned the hard way (`set -E`, executable bits,
+the dirty-source guard, restore traps) are in the templates, and the generated tests prove them.
+
+```bash
+python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind job
+python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind service --cluster-ip 10.43.0.62 --port 5462
+```
+
+Choose the kind from how the thing behaves (`job` periodic, `worker` must never run twice, `service` has a port,
+`sandbox` isolates one risky step of a service). Useful options: `--unit`, `--namespace`, `--dev-up` (how it runs once
+in the foreground), `--source` (paths baked into the image and guarded against uncommitted changes), `--host-data`
+(the pod mounts host folders, so also generate `prepare-host.sh`), `--dry-run`, `--force`. It refuses an address or
+port already in the table below, and writes nothing if anything is wrong.
+
+What you get, all passing from the first run:
+
+- `deploy/deploy.sh` for the kind, `config/deploy.example.env`, `docs/deployment.md`, a README section and a
+  `.gitignore` rule for `config/deploy.local.env`
+- `deploy/k3s/`: `env_value.py`, `build-image.sh` (with the dirty-source guard), and `handover.sh` (job) or
+  `bridge.sh` and its systemd units (service, sandbox)
+- `tests/test_deploy_modes.py`: the contract's tests above, for that kind, against stub commands
+
+What you must write, deliberately left as stubs that **fail loudly** (`apply.sh`, `verify.sh`, `Containerfile`,
+`manifests/`, and `prepare-host.sh` with `--host-data`): the parts that depend on what the app is. Each stub says what
+the contract requires of it. Then:
+
+1. fill in the stubs; the generated tests keep passing as you go
+2. `python3 scripts/check_deployment_modes.py --repo ../my-app` (FAIL means the contract is broken, WARN means a stub
+   remains); run it in review and wherever you audit the portfolio
+3. add the service's ClusterIP and ports to the table above, in the same change that adds the service
+
+The checker needs no cluster. It checks the files, the selection order, `set -E`, the config read, the hand-over order
+for the kind, executable bits, the gitignore rule, the docs and tests, and the manifests (restricted namespace, no
+`hostPath`, no `fsGroup` on a pod that mounts host files, a suspended CronJob, a network policy).

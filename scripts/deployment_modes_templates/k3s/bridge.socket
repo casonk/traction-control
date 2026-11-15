@@ -1,0 +1,8 @@
+[Unit]
+Description=@@APP@@ on loopback, forwarded into K3s
+
+[Socket]
+ListenStream=127.0.0.1:@@PORT@@
+
+[Install]
+WantedBy=sockets.target

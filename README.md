@@ -107,6 +107,7 @@ bash tests/test_create_private_github_repo.sh
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
 - `docs/portfolio-sites.md`: deploying pages with whatever tooling is present: the central store, `scripts/portfolio_sites.py`, resolution order, and public/private enrollment
 - `docs/deployment-modes.md`: the contract for services that run `dev`, `host` or `k3s` from one `deploy/deploy.sh` setting, the K3s platform conventions, and the address and port table
+- `scripts/scaffold_deployment_modes.py` and `scripts/check_deployment_modes.py`: generate that contract into a repository (four kinds, with passing tests), and audit any repository against it
 - `docs/system-theme.md`: the portfolio colour themes, tokens, and how pages and reports adopt them (`themes/themes.toml` is the source)
 - `docs/lesson-capture-framework.md`: end-of-session gate for deciding whether a durable lesson must be recorded
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo

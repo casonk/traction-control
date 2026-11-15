@@ -1,0 +1,4 @@
+UNIT="@@UNIT@@"
+BRIDGE="@@BRIDGE_UNIT@@.socket"
+NAMESPACE="@@NAMESPACE@@"
+PORT="${@@PREFIX@@_PORT:-@@PORT@@}"
