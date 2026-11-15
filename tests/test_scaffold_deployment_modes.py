@@ -27,6 +27,7 @@ HAS_PYTEST = importlib.util.find_spec("pytest") is not None
 # One scaffold per kind, using addresses that are free in docs/deployment-modes.md.
 KINDS = {
     "job": ["--app", "demo-job"],
+    "triggered": ["--app", "demo-heavy"],
     "worker": ["--app", "demo-worker"],
     "service": ["--app", "demo-web", "--cluster-ip", "10.43.0.91", "--port", "5591"],
     "sandbox": ["--app", "demo-box", "--cluster-ip", "10.43.0.92", "--port", "5592"],
@@ -378,3 +379,47 @@ class CheckerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TriggeredKindTests(unittest.TestCase):
+    def test_the_timer_is_never_disabled_and_the_dropin_replaces_only_execstart(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(root)
+            self.assertEqual(run_scaffold(repo, "triggered")[0], 0)
+            deploy = (repo / "deploy" / "deploy.sh").read_text()
+            up_k3s = deploy[deploy.index("  up:k3s)") : deploy.index("  down:k3s)")]
+            self.assertNotIn("disable --now", up_k3s)
+            self.assertTrue((repo / "deploy" / "k3s" / "run-job.sh").exists())
+            dropin = (repo / "deploy" / "k3s" / "systemd" / "20-k3s-run.conf").read_text()
+            self.assertIn("ExecStart=\n", dropin)
+            self.assertEqual(failures(checked(repo)), [])
+
+    def test_the_checker_flags_a_triggered_deployment_that_disables_its_timer(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(root)
+            run_scaffold(repo, "triggered")
+            path = repo / "deploy" / "deploy.sh"
+            path.write_text(path.read_text().replace('    "$K3S_DIR/handover.sh" pod-on\n', '    systemctl --user disable --now "$TIMER"\n    "$K3S_DIR/handover.sh" pod-on\n', 1))
+            self.assertTrue(any("never disabled" in f for f in failures(checked(repo))))
+
+    def test_the_checker_flags_a_dropin_that_changes_more_than_execstart(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(root)
+            run_scaffold(repo, "triggered")
+            conf = repo / "deploy" / "k3s" / "systemd" / "20-k3s-run.conf"
+            conf.write_text(conf.read_text() + "ExecCondition=/bin/true\n")
+            self.assertTrue(any("only ExecStart" in f for f in failures(checked(repo))))
+
+    def test_a_triggered_unit_must_be_a_timer(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(root)
+            code, _, err = run_scaffold(repo, "triggered", "--unit", "x.service")
+            self.assertEqual(code, 2)
+            self.assertIn("timer", err)
+
+    def test_the_build_script_finds_crew_chief_outside_util_repos(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(root)
+            run_scaffold(repo, "job")
+            text = (repo / "deploy" / "k3s" / "build-image.sh").read_text()
+            self.assertIn("../../util-repos/crew-chief", text)

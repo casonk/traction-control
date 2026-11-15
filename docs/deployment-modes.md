@@ -47,6 +47,15 @@ Two copies of the same work are the main hazard, and the three kinds of service 
   kubectl) rather than start a second one.
 - **Periodic job** (the Spotify-history poller): the CronJob is created `suspend: true`; the host timer keeps running until
   `verify.sh` passes, then `up` disables the timer and unsuspends the job. A failed verify changes nothing.
+- **Triggered job** (a heavy weekly download-and-plot refresh): a job whose unit carries host-side guards (traction-control's
+  job guard, the resource arbiter's CPU and I/O limits, a time limit) or a post-step that needs host credentials (opening a pull
+  request with `gh`) must keep its timer: a CronJob would bypass all of them. In `k3s` mode the timer and unit stay
+  exactly as they are and `up` installs a removable systemd drop-in that replaces only `ExecStart`, with
+  `deploy/k3s/run-job.sh`. That script creates one Job from a CronJob that stays `suspend: true` for ever (its
+  schedule is a date that never occurs; it is only a template), streams the pod's log into the journal, deletes the
+  Job if systemd stops the unit, and exits with the job's status. `up` never disables the timer; `host up` removes the
+  drop-in. The checker asserts the timer is never disabled and that the drop-in sets nothing but `Environment` and
+  `ExecStart`.
 
 When systemd cannot tell which mode last held the work (a CronJob is invisible to it), `up` writes a marker file
 under `~/.local/state/<app>/deploy-mode`, and `host up` reads it to know the pod must be stopped first.
@@ -186,7 +195,7 @@ python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kin
 python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind service --cluster-ip 10.43.0.62 --port 5462
 ```
 
-Choose the kind from how the thing behaves (`job` periodic, `worker` must never run twice, `service` has a port,
+Choose the kind from how the thing behaves (`job` periodic, `triggered` periodic but guarded or post-processed on the host, `worker` must never run twice, `service` has a port,
 `sandbox` isolates one risky step of a service). Useful options: `--unit`, `--namespace`, `--dev-up` (how it runs once
 in the foreground), `--source` (paths baked into the image and guarded against uncommitted changes), `--host-data`
 (the pod mounts host folders, so also generate `prepare-host.sh`), `--dry-run`, `--force`. It refuses an address or

@@ -33,9 +33,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE / "deployment_modes_templates"
 DOCS = HERE.parent / "docs" / "deployment-modes.md"
-KINDS = ("job", "worker", "service", "sandbox")
+KINDS = ("job", "triggered", "worker", "service", "sandbox")
 RESERVED_PORTS = {8081: "the password UI", 8090: "the remote-desktop dev container", 8091: "the remote-desktop dev container", 9090: "the machine's web console"}
 CLUSTER_RANGE = (ipaddress.ip_address("10.43.0.51"), ipaddress.ip_address("10.43.0.99"))
+TIMER_KINDS = ("job", "triggered")
 GITIGNORE_BLOCK = "\n# Which way this runs on this machine (deploy/deploy.sh)\nconfig/deploy.local.env\n"
 
 BLURBS = {
@@ -43,6 +44,11 @@ BLURBS = {
         "one run in the foreground, no systemd, no cluster",
         "the systemd user timer",
         "a CronJob in K3s, created suspended and started only after verification",
+    ),
+    "triggered": (
+        "one run in the foreground, no systemd, no cluster",
+        "the systemd user timer runs the job on the host",
+        "the same timer triggers the job, which runs in a pod; its guards and post-steps stay on the host",
     ),
     "worker": (
         "the worker in the foreground, no systemd, no cluster",
@@ -73,6 +79,20 @@ MODE_TEXT = {
 builds the image (refusing uncommitted source), applies the manifests (the CronJob is created **suspended**), runs
 `verify.sh` (which must pass), and only then disables the host timer and unsuspends the CronJob. A failed step
 changes nothing: the timer keeps running.""",
+    "triggered": """### dev
+`up` runs the job once in the foreground. `status` and `verify` check it without changing anything.
+
+### host
+`up` removes the K3s drop-in from the unit (if there) and enables the systemd user timer (install it once with
+Clockwork; `up` says so if it is missing). `down` disables the timer.
+
+### k3s
+The host timer stays the trigger, so its job guard, resource-arbiter limits and any post-step keep working; only the work
+moves into a pod. `up` refuses to start, and changes nothing, unless kubectl, podman, the in-cluster registry and the
+host timer are present. Then it builds the image (refusing uncommitted source), applies the manifests (the CronJob is
+only a **suspended template**), runs `verify.sh` (which must pass), and only then installs a systemd drop-in that
+replaces the unit's `ExecStart` with `deploy/k3s/run-job.sh`. That script creates one Job from the template, streams
+its log into the journal and exits with the job's status. A failed step changes nothing.""",
     "worker": """### dev
 `up` runs the worker in the foreground. `status` and `verify` report without changing anything.
 
@@ -116,6 +136,11 @@ SWITCH_TEXT = {
 | dev | host | `deploy/deploy.sh --mode host up` |
 | host | k3s | `deploy/deploy.sh --mode k3s up` (verifies first, then hands over) |
 | k3s | host | `deploy/deploy.sh --mode host up` (suspends the CronJob, re-enables the timer) |""",
+    "triggered": """| From | To | Command |
+|---|---|---|
+| dev | host | `deploy/deploy.sh --mode host up` |
+| host | k3s | `deploy/deploy.sh --mode k3s up` (verifies first, then points the unit's `ExecStart` at the pod) |
+| k3s | host | `deploy/deploy.sh --mode host up` (removes the drop-in; the unit runs on the host again) |""",
     "worker": """| From | To | Command |
 |---|---|---|
 | dev | host | stop the foreground process, then `deploy/deploy.sh --mode host up` |
@@ -174,9 +199,9 @@ def validate(args: argparse.Namespace) -> None:
     for unit in (args.unit,):
         if not re.fullmatch(r"[A-Za-z0-9_.@-]+\.(service|timer)", unit):
             raise ScaffoldError(f"--unit {unit!r} must be a systemd unit name ending in .service or .timer")
-    if args.kind == "job" and not args.unit.endswith(".timer"):
-        raise ScaffoldError("a job's --unit is its timer, e.g. my-job.timer")
-    if args.kind != "job" and not args.unit.endswith(".service"):
+    if args.kind in TIMER_KINDS and not args.unit.endswith(".timer"):
+        raise ScaffoldError(f"a {args.kind}'s --unit is its timer, e.g. my-job.timer")
+    if args.kind not in TIMER_KINDS and not args.unit.endswith(".service"):
         raise ScaffoldError(f"a {args.kind}'s --unit is its service, e.g. my-app.service")
     if args.kind in ("service", "sandbox"):
         if not args.cluster_ip or not args.port:
@@ -207,13 +232,14 @@ def build_plan(args: argparse.Namespace) -> Plan:
     dev_blurb, host_blurb, k3s_blurb = BLURBS[kind]
     default_dev_up = f'echo "TODO: set --dev-up: how {app} runs once in the foreground" >&2; exit 1'
     steps = (["prepare-host.sh"] if args.host_data else []) + ["build-image.sh", "apply.sh", "verify.sh"]
-    extra = {"job": ["handover.sh"], "worker": [], "service": ["bridge.sh"], "sandbox": ["bridge.sh"]}[kind]
+    extra = {"job": ["handover.sh"], "triggered": ["handover.sh"], "worker": [], "service": ["bridge.sh"], "sandbox": ["bridge.sh"]}[kind]
     tokens = {
         "APP": app,
         "PREFIX": args.prefix,
         "KIND": kind,
         "DESCRIPTION": args.description or f"run {app} the way you choose: dev, host or k3s.",
         "UNIT": args.unit,
+        "SERVICE_UNIT": args.service_unit or (args.unit[: -len(".timer")] + ".service" if args.unit.endswith(".timer") else args.unit),
         "NAMESPACE": args.namespace or app,
         "WORKLOAD": args.workload,
         "BRIDGE_UNIT": args.bridge_unit,
@@ -254,6 +280,10 @@ def build_plan(args: argparse.Namespace) -> Plan:
         files["deploy/k3s/prepare-host.sh"] = (render(_read("k3s", "prepare-host.sh"), tokens), True)
     if kind == "job":
         files["deploy/k3s/handover.sh"] = (render(_read("k3s", "handover.sh"), tokens), True)
+    if kind == "triggered":
+        files["deploy/k3s/handover.sh"] = (render(_read("k3s", "handover.triggered.sh"), tokens), True)
+        files["deploy/k3s/run-job.sh"] = (render(_read("k3s", "run-job.sh"), tokens), True)
+        files["deploy/k3s/systemd/20-k3s-run.conf"] = (_read("k3s", "trigger.conf"), False)
     if kind in ("service", "sandbox"):
         bridge = "bridge.service.sh" if kind == "service" else "bridge.sandbox.sh"
         files["deploy/k3s/bridge.sh"] = (render(_read("k3s", bridge), tokens), True)
@@ -318,6 +348,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--kind", choices=KINDS, required=True)
     p.add_argument("--prefix", help="UPPER_SNAKE env prefix (default: the app name)")
     p.add_argument("--unit", help="host systemd unit: a .timer for a job, else a .service (default derived from --app)")
+    p.add_argument("--service-unit", help="the service the timer starts (triggered kind; default: the timer's name with .service)")
     p.add_argument("--namespace", help="Kubernetes namespace (default: the app name)")
     p.add_argument("--workload", help="CronJob or Deployment name (default derived from --app)")
     p.add_argument("--bridge-unit", help="loopback forwarder unit base name (service and sandbox kinds)")
@@ -340,9 +371,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     args.prefix = args.prefix or args.app.upper().replace("-", "_")
     args.source = args.source or ["src"]
-    args.unit = args.unit or (f"{args.app}.timer" if args.kind == "job" else f"{args.app}.service")
+    args.unit = args.unit or (f"{args.app}.timer" if args.kind in TIMER_KINDS else f"{args.app}.service")
     args.workload = args.workload or {
         "job": f"{args.app}-job",
+        "triggered": f"{args.app}-job",
         "worker": args.app,
         "service": f"{args.app}-web",
         "sandbox": f"{args.app}-sandbox",
