@@ -51,7 +51,7 @@ Two copies of the same work are the main hazard, and the three kinds of service 
   job guard, the resource arbiter's CPU and I/O limits, a time limit) or a post-step that needs host credentials (opening a pull
   request with `gh`) must keep its timer: a CronJob would bypass all of them. In `k3s` mode the timer and unit stay
   exactly as they are and `up` installs a removable systemd drop-in that replaces only `ExecStart`, with
-  `deploy/k3s/run-job.sh`, installed as `99-k3s-run.conf` because systemd applies drop-ins in name order and the last `ExecStart=` wins (a unit with its own interpreter override would otherwise silently beat it). That script creates one Job from a CronJob that stays `suspend: true` for ever (its
+  `deploy/k3s/run-job.sh`, installed as `zz-k3s-run.conf` because systemd applies drop-ins in name order and the last `ExecStart=` wins (a unit with its own interpreter override would otherwise silently beat it). That script creates one Job from a CronJob that stays `suspend: true` for ever (its
   schedule is a date that never occurs; it is only a template), streams the pod's log into the journal, deletes the
   Job if systemd stops the unit, and exits with the job's status. `up` never disables the timer; `host up` removes the
   drop-in. The checker asserts the timer is never disabled and that the drop-in sets nothing but `Environment` and

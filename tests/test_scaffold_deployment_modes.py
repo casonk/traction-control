@@ -390,7 +390,7 @@ class TriggeredKindTests(unittest.TestCase):
             up_k3s = deploy[deploy.index("  up:k3s)") : deploy.index("  down:k3s)")]
             self.assertNotIn("disable --now", up_k3s)
             self.assertTrue((repo / "deploy" / "k3s" / "run-job.sh").exists())
-            dropin = (repo / "deploy" / "k3s" / "systemd" / "99-k3s-run.conf").read_text()
+            dropin = (repo / "deploy" / "k3s" / "systemd" / "zz-k3s-run.conf").read_text()
             self.assertIn("ExecStart=\n", dropin)
             self.assertEqual(failures(checked(repo)), [])
 
@@ -406,7 +406,7 @@ class TriggeredKindTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             repo = make_repo(root)
             run_scaffold(repo, "triggered")
-            conf = repo / "deploy" / "k3s" / "systemd" / "99-k3s-run.conf"
+            conf = repo / "deploy" / "k3s" / "systemd" / "zz-k3s-run.conf"
             conf.write_text(conf.read_text() + "ExecCondition=/bin/true\n")
             self.assertTrue(any("only ExecStart" in f for f in failures(checked(repo))))
 
