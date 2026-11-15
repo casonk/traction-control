@@ -173,10 +173,13 @@ independent of pod restarts.
 | What | Address | Notes |
 |---|---|---|
 | In-cluster image registry | ClusterIP `10.43.0.50:5000` | node-only; `localhost:5000/<name>` for pods |
-| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.62`, then up to `10.43.0.99` |
+| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.63`, then up to `10.43.0.99` |
 | web app on the host (GPS trace) | `127.0.0.1:5434` | the host service, or the forwarder in `k3s` mode |
 | intake extractor sandbox pod | ClusterIP `10.43.0.61:5455` | node-only, no egress at all |
 | intake extractor on the host | `127.0.0.1:5455` | the foreground service in `dev`, or the forwarder in `k3s` mode |
+| torrent web UI pod | ClusterIP `10.43.0.62:5400` | reaches the host's Transmission RPC through one port-limited allow |
+| torrent web UI on the host | `127.0.0.1:5400` | the host service, or the forwarder in `k3s` mode |
+| Transmission RPC forwarder | pod-network address (`cilium_host`) `:9091` | user socket forwarding to the host's loopback RPC; only the pod's policy admits it |
 | Hubble UI forward | `127.0.0.1:8195` | `forward.sh ui` |
 | Prometheus forward | `127.0.0.1:9190` | `forward.sh prometheus` |
 | Hubble relay forward | `127.0.0.1:4245` | `forward.sh relay` |
@@ -192,7 +195,7 @@ the dirty-source guard, restore traps) are in the templates, and the generated t
 
 ```bash
 python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind job
-python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind service --cluster-ip 10.43.0.62 --port 5462
+python3 scripts/scaffold_deployment_modes.py --repo ../my-app --app my-app --kind service --cluster-ip 10.43.0.63 --port 5463
 ```
 
 Choose the kind from how the thing behaves (`job` periodic, `triggered` periodic but guarded or post-processed on the host, `worker` must never run twice, `service` has a port,

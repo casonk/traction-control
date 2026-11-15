@@ -423,3 +423,17 @@ class TriggeredKindTests(unittest.TestCase):
             run_scaffold(repo, "job")
             text = (repo / "deploy" / "k3s" / "build-image.sh").read_text()
             self.assertIn("../../util-repos/crew-chief", text)
+
+
+class AddressRegistryTests(unittest.TestCase):
+    def test_only_the_address_table_claims_addresses_not_examples_or_notes(self):
+        ips, ports = scaffold.used_addresses()
+        # The doc's example command and its "next free" note mention addresses; only table rows are claims.
+        text = scaffold.DOCS.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if not line.lstrip().startswith("|"):
+                for ip in __import__("re").findall(r"10\.43\.0\.\d+", line):
+                    if not any(ip in row for row in text.splitlines() if row.lstrip().startswith("|")):
+                        self.assertNotIn(ip, ips)
+        self.assertIn("10.43.0.62", ips)  # the torrent web UI is in the table
+        self.assertIn(5400, ports)

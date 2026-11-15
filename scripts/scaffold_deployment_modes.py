@@ -185,7 +185,9 @@ def used_addresses() -> tuple[set[str], set[int]]:
     """Cluster IPs and ports already claimed in the pattern doc's address table."""
     if not DOCS.is_file():
         return set(), set()
-    text = DOCS.read_text(encoding="utf-8")
+    # Only the address table's rows claim anything: the doc's own example commands and "next free" notes mention
+    # addresses too, and reading those made the scaffold refuse an address that was in fact free.
+    text = "\n".join(line for line in DOCS.read_text(encoding="utf-8").splitlines() if line.lstrip().startswith("|"))
     ips = set(re.findall(r"10\.43\.0\.\d+", text))
     ports = {int(p) for p in re.findall(r"(?:10\.43\.0\.\d+|127\.0\.0\.1):(\d+)", text)}
     return ips, ports
