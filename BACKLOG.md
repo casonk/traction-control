@@ -16,6 +16,25 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-15] **Portfolio standards review: first audit and what to standardise.** A read-only audit of 54
+  repositories (35 public, 19 private) against the files and metadata the portfolio expects found:
+  - **Code of Conduct is the least consistent standard.** About 24 repositories share one short "simple professional
+    standard" text, about ten carry bespoke wording, eight cite the Contributor Covenant (v2.1) in prose or in full, and
+    four have no `CODE_OF_CONDUCT.md` or `CONTRIBUTING.md` at all. No README carries a Contributor Covenant badge, so the
+    "2.0 badge" seen on a repository is not in these checkouts' own files; find where it is displayed (GitHub's community
+    profile, a rendered page, or a repository outside this workspace) before changing anything. Decide the standard first:
+    adopt the Contributor Covenant 3.0 text everywhere via the account-level `.github` repository (repositories without
+    their own file inherit it), keep a short portfolio text, or a deliberate mix. Then change the generator and the files
+    together, not one repository at a time.
+  - **Repository metadata:** one private repository has no description; three public repositories share one description;
+    every repository (54 of 54) has no GitHub topics, which hurts discoverability; one description is under 40 characters.
+    The weekly description sync does not set topics.
+  - **Licences:** 43 MIT, 2 Apache-2.0, 1 LGPL-2.1, and 8 that GitHub cannot classify ("other"), including three public
+    infrastructure repositories whose `LICENSE` should be MIT-compatible text GitHub can recognise. Check each.
+  - **Smaller gaps:** three repositories show no generated badge block; four have `CLAUDE.md` as a copy or missing instead
+    of the link to `AGENTS.md`; two had an unfilled `LESSONSLEARNED.md` template header (fixed 2026-11-15).
+  Next: turn the audit into a checked-in, read-only script with tests, wire it into `portfolio-audit.sh`, and fix the
+  findings the owner approves in batches, with the generator and the account-level defaults changed first.
 - [ ] [manual:2026-11-11] **Resolve the `snowbridge` catalog path.** The `snowbridge` checkout has an
   `upstream` fork remote, and `verify_checkout` requires every remote of a checkout to be the same
   registered repository, so the checkout is unverifiable. Its catalog row therefore points at
