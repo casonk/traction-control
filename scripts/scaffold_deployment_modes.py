@@ -283,7 +283,7 @@ def build_plan(args: argparse.Namespace) -> Plan:
     if kind == "triggered":
         files["deploy/k3s/handover.sh"] = (render(_read("k3s", "handover.triggered.sh"), tokens), True)
         files["deploy/k3s/run-job.sh"] = (render(_read("k3s", "run-job.sh"), tokens), True)
-        files["deploy/k3s/systemd/20-k3s-run.conf"] = (_read("k3s", "trigger.conf"), False)
+        files["deploy/k3s/systemd/99-k3s-run.conf"] = (_read("k3s", "trigger.conf"), False)
     if kind in ("service", "sandbox"):
         bridge = "bridge.service.sh" if kind == "service" else "bridge.sandbox.sh"
         files["deploy/k3s/bridge.sh"] = (render(_read("k3s", bridge), tokens), True)

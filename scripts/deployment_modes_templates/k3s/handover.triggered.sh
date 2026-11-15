@@ -6,12 +6,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/@@SERVICE_UNIT@@.d"
-DROPIN="$UNIT_DIR/20-k3s-run.conf"
+DROPIN="$UNIT_DIR/99-k3s-run.conf"
 case "${1:-}" in
   pod-on)
     kubectl_bin="$(command -v "${KUBECTL:-kubectl}")"
     mkdir -p "$UNIT_DIR"
-    sed -e "s#__REPO__#$REPO#g" -e "s#__KUBECTL__#$kubectl_bin#g" "$HERE/systemd/20-k3s-run.conf" >"$DROPIN"
+    sed -e "s#__REPO__#$REPO#g" -e "s#__KUBECTL__#$kubectl_bin#g" "$HERE/systemd/99-k3s-run.conf" >"$DROPIN"
     systemctl --user daemon-reload
     ;;
   pod-off)
