@@ -96,7 +96,7 @@ def test_the_cronjob_is_only_a_template_that_never_schedules_itself():
 
 def test_the_dropin_replaces_only_execstart():
     # The job guard, the resource arbiter, the time limit and any post-step live in other drop-ins and must keep applying.
-    text = (REPO / "deploy" / "k3s" / "systemd" / "20-k3s-run.conf").read_text()
+    text = (REPO / "deploy" / "k3s" / "systemd" / "99-k3s-run.conf").read_text()
     body = [line for line in text.splitlines() if line and not line.startswith("#")]
     keys = {line.split("=", 1)[0] for line in body if "=" in line}
     assert keys <= {"Environment", "ExecStart"}, keys
@@ -111,7 +111,7 @@ def test_handover_installs_and_removes_the_dropin(tmp_path):
         stub.chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}", "XDG_CONFIG_HOME": str(tmp_path / "cfg")}
     script = str(REPO / "deploy" / "k3s" / "handover.sh")
-    dropin = tmp_path / "cfg" / "systemd" / "user" / "@@SERVICE_UNIT@@.d" / "20-k3s-run.conf"
+    dropin = tmp_path / "cfg" / "systemd" / "user" / "@@SERVICE_UNIT@@.d" / "99-k3s-run.conf"
     subprocess.run(["bash", script, "pod-on"], env=env, check=True)
     text = dropin.read_text()
     assert "run-job.sh" in text and "__" not in text
