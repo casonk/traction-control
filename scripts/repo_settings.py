@@ -14,6 +14,9 @@ File format::
 
     [repository]
     description = "One line shown on GitHub."
+    # What the repository is, for search and browsing: lowercase letters, digits and hyphens,
+    # at most 20, each at most 50 characters. Every portfolio repository must have some.
+    topics = ["python", "automation"]
 
     [main_branch]
     # Direct commits and pushes to main are refused unless this is true.
@@ -52,8 +55,10 @@ from typing import Any, Sequence
 SETTINGS_PATH = ".github/repository.toml"
 RULESET_NAME = "main-branch-guard"
 MAX_DESCRIPTION = 350
+MAX_TOPICS = 20
+TOPIC_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,49}\Z")
 SECTION_KEYS = {
-    "repository": {"description"},
+    "repository": {"description", "topics"},
     "main_branch": {"allow_direct"},
 }
 GITHUB_REMOTE_RE = re.compile(
@@ -70,6 +75,7 @@ class SettingsError(Exception):
 class Settings:
     description: str
     allow_direct: bool
+    topics: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -80,6 +86,7 @@ class Remote:
     archived: bool
     default_branch: str
     description: str
+    topics: tuple[str, ...] = ()
 
     @property
     def slug(self) -> str:
@@ -135,7 +142,24 @@ def parse_settings(text: str) -> Settings:
     allow_direct = data.get("main_branch", {}).get("allow_direct", False)
     if not isinstance(allow_direct, bool):
         raise SettingsError("[main_branch] allow_direct must be true or false")
-    return Settings(description=description, allow_direct=allow_direct)
+    topics = parse_topics(data.get("repository", {}).get("topics", []))
+    return Settings(description=description, allow_direct=allow_direct, topics=topics)
+
+
+def parse_topics(value: Any) -> tuple[str, ...]:
+    """Validate a topic list the way GitHub does: lowercase, hyphenated, unique, at most 20."""
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise SettingsError("[repository] topics must be a list of strings")
+    bad = [item for item in value if not TOPIC_RE.match(item)]
+    if bad:
+        raise SettingsError(
+            f"[repository] topics must be lowercase letters, digits and hyphens (at most 50 characters): {', '.join(bad)}"
+        )
+    if len(set(value)) != len(value):
+        raise SettingsError("[repository] topics contains duplicates")
+    if len(value) > MAX_TOPICS:
+        raise SettingsError(f"[repository] topics has more than {MAX_TOPICS} entries")
+    return tuple(value)
 
 
 def run(args: Sequence[str], *, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -188,6 +212,7 @@ def fetch_remote(owner: str, name: str) -> Remote:
         archived=bool(data["archived"]),
         default_branch=data["default_branch"],
         description=data.get("description") or "",
+        topics=tuple(sorted(data.get("topics") or [])),
     )
 
 
@@ -232,6 +257,12 @@ def plan_repo(repo: Path, args: argparse.Namespace) -> tuple[str, list[str], lis
         findings.append(f"description differs: GitHub has {remote.description!r}")
         actions.append(("description", settings.description))
 
+    if not settings.topics:
+        findings.append("topics are missing: set [repository] topics in the settings file")
+    elif tuple(sorted(settings.topics)) != remote.topics:
+        findings.append(f"topics differ: GitHub has {list(remote.topics)!r}")
+        actions.append(("topics", list(settings.topics)))
+
     if remote.visibility == "public":
         ruleset_id = guard_ruleset_id(remote)
         if settings.allow_direct and ruleset_id is not None:
@@ -249,6 +280,8 @@ def plan_repo(repo: Path, args: argparse.Namespace) -> tuple[str, list[str], lis
 def apply_action(slug: str, action: str, value: Any) -> None:
     if action == "description":
         gh_api("-X", "PATCH", f"repos/{slug}", "-f", f"description={value}")
+    elif action == "topics":
+        gh_api("-X", "PUT", f"repos/{slug}/topics", "--input", "-", stdin=json.dumps({"names": value}))
     elif action == "create-ruleset":
         gh_api("-X", "POST", f"repos/{slug}/rulesets", "--input", "-", stdin=json.dumps(ruleset_payload()))
     elif action == "update-ruleset":

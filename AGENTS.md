@@ -290,8 +290,8 @@ Existing repos still use inline CI workflows. Migrate them to the reusable patte
 
 ## Repository Settings As Code
 
-GitHub keeps a repository's description and branch rules only in its API, so
-each repository declares them in a tracked `.github/repository.toml`
+GitHub keeps a repository's description, topics and branch rules only in its API,
+so each repository declares them in a tracked `.github/repository.toml`
 (template: `docs/templates/repository.toml`) and `scripts/repo_settings.py`
 applies them:
 
@@ -301,8 +301,10 @@ python3 scripts/repo_settings.py apply   # update GitHub to match (--dry-run to 
 ```
 
 Both read the file from `origin/main`, so a change reaches GitHub only after its
-pull request merges. Change a description by editing the file, never in the
-GitHub UI or with `gh repo edit`; the next `check` reports UI edits as drift.
+pull request merges. Change a description or its topics by editing the file, never
+in the GitHub UI or with `gh repo edit`; the next `check` reports UI edits as drift.
+Every repository must declare at least one topic: a missing list is reported as a
+finding, not defaulted.
 The weekly `repository-description-sync-weekly` job checks every repository in
 the paired visibility registry and applies only descriptions from each
 repository's merged `.github/repository.toml`. It does not alter branch
