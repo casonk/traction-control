@@ -11,6 +11,8 @@ described here rather than named):
 |---|---|---|---|
 | a private GPS-trace web app | long-running web service, takes inbound traffic | a private repository | a pod behind a loopback forwarder; Caddy and phones are unchanged |
 | crew-chief listener | worker that polls a mailbox | `crew-chief` | a pod with default-deny egress; the host listener stops first |
+| shock-relay digest sender | hourly job with credentials | `shock-relay` | a CronJob; Gmail credentials resolved from the vault on the host into a Secret, the pod config names variables only |
+| intake | daemon whose risk is parsing untrusted files | `intake` | a sandbox for the parsers only: no network, no secrets, none of your files; the daemon stays on the host (see below) |
 | a private Spotify-history poller | periodic job | a private repository | a CronJob, created suspended, handed work only after `verify.sh` passes |
 
 ## The contract
@@ -64,9 +66,38 @@ Run the script against **stub commands that record every call**, so no test need
 7. the image build refuses uncommitted source unless told otherwise
 8. host-run scripts use no Python flag newer than the oldest supported Python (see below)
 9. the example config, the docs and the README link all exist and name every mode
+10. every script under `deploy/` is executable (a script written by a tool that does not set the mode made `k3s up`
+    stop at the verify step with "Permission denied")
+11. a failure **inside a function** still runs the restore trap (see below), and a failed bridge, verify or daemon
+    restart leaves the previous behaviour in place
 
 Prove each safety test fails against the broken behaviour (delete the restore, reorder the stop) before trusting
 it. Mutation checks like these caught real mistakes.
+
+## Variant: sandbox one function, keep the service where it is
+
+Sometimes the risk is one step of a large service, not the service. The intake daemon holds a mailbox, API keys
+and other repositories, so it cannot move into a pod without widening the pod's reach, but its PDF, image and
+video parsers read files an attacker can shape. The pattern still applies; what the modes mean changes:
+
+- `host`: the parsers run in the service's own process (the default; nothing else is needed).
+- `dev`: the sandbox runs in the foreground on the machine, so a developer can try the sandbox path without a cluster.
+- `k3s`: the sandbox runs in a pod, and **the service is pointed at it by a systemd drop-in** that sets one
+  environment variable. Writing the drop-in and removing it are the whole switch, so rollback is exact.
+
+Rules this variant adds:
+
+- The sandbox has **no network, no secrets, no environment, and none of your files**. It receives bytes and returns
+  text, PNG bytes or a yes/no, so the service never opens an untrusted file with a parser and never decodes the
+  pixels it gets back. Its only volume is a bounded scratch directory.
+- It **fails closed**. If the sandbox is unreachable the service skips the work and leaves the files where they
+  are; it never parses locally instead, because a fallback lets a crash steer a hostile file into the weaker
+  place. An outage is "unavailable" and never marks a document corrupt.
+- Each document runs in a **child process with a CPU limit and a timeout**, so a hostile file can hang or crash a
+  child, not the service. Errors never echo document content.
+- Point the service at the sandbox **only after the pod is verified and reachable through the bridge**, and make
+  any failure from the bridge onward restore the previous state (bridge down, drop-in removed, service restarted
+  only if it had been pointed there).
 
 ## K3s platform conventions
 
@@ -105,6 +136,11 @@ has no site store), and the timezone (a pod defaults to UTC and shifted every pe
 systemd and `kubectl --from-env-file` keeps the quotes literally). Pass them through a private temp file, never
 the command line, and a Secret, never a manifest.
 
+**Restore traps and functions.** `trap restore ERR` is not inherited by shell functions unless `set -E` is on, so
+a failure inside a function (`bridge`, `install_dropin`) skipped the restore and would have left a service pointed
+at a sandbox that never came up. Use `set -eEuo pipefail` in any `deploy.sh` that has a restore trap, and test a
+failure inside each function.
+
 **Host scripts and the Python floor.** Use `python3 -I`, not `python3 -P` (3.11 and newer), in anything that runs
 on the host, and never hide a failure with `|| true`. Inside a pod image, `-P` is fine because the image pins the
 version.
@@ -128,8 +164,10 @@ independent of pod restarts.
 | What | Address | Notes |
 |---|---|---|
 | In-cluster image registry | ClusterIP `10.43.0.50:5000` | node-only; `localhost:5000/<name>` for pods |
-| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.61`, then up to `10.43.0.99` |
+| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.62`, then up to `10.43.0.99` |
 | web app on the host (GPS trace) | `127.0.0.1:5434` | the host service, or the forwarder in `k3s` mode |
+| intake extractor sandbox pod | ClusterIP `10.43.0.61:5455` | node-only, no egress at all |
+| intake extractor on the host | `127.0.0.1:5455` | the foreground service in `dev`, or the forwarder in `k3s` mode |
 | Hubble UI forward | `127.0.0.1:8195` | `forward.sh ui` |
 | Prometheus forward | `127.0.0.1:9190` | `forward.sh prometheus` |
 | Hubble relay forward | `127.0.0.1:4245` | `forward.sh relay` |

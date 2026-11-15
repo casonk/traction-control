@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Extend `docs/deployment-modes.md` with the intake extractor sandbox (a variant that sandboxes one function and
+  switches the service over with a systemd drop-in), the shock-relay digest sender as a reference, the new
+  address `10.43.0.61:5455`, the `set -E` rule for restore traps, and two more required tests (every deploy script
+  is executable; a failure inside a function still restores). Add four lessons from these rollouts.
+
 - Add `docs/deployment-modes.md`, the contract for services that run `dev`, `host` or `k3s` from one
   `deploy/deploy.sh` setting (K3s optional, selection order, exit codes, safe hand-over for services, workers and
   periodic jobs, the tests every implementation carries), the K3s platform conventions, and the table of
