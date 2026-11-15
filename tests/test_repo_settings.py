@@ -34,6 +34,8 @@ FAKE_GH = textwrap.dedent(
     out = None
     if len(parts) == 3 and method == "GET":
         out = repo["meta"]
+    elif parts[3:] == ["topics"] and method == "PUT":
+        repo["meta"]["topics"] = json.load(sys.stdin)["names"]
     elif len(parts) == 3 and method == "PATCH":
         repo["meta"]["description"] = rest[1].split("=", 1)[1]
     elif parts[3:] == ["rulesets"] and method == "GET":
@@ -53,8 +55,12 @@ FAKE_GH = textwrap.dedent(
 )
 
 
-def settings_toml(description: str = "A tool.", allow_direct: bool | None = None) -> str:
+def settings_toml(
+    description: str = "A tool.", allow_direct: bool | None = None, topics: tuple[str, ...] | None = ("python", "tool")
+) -> str:
     text = f'[repository]\ndescription = "{description}"\n'
+    if topics is not None:
+        text += "topics = [" + ", ".join(f'"{t}"' for t in topics) + "]\n"
     if allow_direct is not None:
         text += f"\n[main_branch]\nallow_direct = {str(allow_direct).lower()}\n"
     return text
@@ -80,6 +86,31 @@ class ParseSettingsTests(unittest.TestCase):
         for name, text in cases.items():
             with self.subTest(name), self.assertRaises(repo_settings.SettingsError):
                 repo_settings.parse_settings(text)
+
+
+class ParseTopicsTests(unittest.TestCase):
+    def test_topics_are_parsed_in_order(self) -> None:
+        settings = repo_settings.parse_settings(settings_toml(topics=("python", "k3s", "home-server")))
+        self.assertEqual(settings.topics, ("python", "k3s", "home-server"))
+
+    def test_topics_default_to_none_so_the_check_can_report_them(self) -> None:
+        self.assertEqual(repo_settings.parse_settings(settings_toml(topics=None)).topics, ())
+
+    def test_rejects_invalid_topics(self) -> None:
+        cases = {
+            "uppercase": ("Python",),
+            "space": ("home server",),
+            "underscore": ("home_server",),
+            "leading hyphen": ("-k3s",),
+            "too long": ("a" * 51,),
+            "duplicate": ("k3s", "k3s"),
+            "too many": tuple(f"t{i}" for i in range(21)),
+        }
+        for name, topics in cases.items():
+            with self.subTest(name), self.assertRaises(repo_settings.SettingsError):
+                repo_settings.parse_settings(settings_toml(topics=topics))
+        with self.assertRaises(repo_settings.SettingsError):
+            repo_settings.parse_settings('[repository]\ndescription = "x"\ntopics = "python"\n')
 
 
 class SyncTests(unittest.TestCase):
@@ -147,6 +178,23 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(ruleset["bypass_actors"], [])
         self.assertIn("pull_request", [rule["type"] for rule in ruleset["rules"]])
         self.assertEqual(self.state["repos"]["owner/priv"]["rulesets"], [])
+        self.assertEqual(self.run_tool("check").returncode, 0)
+
+    def test_check_reports_missing_and_drifting_topics_and_apply_fixes_them(self) -> None:
+        self.add_repo("none", "private", settings_toml("None.", topics=None), description="None.")
+        self.add_repo("drift", "private", settings_toml("Drift.", topics=("k3s", "python")), description="Drift.")
+        self.state["repos"]["owner/drift"]["meta"]["topics"] = ["python"]
+        proc = self.run_tool("check")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("DRIFT owner/none: topics are missing", proc.stdout)
+        self.assertIn("DRIFT owner/drift: topics differ", proc.stdout)
+        self.assertEqual(self.run_tool("apply").returncode, 1)  # the repository with no topics still needs a human
+        self.assertEqual(sorted(self.state["repos"]["owner/drift"]["meta"]["topics"]), ["k3s", "python"])
+        self.assertNotIn("topics", self.state["repos"]["owner/none"]["meta"])
+
+    def test_topics_are_compared_without_regard_to_order(self) -> None:
+        self.add_repo("same", "private", settings_toml("Same.", topics=("k3s", "python")), description="Same.")
+        self.state["repos"]["owner/same"]["meta"]["topics"] = ["python", "k3s"]
         self.assertEqual(self.run_tool("check").returncode, 0)
 
     def test_allow_direct_removes_ruleset(self) -> None:

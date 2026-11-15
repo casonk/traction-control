@@ -4,6 +4,9 @@
 [repository]
 # One line shown on GitHub. Keep it free of private repository names and local paths.
 description = "One-line summary of what this repository does."
+# What the repository is, for GitHub search and browsing. Lowercase letters, digits and hyphens; at most 20, each at
+# most 50 characters. Typically the language, the problem area and the main tools or protocols. Required.
+topics = ["python", "automation"]
 
 [main_branch]
 # Direct commits and pushes to main are refused unless this is true.
