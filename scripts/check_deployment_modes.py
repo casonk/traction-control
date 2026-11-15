@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check a repository against the portfolio's deployment-modes contract.
 
-    check_deployment_modes.py --repo PATH [--kind job|worker|service|sandbox] [--json]
+    check_deployment_modes.py --repo PATH [--kind job|triggered|worker|service|sandbox] [--json]
 
 Static checks only: nothing is run and no cluster is needed. Each rule prints PASS, FAIL or WARN. A FAIL means the
 repository breaks the contract (docs/deployment-modes.md); a WARN means something is a scaffold stub or optional
@@ -54,6 +54,8 @@ def code_lines(text: str) -> list[str]:
 
 def detect_kind(repo: Path, deploy: str) -> str:
     k3s = repo / "deploy" / "k3s"
+    if (k3s / "run-job.sh").exists() or "run-job.sh" in deploy:
+        return "triggered"
     if (k3s / "handover.sh").exists() or "handover.sh" in deploy:
         return "job"
     if (k3s / "bridge.sh").exists() or "bridge.sh" in deploy:
@@ -199,6 +201,33 @@ def check(repo: Path, kind: str | None = None) -> Report:
             "job: the host timer is disabled and the CronJob started only after verify",
             "",
         )
+    elif kind == "triggered":
+        r.check(
+            0 <= up.find("verify.sh") < up.find("pod-on"),
+            "triggered: the unit is switched to the pod only after verify",
+            "",
+        )
+        r.check(
+            "disable --now" not in up,
+            "triggered: the host timer is never disabled in k3s mode",
+            "the timer is the trigger; disabling it would stop the job and its guards",
+        )
+        k3s_dir = repo / "deploy" / "k3s"
+        dropins = sorted((k3s_dir / "systemd").glob("*.conf")) if (k3s_dir / "systemd").is_dir() else []
+        stray = sorted(
+            {
+                line.split("=", 1)[0].strip()
+                for path in dropins
+                for line in read(path).splitlines()
+                if "=" in line and not line.lstrip().startswith("#")
+            }
+            - {"Environment", "ExecStart"}
+        )
+        r.check(
+            bool(dropins) and not stray,
+            "triggered: the unit drop-in replaces only ExecStart (guards and post-steps keep applying)",
+            f"found: {', '.join(stray) or 'no drop-in'}",
+        )
     elif kind == "worker":
         r.check("trap restore ERR" in up, "worker: a failed deploy restores the host copy (ERR trap)", "")
         r.check(
@@ -259,7 +288,7 @@ def check(repo: Path, kind: str | None = None) -> Report:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", type=Path, required=True)
-    parser.add_argument("--kind", choices=("job", "worker", "service", "sandbox"))
+    parser.add_argument("--kind", choices=("job", "triggered", "worker", "service", "sandbox"))
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if not args.repo.is_dir():
