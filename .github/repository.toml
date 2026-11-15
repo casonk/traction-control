@@ -4,6 +4,7 @@
 [repository]
 # One line shown on GitHub. Keep it free of private repository names and local paths.
 description = "Portfolio control plane: shared agent standards, repository visibility and lifecycle registry, portfolio audits, and scheduled agentic maintenance."
+topics = ["governance", "standards", "devops", "repository-management", "automation", "shell", "python"]
 
 [main_branch]
 # Direct commits and pushes to main are refused unless this is true.
