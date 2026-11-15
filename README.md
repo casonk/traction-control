@@ -106,6 +106,7 @@ bash tests/test_create_private_github_repo.sh
 - `docs/templates/SECURITY.md`: starter template for new repo security-policy files
 - `docs/templates/LESSONSLEARNED.md`: starter template for new repo durable-lessons files
 - `docs/portfolio-sites.md`: deploying pages with whatever tooling is present: the central store, `scripts/portfolio_sites.py`, resolution order, and public/private enrollment
+- `docs/deployment-modes.md`: the contract for services that run `dev`, `host` or `k3s` from one `deploy/deploy.sh` setting, the K3s platform conventions, and the address and port table
 - `docs/system-theme.md`: the portfolio colour themes, tokens, and how pages and reports adopt them (`themes/themes.toml` is the source)
 - `docs/lesson-capture-framework.md`: end-of-session gate for deciding whether a durable lesson must be recorded
 - `CONTRIBUTING.md`: contribution guidelines for this control-plane repo

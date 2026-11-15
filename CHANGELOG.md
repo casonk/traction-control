@@ -4,6 +4,12 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `docs/deployment-modes.md`, the contract for services that run `dev`, `host` or `k3s` from one
+  `deploy/deploy.sh` setting (K3s optional, selection order, exit codes, safe hand-over for services, workers and
+  periodic jobs, the tests every implementation carries), the K3s platform conventions, and the table of
+  addresses and ports in use. Add the cross-repo lessons from the first three rollouts (a private web app, the crew-chief
+  listener and a private periodic job) to `LESSONSLEARNED.md`.
+
 - Add `scripts/azure_runner_stack.sh` so the Azure runner pilot is created and
   deleted with Terraform. `plan`, `apply`, and `destroy` use the active Azure
   CLI login. State stays in the owner-only XDG state directory. `apply` refuses
