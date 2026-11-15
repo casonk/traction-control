@@ -24,6 +24,17 @@ CLAUDE.md
 
 /REFS-LOCAL.md
 
+# Azure runner Terraform: local provider cache and any state created in-tree.
+# The wrapper keeps the real state outside the repository.
+infra/azure-runner/terraform/.terraform/
+infra/azure-runner/terraform/*.tfstate
+infra/azure-runner/terraform/*.tfstate.*
+infra/azure-runner/terraform/*.tfplan
+infra/azure-runner/terraform/*.tfvars
+infra/azure-runner/terraform/*.tfvars.json
+infra/azure-runner/terraform/crash.log
+infra/azure-runner/terraform/crash.*.log
+
 # KeePass-snowbridge local config (contains host/path details, no passwords)
 config/keepass-snowbridge.env.local
 

@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/azure_runner_stack.sh` so the Azure runner pilot is created and
+  deleted with Terraform. `plan`, `apply`, and `destroy` use the active Azure
+  CLI login. State stays in the owner-only XDG state directory. `apply` refuses
+  a plan that would replace a resource unless `AZURE_RUNNER_ALLOW_REPLACE=1`,
+  and a failed `adopt` restores the previous local state. `destroy` deletes
+  the resource group, including the disk and public IP.
+
 - Add the Python logging convention (`docs/python-logging.md`, summarised in `AGENTS.md`): stdlib `logging` configured once at the entry point, stderr/journal output in one format, `--log-level` and `<REPO>_LOG_LEVEL`, `SyslogIdentifier` per repo, redaction before emission, and a warning for every swallowed exception. `session-control` is the reference implementation.
 
 - Add a `commit-msg` hook to the portfolio git hooks that refuses commit messages attributing work to an AI model or tool: AI co-author trailers, session trailers, "generated with" footers and hosted session links. It enforces rule 13 from any tool. Human co-authors are unaffected, the hook chains to a repo's own `commit-msg` hook, and `install_main_branch_guard.sh` now installs it. Re-run the installer on each machine to pick it up.

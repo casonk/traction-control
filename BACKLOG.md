@@ -23,33 +23,10 @@ with a `README.md` pointing back here. The item names its id as
   `reconcile --skip-unverified-checkouts` only avoids the error. Choose: remove the `upstream` remote from
   the checkout (then re-bind the row), or teach the materializer to ignore non-origin remotes (or take an
   allowlist).
-- [ ] [manual:2026-11-01] **Replace the pilot credential and decide when to tear down ARC.**
-  An enabled subscription is verified and the reviewed North Central US Bicep
-  plan is deployed: a Standard_B2als_v2 VM, network interface, deny-all-inbound
-  NSG, static public IP, VNet, and managed OS disk. The VM is running with
-  k3s v1.36.5+k3s1 and a Ready node. ARC controller 0.15.1 is installed in
-  `arc-systems`; k3s secret encryption is enabled, all hashes match, and
-  re-encryption finished. The `dotfiles-pilot` runner policy is applied and
-  tested: public HTTPS works, while the Kubernetes API, VM node, Azure
-  metadata, and Azure platform endpoints are blocked. The `dotfiles-pilot`
-  scale set is registered and its listener is Running with zero idle runners.
-  The manual smoke workflow ran successfully on the self-hosted runner and the
-  ephemeral pod was removed. The user chose to keep the pilot online. Its
-  Kubernetes secret still contains the existing broader `gh` CLI token;
-  replace it with repository-scoped GitHub App credentials (if compatible with
-  this personal-account repository) or a fine-grained token with Administration
-  read/write before dispatching another job. The rotation helper supports both
-  modes; GitHub App authentication lets ARC mint short-lived installation
-  tokens. Auto Pass was checked: the available classic token has account-wide
-  `repo` scope, while the available fine-grained token cannot read the pilot's
-  runner administration endpoint; neither is suitable for least-privilege
-  rotation. No App credential is provisioned. The user authorized one
-  temporary rotation with the broad classic PAT, but Azure CLI authentication
-  was blocked by tenant security defaults (AADSTS530035) before any VM or
-  Kubernetes change; the existing runner Secret is unchanged. Do not dispatch
-  another job until the replacement succeeds. Then agree on a teardown date and
-  delete the dedicated resource group when testing is finished. Current
-  estimate is ~$32.64/month plus variable charges.
+- [ ] [manual:2026-11-14] **Revoke the pilot runner token.**
+  The Azure pilot resource group was deleted on 2026-11-14. Revoke the
+  fine-grained PAT `dotfiles-pilot-arc` (pilot repository only). Leave the
+  general-purpose GitHub CLI token in place.
 
 - [ ] [manual:2026-11-01] **Enable VT-x and finish KVM access for the ARC runner pilot.**
   When physically at the Fedora host with firmware access and `sudo`, enable
@@ -258,6 +235,14 @@ with a `README.md` pointing back here. The item names its id as
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-11-01] **Tear down the ARC runner pilot.**
+  The fine-grained PAT `dotfiles-pilot-arc` replaced the broad runner
+  credential, and smoke run 43672499490 passed on `dotfiles-pilot`. On
+  2026-11-14 `scripts/azure_runner_stack.sh destroy` deleted the pilot
+  resource group, including the VM, managed disk, and static public IP.
+  Bring a later pilot back with `apply`, then the existing k3s and ARC
+  install helpers. Revoking `dotfiles-pilot-arc` remains a separate item.
 
 - [x] [manual:2026-10-15] **Review scaffold-era baseline content across the portfolio.**
   A full `portfolio-audit.sh` run on 2026-10-28 over 50 checkouts reports zero

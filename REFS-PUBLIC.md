@@ -19,6 +19,8 @@
 - https://docs.github.com/en/authentication/managing-commit-signature-verification - GitHub hosted signature-verification behavior
 - https://cli.github.com/manual/gh_gpg-key - GitHub CLI public GPG-key registration commands
 - https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html - user timer semantics for the scheduled audit and install scripts
+- https://developer.hashicorp.com/terraform/language - Terraform language used to create and delete the Azure runner pilot
+- https://registry.terraform.io/providers/hashicorp/azurerm/4.81.0/docs - AzureRM provider pinned for the pilot stack
 
 ## Notes
 
