@@ -1,0 +1,11 @@
+[Unit]
+Description=Forward loopback to the @@APP@@ pod's ClusterIP
+Requires=@@BRIDGE_UNIT@@.socket
+After=@@BRIDGE_UNIT@@.socket
+# A page load or a burst of documents is many short connections; never let the start-rate limit take the port down.
+StartLimitIntervalSec=0
+
+[Service]
+# No --exit-idle-time: the forwarder stays up. (=0 meant "exit as soon as idle", one start per connection.)
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd @@CLUSTER_IP@@:@@PORT@@
+PrivateTmp=yes

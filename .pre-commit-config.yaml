@@ -70,6 +70,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: deployment-modes-scaffold-tests
+        name: deployment-modes scaffold and checker tests
+        entry: python3 -m unittest discover -s tests -p test_scaffold_deployment_modes.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: repo-settings-tests
         name: repository settings sync tests
         entry: python3 -m unittest discover -s tests -p test_repo_settings.py

@@ -4,6 +4,15 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/scaffold_deployment_modes.py`, which generates the deployment-modes contract into a repository for one
+  of four kinds (`job`, `worker`, `service`, `sandbox`): `deploy/deploy.sh`, the generic `deploy/k3s/` helpers, the
+  example config, docs, a README section, a `.gitignore` rule, and a full `tests/test_deploy_modes.py` that passes from
+  the first run. App-specific steps (`apply.sh`, `verify.sh`, the Containerfile, manifests) are stubs that fail loudly.
+  It refuses addresses and ports already in the doc's table and refuses to overwrite without `--force`.
+- Add `scripts/check_deployment_modes.py`, a static conformance checker for any repository (selection order, `set -E`,
+  config reads, hand-over order by kind, executable scripts, gitignore, docs, tests, manifests). Both are covered by a
+  pre-commit hook that round-trips every kind: scaffold, run the generated tests, run the checker.
+
 - Extend `docs/deployment-modes.md` with the intake extractor sandbox (a variant that sandboxes one function and
   switches the service over with a systemd drop-in), the shock-relay digest sender as a reference, the new
   address `10.43.0.61:5455`, the `set -E` rule for restore traps, and two more required tests (every deploy script
