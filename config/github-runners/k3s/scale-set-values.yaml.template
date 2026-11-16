@@ -1,0 +1,34 @@
+# One scale set per private repository (a personal account has no shared runners). Copy to an ignored file, set
+# githubConfigUrl and runnerScaleSetName (the name is the `runs-on` label), and install with
+# scripts/install_k3s_arc_runner.sh. Holds no credentials.
+githubConfigUrl: https://github.com/OWNER/REPOSITORY
+githubConfigSecret: runner-auth
+runnerScaleSetName: REPOSITORY-ci
+minRunners: 0
+maxRunners: 1
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-gha-rs-controller
+template:
+  spec:
+    automountServiceAccountToken: false
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      runAsGroup: 123
+      fsGroup: 123
+      seccompProfile: {type: RuntimeDefault}
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:2.338.2
+        command: ["/home/runner/run.sh"]
+        env:
+          # setup-python installs interpreters here; the image's default tool cache is root-owned.
+          - {name: RUNNER_TOOL_CACHE, value: /home/runner/_work/_tool}
+          - {name: AGENT_TOOLSDIRECTORY, value: /home/runner/_work/_tool}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        resources:
+          requests: {cpu: 250m, memory: 512Mi}
+          limits: {cpu: "2", memory: 3Gi, ephemeral-storage: 8Gi}

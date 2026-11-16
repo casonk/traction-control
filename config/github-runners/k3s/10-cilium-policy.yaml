@@ -1,0 +1,88 @@
+# Egress for a cluster that runs Cilium (the local K3s node). Runner pods run workflow code and are the untrusted part:
+# they reach only the named public hosts a Python/pre-commit job needs, never the node, the Kubernetes API, other pods,
+# the LAN or link-local/metadata addresses. Deny rules win in Cilium, so the denies hold even if an allow is added by
+# mistake. `host` and `kube-apiserver` include this node, so they are denied outright for runners. `cluster` is not in
+# the deny list (it would also deny CoreDNS); the default-deny that the egress rule creates closes other pods, services
+# and the LAN, because the only allows are DNS and port 443 to the resolved names below.
+# A cluster without Cilium (the Azure VM) uses ../runner-network-policy.yaml instead.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-runner-egress
+  namespace: arc-runners
+spec:
+  endpointSelector:
+    matchLabels: {app.kubernetes.io/component: runner}
+  ingressDeny:
+    - fromEntities: [all]
+  egressDeny:
+    - toEntities: [host, remote-node, kube-apiserver, health]
+    - toCIDR: ["169.254.0.0/16"]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports: [{port: "53", protocol: ANY}]
+          rules:
+            dns:
+              - matchName: github.com
+              - matchName: api.github.com
+              - matchName: codeload.github.com
+              - matchName: objects.githubusercontent.com
+              - matchName: release-assets.githubusercontent.com
+              - matchName: raw.githubusercontent.com
+              - matchPattern: "*.actions.githubusercontent.com"
+              - matchPattern: "*.blob.core.windows.net"
+              - matchName: pypi.org
+              - matchName: files.pythonhosted.org
+              - matchName: api.codecov.io
+              - matchName: cli.codecov.io
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchName: codeload.github.com
+        - matchName: objects.githubusercontent.com
+        - matchName: release-assets.githubusercontent.com
+        - matchName: raw.githubusercontent.com
+        - matchPattern: "*.actions.githubusercontent.com"
+        - matchPattern: "*.blob.core.windows.net"
+        - matchName: pypi.org
+        - matchName: files.pythonhosted.org
+        - matchName: api.codecov.io
+        - matchName: cli.codecov.io
+      toPorts:
+        - ports: [{port: "443", protocol: TCP}]
+---
+# The controller and the listener talk to the Kubernetes API (to create runner pods) and to GitHub (to receive jobs).
+# They run no workflow code, so the API server is allowed here and nothing else on the node is.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-systems-egress
+  namespace: arc-systems
+spec:
+  endpointSelector: {}
+  egressDeny:
+    - toEntities: [remote-node, health]
+    - toCIDR: ["169.254.0.0/16"]
+  egress:
+    - toEntities: [kube-apiserver]
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports: [{port: "53", protocol: ANY}]
+          rules:
+            dns:
+              - matchName: github.com
+              - matchName: api.github.com
+              - matchPattern: "*.actions.githubusercontent.com"
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchPattern: "*.actions.githubusercontent.com"
+      toPorts:
+        - ports: [{port: "443", protocol: TCP}]
