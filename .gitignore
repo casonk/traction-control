@@ -55,3 +55,24 @@ config/air-primary.local.toml
 .coverage.*
 coverage.xml
 htmlcov/
+
+# azure-vm-stack: local provider cache and any in-tree state or variables.
+infra/azure-vm-stack/.terraform/
+infra/azure-vm-stack/*.tfstate
+infra/azure-vm-stack/*.tfstate.*
+infra/azure-vm-stack/*.tfplan
+infra/azure-vm-stack/*.tfvars
+infra/azure-vm-stack/*.tfvars.json
+infra/azure-vm-stack/crash.log
+infra/azure-vm-stack/crash.*.log
+
+
+# azure-static-web-app-stack: local provider cache and any in-tree state or variables.
+infra/azure-static-web-app-stack/.terraform/
+infra/azure-static-web-app-stack/*.tfstate
+infra/azure-static-web-app-stack/*.tfstate.*
+infra/azure-static-web-app-stack/*.tfplan
+infra/azure-static-web-app-stack/*.tfvars
+infra/azure-static-web-app-stack/*.tfvars.json
+infra/azure-static-web-app-stack/crash.log
+infra/azure-static-web-app-stack/crash.*.log
