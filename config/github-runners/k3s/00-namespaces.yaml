@@ -1,0 +1,17 @@
+# Controller and runners live in separate namespaces. Runner pods run workflow code, so their namespace is the
+# strictest Pod Security level; the controller chart needs no more than baseline.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-systems
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-runners
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

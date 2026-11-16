@@ -240,6 +240,29 @@ passed once on the self-hosted scale set. For a repeat test, open
 **Actions → Self-hosted Runner Smoke Test → Run workflow** on the default
 branch. It checks out the repository and runs `bash tests/test_install.sh`.
 
+## Local K3s runner (debug and trial)
+
+The same ARC charts run on the Fedora K3s node (Cilium) as a trial before the Azure VM carries them. This is a
+weaker boundary than the VM design: runner pods share the host kernel. Accept that only for a **private** repository
+you own, with one ephemeral runner at a time. Never enroll a public repository or fork pull requests.
+
+- `config/github-runners/k3s/00-namespaces.yaml`: `arc-systems` (controller, listener) and `arc-runners` (job pods),
+  both Pod Security `restricted`.
+- `config/github-runners/k3s/10-cilium-policy.yaml`: runner pods may resolve and reach only GitHub, the Actions
+  service hosts, PyPI, Codecov and the artifact blob hosts on 443. The node, the API server, other nodes and
+  link-local/metadata addresses are denied outright; the default-deny closes everything else. Runner pods have no
+  service account token and no host mounts.
+- `scripts/install_k3s_arc_runner.sh controller` installs the pinned controller. `scale-set OWNER/REPO NAME TOKEN_FILE`
+  registers one repository-scoped scale set (refuses a public repository); `status` and `remove NAME` complete it.
+  The runner image is pinned in `scale-set-values.yaml.template`; `RUNNER_TOOL_CACHE` points at a writable path so
+  `actions/setup-python` can install interpreters without root.
+- A repository switches over with the repository variable `CI_RUNS_ON=NAME` once its caller passes
+  `runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}` (see the `casonk/.github` README); deleting the variable
+  switches it back.
+
+The Azure VM keeps `runner-network-policy.yaml` (plain NetworkPolicy, no Cilium) and the Azure helpers above; the
+scale-set values and the `runs-on` mechanism are the same in both places.
+
 ## Expansion and teardown
 
 After the pilot is reviewed, add repositories deliberately, one at a time. Each
