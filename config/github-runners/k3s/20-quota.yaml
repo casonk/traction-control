@@ -1,0 +1,10 @@
+# Every enrolled repository has its own scale set with up to one runner, so a burst of pull requests could start one
+# pod per repository. This caps the runner pods running at once on the node; extra jobs wait in GitHub's queue.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: arc-runner-pods
+  namespace: arc-runners
+spec:
+  hard:
+    pods: "4"

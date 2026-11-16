@@ -28,6 +28,7 @@ controller() {
     || fail "Cilium is not installed here; use config/github-runners/runner-network-policy.yaml instead"
   kubectl apply -f "$CONF/00-namespaces.yaml"
   kubectl apply -f "$CONF/10-cilium-policy.yaml"
+  kubectl apply -f "$CONF/20-quota.yaml"
   helm upgrade --install arc --namespace arc-systems --version "$CHART_VERSION" \
     --values "$CONF/controller-values.yaml" "$CHARTS/gha-runner-scale-set-controller"
   kubectl -n arc-systems rollout status deploy/arc-gha-rs-controller --timeout=180s
