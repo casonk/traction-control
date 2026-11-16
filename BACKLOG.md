@@ -423,4 +423,3 @@ with a `README.md` pointing back here. The item names its id as
   - Delete the runner token file under `~/.config/traction-control/arc-runner/`, and replace the shared fine-grained token with one per repository (or a GitHub App) before relying on this.
   - Move the runners to the isolated Azure VM (`infra/azure-runner`) when ready: same values and `runs-on` mechanism, plain NetworkPolicy instead of Cilium, and a VM boundary instead of the host kernel.
   - Re-run `scripts/verify_k3s_arc_runner.sh` after any Cilium or policy change.
-
