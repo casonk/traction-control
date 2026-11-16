@@ -248,6 +248,7 @@ you own, with one ephemeral runner at a time. Never enroll a public repository o
 
 - `config/github-runners/k3s/00-namespaces.yaml`: `arc-systems` (controller, listener) and `arc-runners` (job pods),
   both Pod Security `restricted`.
+- `config/github-runners/k3s/20-quota.yaml`: at most 4 runner pods at once across all scale sets; extra jobs queue.
 - `config/github-runners/k3s/10-cilium-policy.yaml`: runner pods may resolve and reach only GitHub, the Actions
   service hosts, PyPI, Codecov and the artifact blob hosts on 443. The node, the API server, other nodes and
   link-local/metadata addresses are denied outright; the default-deny closes everything else. Runner pods have no
