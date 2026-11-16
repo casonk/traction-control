@@ -47,6 +47,7 @@ spec:
               - matchName: proxy.golang.org
               - matchName: sum.golang.org
               - matchName: storage.googleapis.com
+              - matchName: app.vagrantup.com
     - toFQDNs:
         - matchName: github.com
         - matchName: api.github.com
@@ -65,6 +66,7 @@ spec:
         - matchName: proxy.golang.org
         - matchName: sum.golang.org
         - matchName: storage.googleapis.com
+        - matchName: app.vagrantup.com
       toPorts:
         - ports: [{port: "443", protocol: TCP}]
 ---
