@@ -255,8 +255,12 @@ you own, with one ephemeral runner at a time. Never enroll a public repository o
   service account token and no host mounts.
 - `scripts/install_k3s_arc_runner.sh controller` installs the pinned controller. `scale-set OWNER/REPO NAME TOKEN_FILE`
   registers one repository-scoped scale set (refuses a public repository); `status` and `remove NAME` complete it.
-  The runner image is pinned in `scale-set-values.yaml.template`; `RUNNER_TOOL_CACHE` points at a writable path so
-  `actions/setup-python` can install interpreters without root.
+  The runner image is `localhost:5000/arc-runner:<version>`, built by `scripts/build_k3s_arc_runner_image.sh` from
+  `config/github-runners/k3s/runner-image/Containerfile`: the upstream runner plus `shellcheck`, `age`, `ruby` and `jq`.
+  A runner pod has no `sudo`, so anything a job needs from the OS must be in that image. `RUNNER_TOOL_CACHE` points at a
+  writable path so `actions/setup-python` can install interpreters without root, and an in-memory `/run/user/1001`
+  exists because some tests look for a login-style runtime directory.
+- Jobs that need macOS or Windows (an `install-check` matrix) cannot run on a Linux pod and stay on hosted runners.
 - A repository switches over with the repository variable `CI_RUNS_ON=NAME` once its caller passes
   `runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}` (see the `casonk/.github` README); deleting the variable
   switches it back.

@@ -1,0 +1,10 @@
+# The upstream runner plus the system tools the portfolio's CI assumes a hosted runner has. A runner pod has no sudo
+# and runs with no-new-privileges, so a job cannot `apt-get install` at run time: anything it needs goes here.
+# Keep this list to what workflows actually call; each addition widens what workflow code can use.
+ARG RUNNER_VERSION=2.338.2
+FROM ghcr.io/actions/actions-runner:${RUNNER_VERSION}
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends shellcheck age ruby jq \
+ && rm -rf /var/lib/apt/lists/*
+USER runner

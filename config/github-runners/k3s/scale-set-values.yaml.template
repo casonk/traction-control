@@ -33,15 +33,21 @@ template:
       seccompProfile: {type: RuntimeDefault}
     containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:2.338.2
+        image: localhost:5000/arc-runner:2.338.2  # build with scripts/build_k3s_arc_runner_image.sh
         command: ["/home/runner/run.sh"]
         env:
           # setup-python installs interpreters here; the image's default tool cache is root-owned.
           - {name: RUNNER_TOOL_CACHE, value: /home/runner/_work/_tool}
           - {name: AGENT_TOOLSDIRECTORY, value: /home/runner/_work/_tool}
+        volumeMounts:
+          # Some tests look for a login-style runtime directory (/run/user/<uid>); a hosted runner has one.
+          - {name: run-user, mountPath: /run/user/1001}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities: {drop: [ALL]}
         resources:
           requests: {cpu: 250m, memory: 512Mi}
           limits: {cpu: "2", memory: 3Gi, ephemeral-storage: 8Gi}
+    volumes:
+      - name: run-user
+        emptyDir: {medium: Memory, sizeLimit: 16Mi}
