@@ -293,6 +293,23 @@ Things to know when repeating it:
   --install` it through Azure Run Command.
 - The network policy selects every runner pod in `arc-runners`, not one scale-set name.
 
+## Local against Azure VM comparison (2026-11-16)
+
+All 19 private repositories ran `ci.yml` and `secret-scan.yml` on `main` once on the local K3s scale sets and once on
+19 scale sets on the 2 vCPU / 4 GiB Azure VM (custom runner image imported into its containerd, pod quota 2, memory
+limit 1536Mi). The VM was destroyed afterwards (`azure_runner_stack.sh destroy`, 8 resources, about $1.07 a day while up).
+
+- **Outcome:** every job that ran on a self-hosted runner passed on both. All 74 jobs finished with the same result
+  on both sets. The only differing job was a hosted macOS `install-check` job (cancelled on one run, failed on the other).
+- **Speed:** over the 43 jobs that passed on both, 2318 s locally against 4052 s on the VM (about 1.7x). Python test jobs
+  took 90-130 s locally and 120-230 s on the VM. Gitleaks, shellcheck and the contract tests took about the same on both.
+- **Failures common to both:** Three repositories fail within 2-3 s because their hosted
+  jobs (`install-check`, and the jobs that call hosted workflows) are blocked by Actions billing. They say nothing about the runners.
+- **Image delivery:** the VM has no registry, so the runner image was streamed with `podman save | ssh | k3s ctr images
+  import`, using a throwaway key, the VM's own host key (read through Run Command), a temporary allow rule for one
+  source IPv4 address and the deny-all rule moved to priority 110 meanwhile. Everything was removed afterwards.
+- **Sizing:** 2 pods at a time on 2 vCPU is the limit; a VM of this size is for isolation and cost control, not speed.
+
 ## Expansion and teardown
 
 After the pilot is reviewed, add repositories deliberately, one at a time. Each
