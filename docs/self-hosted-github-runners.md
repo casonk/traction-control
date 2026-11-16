@@ -260,6 +260,12 @@ you own, with one ephemeral runner at a time. Never enroll a public repository o
   `runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}` (see the `casonk/.github` README); deleting the variable
   switches it back.
 
+`scripts/verify_k3s_arc_runner.sh` proves the boundary from inside a throwaway pod with a runner's labels and security
+context: allowed hosts answer; unlisted hosts and ports, the node, the API server, the LAN gateway, metadata addresses,
+other pods and services, and ingress from the node and other pods are all closed; there is no service-account token,
+the root filesystem is read-only and `sudo` fails. It exits with the number of failed probes. Run it after any policy,
+Cilium or network change, and before enrolling another repository.
+
 The Azure VM keeps `runner-network-policy.yaml` (plain NetworkPolicy, no Cilium) and the Azure helpers above; the
 scale-set values and the `runs-on` mechanism are the same in both places.
 
