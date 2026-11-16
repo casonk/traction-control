@@ -4,6 +4,9 @@
 # mistake. `host` and `kube-apiserver` include this node, so they are denied outright for runners. `cluster` is not in
 # the deny list (it would also deny CoreDNS); the default-deny that the egress rule creates closes other pods, services
 # and the LAN, because the only allows are DNS and port 443 to the resolved names below.
+# The go.dev, golang and storage.googleapis.com entries are for pre-commit's Go hooks (gitleaks builds from source;
+# the module proxy serves zips from that bucket host). It is broad, like github.com: this is a coarse allow-list, not a
+# data-exfiltration boundary, so keep credentials out of runner workflows.
 # A cluster without Cilium (the Azure VM) uses ../runner-network-policy.yaml instead.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -39,6 +42,11 @@ spec:
               - matchName: files.pythonhosted.org
               - matchName: api.codecov.io
               - matchName: cli.codecov.io
+              - matchName: go.dev
+              - matchName: dl.google.com
+              - matchName: proxy.golang.org
+              - matchName: sum.golang.org
+              - matchName: storage.googleapis.com
     - toFQDNs:
         - matchName: github.com
         - matchName: api.github.com
@@ -52,6 +60,11 @@ spec:
         - matchName: files.pythonhosted.org
         - matchName: api.codecov.io
         - matchName: cli.codecov.io
+        - matchName: go.dev
+        - matchName: dl.google.com
+        - matchName: proxy.golang.org
+        - matchName: sum.golang.org
+        - matchName: storage.googleapis.com
       toPorts:
         - ports: [{port: "443", protocol: TCP}]
 ---

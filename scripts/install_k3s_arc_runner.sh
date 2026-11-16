@@ -48,8 +48,8 @@ scale_set() {
   fi
   kubectl -n arc-systems get deploy arc-gha-rs-controller >/dev/null 2>&1 || fail "run '$0 controller' first"
 
-  local workdir; workdir="$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/arc-runner.XXXXXX")"; chmod 700 "$workdir"
-  trap 'rm -rf "$workdir"' EXIT
+  workdir="$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/arc-runner.XXXXXX")"; chmod 700 "$workdir"
+  trap 'rm -rf "${workdir:-}"' EXIT
   sed -e "s|https://github.com/OWNER/REPOSITORY|https://github.com/$slug|" \
       -e "s|^runnerScaleSetName:.*|runnerScaleSetName: $name|" \
       "$CONF/scale-set-values.yaml.template" > "$workdir/values.yaml"
