@@ -418,3 +418,9 @@ with a `README.md` pointing back here. The item names its id as
   command, wired it into `run_workflow.sh`, and rotated 171 user-owned stale
   snapshots into `artifacts/archive/snapshots/`. Four `nobody:nobody` snapshots
   remain active because they need an ownership/elevated cleanup decision.
+- [ ] [manual:2026-11-16] **Self-hosted CI runners: finish the private-repository move.** All 19 private repositories have an ephemeral runner scale set on the local K3s node (cap: 4 pods) and 16 of them run CI there through the `CI_RUNS_ON` repository variable. Left:
+  - Three pull requests (central-ecu, differential, auto-router-api) are held because their `install-check` matrix (macOS, Windows, hosted Linux) stays on hosted runners and is blocked by Actions billing. Fix billing and merge them, or decide that matrix runs only on a schedule.
+  - Delete the runner token file under `~/.config/traction-control/arc-runner/`, and replace the shared fine-grained token with one per repository (or a GitHub App) before relying on this.
+  - Move the runners to the isolated Azure VM (`infra/azure-runner`) when ready: same values and `runs-on` mechanism, plain NetworkPolicy instead of Cilium, and a VM boundary instead of the host kernel.
+  - Re-run `scripts/verify_k3s_arc_runner.sh` after any Cilium or policy change.
+
