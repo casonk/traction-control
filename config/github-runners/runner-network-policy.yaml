@@ -1,13 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: dotfiles-pilot-runner-egress
+  name: arc-runner-egress
   namespace: arc-runners
 spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: runner
-      actions.github.com/scale-set-name: dotfiles-pilot
   policyTypes:
     - Ingress
     - Egress

@@ -41,7 +41,7 @@ GitHub-hosted runners. Do not route untrusted code to self-hosted runners.
   downloads. The subnet NSG is not a pod-level egress boundary; enforce the
   runner network policies below before dispatching jobs.
 - `config/github-runners/runner-network-policy.yaml` creates the dedicated
-  `arc-runners` namespace and selects only the `dotfiles-pilot` runner pods.
+  `arc-runners` namespace and selects every runner pod in the namespace (any scale set).
   It denies pod ingress and all other egress, permits DNS to CoreDNS, and
   permits public IPv4 HTTPS while excluding private, loopback, link-local,
   reserved, and Azure platform address ranges. This is a coarse public-HTTPS
@@ -273,6 +273,25 @@ Cilium or network change, and before enrolling another repository.
 
 The Azure VM keeps `runner-network-policy.yaml` (plain NetworkPolicy, no Cilium) and the Azure helpers above; the
 scale-set values and the `runs-on` mechanism are the same in both places.
+
+## Azure VM test (2026-11-16)
+
+The whole path was run once on a fresh VM: `azure_runner_stack.sh apply`, `install_azure_runner_k3s.sh`,
+`install_azure_runner_arc_controller.sh` (secret encryption on, hashes matching), `configure_azure_runner_network_policy.sh`
+(public HTTPS allowed; the API service, the node's kubelet port, the metadata and the wireserver addresses blocked),
+`rotate_azure_runner_secret.sh --pat`, then a scale set for one private repository. A `tape-deck` CI run
+dispatched on that scale set passed both Python legs on `tape-deck-azure-runner-*` pods, which were gone afterwards.
+Things to know when repeating it:
+
+- The helpers refuse any group- or world-readable file under `~/.azure`, and the Azure CLI writes its command logs
+  mode 644; run `chmod -R go-rwx ~/.azure` after a Terraform run.
+- The first `install_azure_runner_k3s.sh` run can report a failure after a healthy install; re-run it to verify.
+- There is no scale-set helper for the VM. Render `config/github-runners/k3s/scale-set-values.yaml.template` with the
+  repository, name and `githubConfigSecret: runner-auth`, use the upstream runner image (the VM has no local registry,
+  so `ruby`, `shellcheck` and `age` are missing: publish the runner image to a registry the VM can pull from before
+  enrolling repositories that need them), lower the memory limit to fit the VM (2 vCPU, 4 GiB), and `helm upgrade
+  --install` it through Azure Run Command.
+- The network policy selects every runner pod in `arc-runners`, not one scale-set name.
 
 ## Expansion and teardown
 
