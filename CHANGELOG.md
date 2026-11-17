@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Record the live test of the Azure Windows runner VM (reachability, tools, closed inbound, the one-time `Microsoft.DevTestLab` registration the auto-shutdown needs) and propose a Linux broker that creates a fresh Windows VM per job from a golden image and deletes it, using GitHub's `actions/scaleset` client and just-in-time runner configs.
 - Add the Azure Windows runner stack: `scripts/azure_windows_runner_stack.sh` and `infra/azure-windows-runner/terraform`
   (separate resource group and state from the Linux pool, Windows Server 2022, no inbound port, generated password kept
   only in the local state, daily auto-shutdown). It has been planned against Azure (10 resources) and not applied; the
