@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/backup_azure_runner_images.sh`: a local, verified backup of the Windows and Linux golden images (temporary disk,
+  never-printed download link, size and VHD-footer checks, SHA-256, zstd, a decompress-and-rehash proof, then link revoked and disk
+  deleted) into the owner-only `~/.local/share/portfolio-backups/runner-images/`. Restore is documented and marked not yet
+  exercised.
+- Pin Git for Windows in the Windows bake by release tag (`GIT_TAG`, default the version in the current image) and fail if the
+  installed version differs; both bakes now save a manifest of what they installed, and the Linux image carries
+  `/opt/runner-image-manifest.txt`.
 - Build the premium Linux golden image: `scripts/bake_azure_linux_image.sh` and `config/github-runners/linux-vm/bake-image.sh`
   create a template VM, install the tools, a `runner` user and the digest-verified Actions runner, capture a `linux-runner`
   image version and delete the VM, then verify the image by booting a throwaway VM with the broker's own cloud-init script

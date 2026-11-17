@@ -445,6 +445,34 @@ cap queues a third Windows job; the broker has not been tried with a job that ru
 60 minutes: raise `WIN_BROKER_TTL` for such a repository); `actions/scaleset` is a Public Preview API and v0.4.0 is
 pinned because later versions need a newer Go than the one used to build here.
 
+### Backing up the golden images
+
+The images exist only in the Azure compute gallery (one region, one locally-redundant replica) and the subscription runs
+on credits, so `./scripts/backup_azure_runner_images.sh` (type `BACKUP`) keeps a copy that survives the resource group. For
+each recorded image version it creates a temporary managed disk, downloads it through a short-lived read-only link that is
+never printed or put on a command line (curl reads it from an owner-only file), checks the size and that the file ends
+with a VHD footer, records the raw SHA-256, compresses with zstd, **proves the compressed copy decompresses to the same
+hash**, then revokes the link and deletes the disk. `--only windows|linux`, `--dest DIR` and `--dry-run` exist. Output, owner-only,
+in `~/.local/share/portfolio-backups/runner-images/`: `<image>-<version>.vhd.zst`, `.sha256` (the hash of the raw VHD) and
+`.manifest.txt` (what the bake installed). Re-running skips an image whose copy still verifies.
+
+Cost and limits: a Windows disk is 128 GiB and a Linux disk 30 GiB; the first 100 GB a month leave Azure free and the rest
+is about $0.09 a GB. The Windows image's licence is Azure's, so it can only be restored into Azure; the Linux image is
+portable with disk conversion. Back up again after every rebake (a new version is a new file; delete old ones by hand).
+
+Restore (outline, **not yet exercised**; practise it once on the Linux image before relying on it): decompress and check the
+hash (`zstd -dc FILE.vhd.zst | sha256sum` must match the `.sha256`), create an upload disk (`az disk create --upload-type
+Upload --upload-size-bytes <bytes of the VHD>`), grant write access and upload the VHD to it (azcopy, page blob), revoke,
+snapshot the disk, then `az sig image-version create --os-snapshot <snapshot>` into the matching definition (the Linux
+definition is Trusted Launch), and record the new version id in the state file the installers read.
+
+**Reproducibility.** The Windows bake pins Git for Windows by release tag (`GIT_TAG`, default `v2.56.1.windows.1`, the one in
+the current image; the installer's digest is verified and the installed `git --version` must equal the tag) as it already
+pins the runner (`RUNNER_VERSION`). Ubuntu's archive does not keep old package versions, so the Linux bake cannot pin them;
+instead it writes `/opt/runner-image-manifest.txt` (OS, kernel, runner and the installed versions of the main packages),
+and both bakes save their manifest to `~/.local/share/traction-control/azure-windows-runner/manifests/` so a later rebuild
+can be compared with an image you still have.
+
 ### Premium option: a disposable Linux VM per job (off by default, not deployed)
 
 The broker can also serve a second class of runner for the same repository: one fresh **Linux VM per job**, registered

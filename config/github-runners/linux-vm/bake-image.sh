@@ -42,6 +42,18 @@ rm -rf "$tmp"
 /opt/actions-runner/bin/installdependencies.sh >/dev/null
 chown -R runner:runner /opt/actions-runner
 
+# Record exactly what was installed (Ubuntu's archive does not keep old versions, so a rebuild cannot pin them; this
+# manifest is how a later rebuild is compared with this image).
+{
+  echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "os=$(. /etc/os-release && echo "$PRETTY_NAME")"
+  echo "kernel=$(uname -r)"
+  echo "runner=${RUNNER_VERSION}"
+  dpkg-query -W -f='pkg=${Package}=${Version}\n' git docker.io jq shellcheck age ruby python3 build-essential
+} > /opt/runner-image-manifest.txt
+chmod 0644 /opt/runner-image-manifest.txt
+cat /opt/runner-image-manifest.txt
+
 # Show what jobs will find, and fail the bake rather than ship an image that cannot run them.
 echo "git=$(git --version)"
 echo "docker=$(docker --version)"
