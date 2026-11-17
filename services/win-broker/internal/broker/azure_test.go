@@ -26,6 +26,9 @@ func TestBuiltVMCarriesTheOwnershipTagsAndTheJitConfig(t *testing.T) {
 	if *vm.Tags[TagOwner] != TagOwnerVal || *vm.Tags[TagRepo] != "o/widgets" || *vm.Tags[TagCreated] != "2026-11-17T12:00:00Z" {
 		t.Errorf("tags = %v", vm.Tags)
 	}
+	if vm.Properties.SecurityProfile != nil {
+		t.Error("the Windows VM definition must not change: no security profile")
+	}
 	if *vm.Tags[TagClass] != "windows" || vm.Properties.OSProfile.LinuxConfiguration != nil {
 		t.Error("a Windows spec must produce a Windows VM")
 	}
@@ -121,6 +124,10 @@ func TestALinuxVMUsesTheLinuxImageSizeAndCloudInit(t *testing.T) {
 		if !strings.Contains(string(script), want) {
 			t.Errorf("user data is missing %q:\n%s", want, script)
 		}
+	}
+	sp := vm.Properties.SecurityProfile
+	if sp == nil || *sp.SecurityType != armcompute.SecurityTypesTrustedLaunch || !*sp.UefiSettings.SecureBootEnabled || !*sp.UefiSettings.VTpmEnabled {
+		t.Error("a Linux VM from the Trusted Launch image must itself be Trusted Launch with Secure Boot and vTPM")
 	}
 	nic := vm.Properties.NetworkProfile.NetworkInterfaceConfigurations[0]
 	if *nic.Properties.DeleteOption != armcompute.DeleteOptionsDelete || *vm.Properties.StorageProfile.OSDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete {

@@ -63,6 +63,7 @@ func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) (armcompute.Virt
 	class := classOf(spec.Class)
 	imageID, size := a.cfg.ImageID, a.cfg.VMSize
 	customData := spec.JITConfig // Windows: the start task reads it from CustomData.bin
+	var trustedLaunch *armcompute.SecurityProfile
 	osProfile := &armcompute.OSProfile{
 		ComputerName:  to.Ptr(spec.Name),
 		AdminUsername: to.Ptr("runneradmin"),
@@ -75,6 +76,11 @@ func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) (armcompute.Virt
 			return armcompute.VirtualMachine{}, err
 		}
 		customData = script
+		// The Linux image definition is Trusted Launch, and a VM created from such an image must be one too.
+		trustedLaunch = &armcompute.SecurityProfile{
+			SecurityType: to.Ptr(armcompute.SecurityTypesTrustedLaunch),
+			UefiSettings: &armcompute.UefiSettings{SecureBootEnabled: to.Ptr(true), VTpmEnabled: to.Ptr(true)},
+		}
 		// Nothing logs in (no inbound port is open); a password only has to exist.
 		osProfile.LinuxConfiguration = &armcompute.LinuxConfiguration{
 			DisablePasswordAuthentication: to.Ptr(false),
@@ -107,7 +113,8 @@ func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) (armcompute.Virt
 					ManagedDisk:  &armcompute.ManagedDiskParameters{StorageAccountType: to.Ptr(armcompute.StorageAccountTypesStandardSSDLRS)},
 				},
 			},
-			OSProfile: osProfile,
+			OSProfile:       osProfile,
+			SecurityProfile: trustedLaunch,
 			NetworkProfile: &armcompute.NetworkProfile{
 				NetworkAPIVersion: to.Ptr(armcompute.NetworkAPIVersionTwoThousandTwenty1101),
 				NetworkInterfaceConfigurations: []*armcompute.VirtualMachineNetworkInterfaceConfiguration{{

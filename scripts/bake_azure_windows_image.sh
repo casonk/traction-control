@@ -6,7 +6,8 @@
 # Starts the template VM (rg-win-runner/winrun-vm), installs Git for Windows and the pinned Actions runner and the
 # start task on it through Run Command (config/github-runners/windows/), runs sysprep, generalizes the VM and
 # captures it as a new version of the gallery image the broker creates per-job VMs from. The template VM cannot be
-# used afterwards: set TF_VAR_enable_template_vm=false and run azure_windows_runner_stack.sh apply to remove it.
+# used afterwards: run azure_windows_runner_stack.sh apply to remove it (the template VM is off by default; to bake,
+# first create it with TF_VAR_enable_template_vm=true ./scripts/azure_windows_runner_stack.sh apply).
 # The new version id is recorded under the owner-only state directory. --dry-run prints the plan only.
 set -euo pipefail
 
@@ -33,6 +34,9 @@ for c in az base64 date; do command -v "$c" >/dev/null 2>&1 || fail "required co
 [[ -f "$CONF/bake-image.ps1" && -f "$CONF/start-runner.ps1" ]] || fail "missing scripts under $CONF"
 
 VERSION="$(date -u +%Y).$(date -u +%m%d).$(date -u +%H%M)"
+if (( DRY_RUN == 0 )) && ! az vm show -g "$RESOURCE_GROUP" -n "$VM_NAME" --only-show-errors -o none 2>/dev/null; then
+  fail "the template VM $RESOURCE_GROUP/$VM_NAME does not exist; create it with: TF_VAR_enable_template_vm=true ./scripts/azure_windows_runner_stack.sh apply"
+fi
 printf 'Template VM : %s/%s\nGallery     : %s/%s\nNew version : %s\nRunner      : %s\n' \
   "$RESOURCE_GROUP" "$VM_NAME" "$GALLERY" "$IMAGE" "$VERSION" "$RUNNER_VERSION"
 if (( DRY_RUN == 1 )); then
@@ -91,4 +95,4 @@ image_id="$(az sig image-version show -g "$RESOURCE_GROUP" --gallery-name "$GALL
 install -d -m 700 "$STATE_DIR"
 (umask 077; printf '%s\n' "$image_id" > "$STATE_DIR/image-version.txt")
 printf 'Image version recorded in %s/image-version.txt\n' "$STATE_DIR"
-printf 'Next: TF_VAR_enable_template_vm=false ./scripts/azure_windows_runner_stack.sh apply   (removes the generalized template VM)\n'
+printf 'Next: ./scripts/azure_windows_runner_stack.sh apply   (the template VM is off by default, so this removes the generalized VM)\n'
