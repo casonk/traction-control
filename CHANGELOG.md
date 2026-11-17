@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/runner_pool.py`, which shows and switches the self-hosted runner pool (`local`, `azure`, `hosted`) of each
+  private repository through its `CI_RUNS_ON` variable, with `balance`, a dry run, and a refusal to point a repository
+  at Azure before its scale set is recorded.
+- Add `scripts/install_azure_runner_scale_sets.sh`, which installs one `<repo>-azure` scale set per private repository
+  on the Azure runner VM and builds the runner image there (no SSH streaming). `--dry-run` and `--print-script` run
+  offline. The runbook gains the rebuild order, the pool commands, the `install-check` behaviour and the macOS and
+  Windows research (Azure has no macOS VMs; a Windows VM costs $0.0468 an hour).
 - Add `scripts/monitor_codecov_emails.py`, a read-only Gmail monitor for Codecov patch-coverage comments. For a
   comment that reports missing coverage it opens a backlog pull request (`[codecov:DATE]` item in the repository's
   `BACKLOG.md`) and, for an open pull request, schedules `scripts/codecov_repair_agentic.sh`, an unattended agent
