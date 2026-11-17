@@ -175,6 +175,26 @@ resource "azurerm_shared_image" "win" {
   tags = local.tags
 }
 
+# Premium option (off by default): an empty image definition for per-job Linux runner VMs. Versions are captured
+# by whoever enables the option; see the runbook.
+resource "azurerm_shared_image" "linux" {
+  count               = var.enable_linux_image_definition ? 1 : 0
+  name                = "linux-runner"
+  gallery_name        = azurerm_shared_image_gallery.win.name
+  resource_group_name = azurerm_resource_group.win.name
+  location            = azurerm_resource_group.win.location
+  os_type             = "Linux"
+  hyper_v_generation  = "V2"
+
+  identifier {
+    publisher = "portfolio"
+    offer     = "github-runner"
+    sku       = "ubuntu-24-04"
+  }
+
+  tags = local.tags
+}
+
 # These resources gained `count`; the moved blocks keep the existing ones instead of replacing them.
 moved {
   from = azurerm_public_ip.win

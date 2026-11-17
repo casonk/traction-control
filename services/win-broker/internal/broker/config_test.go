@@ -114,3 +114,56 @@ func TestEmptyAllowlistIsAnError(t *testing.T) {
 		t.Fatal("an empty allowlist must not start the broker")
 	}
 }
+
+func TestTheLinuxClassIsOffByDefault(t *testing.T) {
+	cfg, err := load(goodEnv(), 0o400)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LinuxVM || len(cfg.Classes()) != 1 || cfg.Classes()[0] != ClassWindows {
+		t.Fatalf("the premium class must be off unless asked for: %+v %v", cfg.LinuxVM, cfg.Classes())
+	}
+}
+
+func TestAnythingButExactlyOneDoesNotEnableTheLinuxClass(t *testing.T) {
+	for _, v := range []string{"true", "yes", "0", "", "2", " 1"} {
+		env := goodEnv()
+		env["WIN_BROKER_LINUX_VM"] = v
+		cfg, err := load(env, 0o400)
+		if err != nil || cfg.LinuxVM {
+			t.Errorf("value %q enabled it or failed: %v %v", v, cfg.LinuxVM, err)
+		}
+	}
+}
+
+func TestEnablingTheLinuxClassNeedsItsImageAndNamesTheScaleSet(t *testing.T) {
+	env := goodEnv()
+	env["WIN_BROKER_LINUX_VM"] = "1"
+	if _, err := load(env, 0o400); err == nil || !strings.Contains(err.Error(), "LINUX_IMAGE_ID") {
+		t.Fatalf("a missing Linux image must be an error, got %v", err)
+	}
+	env["WIN_BROKER_AZURE_LINUX_IMAGE_ID"] = "linux-image"
+	cfg, err := load(env, 0o400)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.ScaleSetNameFor("o/Some_Repo", ClassLinux); got != "some-repo-linux-vm" {
+		t.Errorf("linux scale set = %q", got)
+	}
+	if got := cfg.ScaleSetNameFor("o/Some_Repo", ClassWindows); got != "some-repo-windows" {
+		t.Errorf("windows scale set = %q", got)
+	}
+	if len(cfg.Classes()) != 2 {
+		t.Errorf("classes = %v", cfg.Classes())
+	}
+}
+
+func TestTheTwoScaleSetSuffixesMustDiffer(t *testing.T) {
+	env := goodEnv()
+	env["WIN_BROKER_LINUX_VM"] = "1"
+	env["WIN_BROKER_AZURE_LINUX_IMAGE_ID"] = "linux-image"
+	env["WIN_BROKER_LINUX_SCALE_SET_SUFFIX"] = "-windows"
+	if _, err := load(env, 0o400); err == nil {
+		t.Fatal("the same suffix for both classes would register one scale set twice")
+	}
+}

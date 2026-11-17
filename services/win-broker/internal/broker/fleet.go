@@ -18,6 +18,7 @@ const (
 type Entry struct {
 	Name     string
 	Repo     string
+	Class    Class
 	RunnerID int
 	State    string
 	Created  time.Time
@@ -34,22 +35,22 @@ type Fleet struct {
 func NewFleet(max int) *Fleet { return &Fleet{max: max, vms: map[string]*Entry{}} }
 
 // Reserve records a VM about to be created. It reports false when the cap is reached or the name is taken.
-func (f *Fleet) Reserve(name, repo string, now time.Time) bool {
+func (f *Fleet) Reserve(name, repo string, class Class, now time.Time) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, taken := f.vms[name]; taken || len(f.vms) >= f.max {
 		return false
 	}
-	f.vms[name] = &Entry{Name: name, Repo: repo, State: StateCreating, Created: now}
+	f.vms[name] = &Entry{Name: name, Repo: repo, Class: class, State: StateCreating, Created: now}
 	return true
 }
 
 // Adopt records a VM found in the cloud after a restart. The cap is not applied: it exists already.
-func (f *Fleet) Adopt(name, repo string, created time.Time) {
+func (f *Fleet) Adopt(name, repo string, class Class, created time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.vms[name]; !ok {
-		f.vms[name] = &Entry{Name: name, Repo: repo, State: StateIdle, Created: created}
+		f.vms[name] = &Entry{Name: name, Repo: repo, Class: class, State: StateIdle, Created: created}
 	}
 }
 
@@ -121,13 +122,13 @@ func (f *Fleet) Count() int {
 	return len(f.vms)
 }
 
-// CountRepo is the number of VMs serving one repository, not counting ones already being deleted.
-func (f *Fleet) CountRepo(repo string) int {
+// CountRepo is the number of VMs of one class serving one repository, not counting ones already being deleted.
+func (f *Fleet) CountRepo(repo string, class Class) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	n := 0
 	for _, e := range f.vms {
-		if e.Repo == repo && e.State != StateDeleting {
+		if e.Repo == repo && e.Class == class && e.State != StateDeleting {
 			n++
 		}
 	}

@@ -100,15 +100,20 @@ func (j *fakeJit) RemoveRunner(_ context.Context, id int64) error {
 }
 
 type names struct {
-	mu sync.Mutex
-	n  int
+	mu     sync.Mutex
+	n      int
+	prefix string
 }
 
 func (g *names) next() string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.n++
-	return VMPrefix + string(rune('a'+g.n-1)) + "000000"
+	prefix := g.prefix
+	if prefix == "" {
+		prefix = VMPrefix
+	}
+	return prefix + string(rune('a'+g.n-1)) + "000000"
 }
 
 func waitFor(t *testing.T, what string, cond func() bool) {

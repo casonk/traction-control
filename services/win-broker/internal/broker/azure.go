@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -44,20 +45,61 @@ func NewAzureCloud(cfg AzureConfig) (*AzureCloud, error) {
 	return &AzureCloud{cfg: cfg, vms: vms}, nil
 }
 
+var jitPattern = regexp.MustCompile(`^[A-Za-z0-9+/=_-]{20,}$`)
+
+// LinuxUserData is the cloud-init script a per-job Linux VM runs at first boot: it starts the runner baked into the
+// image with the single-use configuration. The configuration is base64 text, and anything else is refused, so it can
+// never carry shell syntax into the script.
+func LinuxUserData(jit string) (string, error) {
+	if !jitPattern.MatchString(jit) {
+		return "", fmt.Errorf("the runner configuration is not base64 text; refusing to put it in a script")
+	}
+	return "#!/bin/bash\nset -eu\ncd /opt/actions-runner\nexec runuser -u runner -- ./run.sh --jitconfig '" + jit + "'\n", nil
+}
+
 // BuildVM returns the VM definition for a spec. It is separate from CreateVM so it can be checked without Azure.
-func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) armcompute.VirtualMachine {
+func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) (armcompute.VirtualMachine, error) {
 	del := armcompute.DeleteOptionsDelete
+	class := classOf(spec.Class)
+	imageID, size := a.cfg.ImageID, a.cfg.VMSize
+	customData := spec.JITConfig // Windows: the start task reads it from CustomData.bin
+	osProfile := &armcompute.OSProfile{
+		ComputerName:  to.Ptr(spec.Name),
+		AdminUsername: to.Ptr("runneradmin"),
+		AdminPassword: to.Ptr(adminPassword),
+	}
+	if class == ClassLinux {
+		imageID, size = a.cfg.LinuxImageID, a.cfg.LinuxVMSize
+		script, err := LinuxUserData(spec.JITConfig)
+		if err != nil {
+			return armcompute.VirtualMachine{}, err
+		}
+		customData = script
+		// Nothing logs in (no inbound port is open); a password only has to exist.
+		osProfile.LinuxConfiguration = &armcompute.LinuxConfiguration{
+			DisablePasswordAuthentication: to.Ptr(false),
+			ProvisionVMAgent:              to.Ptr(true),
+		}
+	} else {
+		osProfile.WindowsConfiguration = &armcompute.WindowsConfiguration{
+			ProvisionVMAgent:       to.Ptr(true),
+			EnableAutomaticUpdates: to.Ptr(false),
+		}
+	}
+	// The runner configuration is single use and expires unused; the VM is deleted after one job.
+	osProfile.CustomData = to.Ptr(base64.StdEncoding.EncodeToString([]byte(customData)))
 	return armcompute.VirtualMachine{
 		Location: to.Ptr(a.cfg.Location),
 		Tags: map[string]*string{
 			TagOwner:   to.Ptr(TagOwnerVal),
 			TagRepo:    to.Ptr(spec.Repo),
 			TagCreated: to.Ptr(spec.Created.UTC().Format(time.RFC3339)),
+			TagClass:   to.Ptr(string(class)),
 		},
 		Properties: &armcompute.VirtualMachineProperties{
-			HardwareProfile: &armcompute.HardwareProfile{VMSize: to.Ptr(armcompute.VirtualMachineSizeTypes(a.cfg.VMSize))},
+			HardwareProfile: &armcompute.HardwareProfile{VMSize: to.Ptr(armcompute.VirtualMachineSizeTypes(size))},
 			StorageProfile: &armcompute.StorageProfile{
-				ImageReference: &armcompute.ImageReference{ID: to.Ptr(a.cfg.ImageID)},
+				ImageReference: &armcompute.ImageReference{ID: to.Ptr(imageID)},
 				OSDisk: &armcompute.OSDisk{
 					Name:         to.Ptr(spec.Name + "-osdisk"),
 					CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesFromImage),
@@ -65,17 +107,7 @@ func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) armcompute.Virtu
 					ManagedDisk:  &armcompute.ManagedDiskParameters{StorageAccountType: to.Ptr(armcompute.StorageAccountTypesStandardSSDLRS)},
 				},
 			},
-			OSProfile: &armcompute.OSProfile{
-				ComputerName:  to.Ptr(spec.Name),
-				AdminUsername: to.Ptr("runneradmin"),
-				AdminPassword: to.Ptr(adminPassword),
-				// The runner configuration is single use and expires unused; the VM is deleted after one job.
-				CustomData: to.Ptr(base64.StdEncoding.EncodeToString([]byte(spec.JITConfig))),
-				WindowsConfiguration: &armcompute.WindowsConfiguration{
-					ProvisionVMAgent:       to.Ptr(true),
-					EnableAutomaticUpdates: to.Ptr(false),
-				},
-			},
+			OSProfile: osProfile,
 			NetworkProfile: &armcompute.NetworkProfile{
 				NetworkAPIVersion: to.Ptr(armcompute.NetworkAPIVersionTwoThousandTwenty1101),
 				NetworkInterfaceConfigurations: []*armcompute.VirtualMachineNetworkInterfaceConfiguration{{
@@ -106,7 +138,7 @@ func (a *AzureCloud) BuildVM(spec VMSpec, adminPassword string) armcompute.Virtu
 				}},
 			},
 		},
-	}
+	}, nil
 }
 
 // CreateVM creates the VM and waits until Azure reports it provisioned.
@@ -115,7 +147,11 @@ func (a *AzureCloud) CreateVM(ctx context.Context, spec VMSpec) error {
 	if err != nil {
 		return err
 	}
-	poller, err := a.vms.BeginCreateOrUpdate(ctx, a.cfg.ResourceGroup, spec.Name, a.BuildVM(spec, password), nil)
+	vm, err := a.BuildVM(spec, password)
+	if err != nil {
+		return fmt.Errorf("define VM %s: %w", spec.Name, err)
+	}
+	poller, err := a.vms.BeginCreateOrUpdate(ctx, a.cfg.ResourceGroup, spec.Name, vm, nil)
 	if err != nil {
 		return fmt.Errorf("create VM %s: %w", spec.Name, err)
 	}
@@ -167,6 +203,10 @@ func (a *AzureCloud) ListVMs(ctx context.Context) ([]VM, error) {
 			vm := VM{Name: *v.Name}
 			if r := v.Tags[TagRepo]; r != nil {
 				vm.Repo = *r
+			}
+			vm.Class = ClassWindows // VMs created before the class tag existed were all Windows
+			if c := v.Tags[TagClass]; c != nil && Class(*c) == ClassLinux {
+				vm.Class = ClassLinux
 			}
 			if c := v.Tags[TagCreated]; c != nil {
 				if t, err := time.Parse(time.RFC3339, *c); err == nil {

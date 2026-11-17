@@ -65,6 +65,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("cannot list existing VMs (is the managed identity assigned?): %w", err)
 	}
+	if cfg.LinuxVM {
+		log.Warn("the premium per-job Linux VM class is enabled")
+	}
 	log.Info("starting", "version", version, "repos", len(cfg.Repos), "maxVMs", cfg.MaxVMs, "ttl", cfg.TTL.String(), "existingVMs", len(existing))
 
 	reaper := &broker.Reaper{Cloud: cloud, Fleet: fleet, TTL: cfg.TTL, Every: cfg.ReapEvery, Log: log.With("component", "reaper")}
@@ -72,16 +75,18 @@ func run() error {
 	wg.Add(1)
 	go func() { defer wg.Done(); reaper.Run(ctx) }()
 
-	scalers := make([]*broker.Scaler, 0, len(cfg.Repos))
+	scalers := make([]*broker.Scaler, 0, len(cfg.Repos)*2)
 	for _, slug := range cfg.Repos {
-		s := &broker.Scaler{
-			Repo: slug, Cloud: cloud, Fleet: fleet, DryRun: cfg.DryRun,
-			Log: log.With("repo", slug), BaseCtx: ctx,
+		for _, class := range cfg.Classes() {
+			s := &broker.Scaler{
+				Repo: slug, Class: class, Cloud: cloud, Fleet: fleet, DryRun: cfg.DryRun,
+				Log: log.With("repo", slug, "class", string(class)), BaseCtx: ctx,
+			}
+			s.Adopt(existing)
+			scalers = append(scalers, s)
+			wg.Add(1)
+			go func() { defer wg.Done(); serve(ctx, cfg, s, s.Log) }()
 		}
-		s.Adopt(existing)
-		scalers = append(scalers, s)
-		wg.Add(1)
-		go func() { defer wg.Done(); serve(ctx, cfg, s, log.With("repo", slug)) }()
 	}
 
 	<-ctx.Done()
@@ -121,7 +126,7 @@ func listenOnce(ctx context.Context, cfg broker.Config, s *broker.Scaler, log *s
 	if err != nil {
 		return fmt.Errorf("scale set client: %w", err)
 	}
-	name := cfg.ScaleSetName(s.Repo)
+	name := cfg.ScaleSetNameFor(s.Repo, s.Class)
 	const defaultRunnerGroupID = 1
 	set, err := client.GetRunnerScaleSet(ctx, defaultRunnerGroupID, name)
 	if err != nil || set == nil {

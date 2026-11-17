@@ -69,3 +69,9 @@ variable "enable_template_vm" {
   description = "Create the template VM that the golden image is baked from. Set to false once the image exists: the broker creates and deletes its own per-job VMs in the same subnet."
   default     = true
 }
+
+variable "enable_linux_image_definition" {
+  type        = bool
+  description = "Premium option: also create an image definition for a per-job Linux runner image in the gallery. Off by default; it creates a free, empty definition and nothing else."
+  default     = false
+}

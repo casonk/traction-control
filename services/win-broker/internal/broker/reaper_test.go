@@ -15,8 +15,8 @@ func TestReaperDeletesOnlyVMsPastTheTimeLimit(t *testing.T) {
 	cloud, fleet := newFakeCloud(), NewFleet(4)
 	cloud.vms["wr-old00000"] = VMSpec{Name: "wr-old00000", Created: now.Add(-2 * time.Hour)}
 	cloud.vms["wr-new00000"] = VMSpec{Name: "wr-new00000", Created: now.Add(-10 * time.Minute)}
-	fleet.Adopt("wr-old00000", "o/a", now.Add(-2*time.Hour))
-	fleet.Adopt("wr-new00000", "o/a", now.Add(-10*time.Minute))
+	fleet.Adopt("wr-old00000", "o/a", ClassWindows, now.Add(-2*time.Hour))
+	fleet.Adopt("wr-new00000", "o/a", ClassWindows, now.Add(-10*time.Minute))
 
 	deleted, err := reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if err != nil || len(deleted) != 1 || deleted[0] != "wr-old00000" {
@@ -33,12 +33,12 @@ func TestReaperDeletesOnlyVMsPastTheTimeLimit(t *testing.T) {
 func TestReaperReclaimsASlotStuckInCreating(t *testing.T) {
 	now := time.Unix(10_000_000, 0)
 	cloud, fleet := newFakeCloud(), NewFleet(1)
-	fleet.Reserve("wr-stuck000", "o/a", now.Add(-30*time.Minute))
+	fleet.Reserve("wr-stuck000", "o/a", ClassWindows, now.Add(-30*time.Minute))
 	reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if fleet.Count() != 0 {
 		t.Fatal("a slot stuck in creating was never reclaimed")
 	}
-	fleet.Reserve("wr-fresh000", "o/a", now.Add(-time.Minute))
+	fleet.Reserve("wr-fresh000", "o/a", ClassWindows, now.Add(-time.Minute))
 	reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if fleet.Count() != 1 {
 		t.Fatal("a VM that is still being created lost its slot")
@@ -48,7 +48,7 @@ func TestReaperReclaimsASlotStuckInCreating(t *testing.T) {
 func TestReaperForgetsAVMThatNoLongerExists(t *testing.T) {
 	now := time.Unix(10_000_000, 0)
 	cloud, fleet := newFakeCloud(), NewFleet(2)
-	fleet.Adopt("wr-gone0000", "o/a", now)
+	fleet.Adopt("wr-gone0000", "o/a", ClassWindows, now)
 	reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if fleet.Count() != 0 {
 		t.Fatal("an entry for a VM that is gone was kept")
@@ -59,7 +59,7 @@ func TestReaperRetriesADeletionThatDidNotFinish(t *testing.T) {
 	now := time.Unix(10_000_000, 0)
 	cloud, fleet := newFakeCloud(), NewFleet(2)
 	cloud.vms["wr-stuck000"] = VMSpec{Name: "wr-stuck000", Created: now}
-	fleet.Adopt("wr-stuck000", "o/a", now)
+	fleet.Adopt("wr-stuck000", "o/a", ClassWindows, now)
 	fleet.SetState("wr-stuck000", StateDeleting, 0)
 	deleted, _ := reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if len(deleted) != 1 || cloud.has("wr-stuck000") || fleet.Count() != 0 {
@@ -74,5 +74,16 @@ func TestReaperTreatsAVMWithNoCreationTimeAsOld(t *testing.T) {
 	deleted, _ := reaperAt(cloud, fleet, now).Sweep(context.Background())
 	if len(deleted) != 1 {
 		t.Fatal("a VM with no usable creation time was not reaped")
+	}
+}
+
+func TestReaperAlsoReapsAPerJobLinuxVMPastTheTimeLimit(t *testing.T) {
+	now := time.Unix(10_000_000, 0)
+	cloud, fleet := newFakeCloud(), NewFleet(4)
+	cloud.vms["lr-old00000"] = VMSpec{Name: "lr-old00000", Class: ClassLinux, Created: now.Add(-3 * time.Hour)}
+	fleet.Adopt("lr-old00000", "o/a", ClassLinux, now.Add(-3*time.Hour))
+	deleted, err := reaperAt(cloud, fleet, now).Sweep(context.Background())
+	if err != nil || len(deleted) != 1 || cloud.has("lr-old00000") || fleet.Count() != 0 {
+		t.Fatalf("a Linux VM past its limit was not reaped: %v %v", deleted, err)
 	}
 }
