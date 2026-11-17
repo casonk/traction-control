@@ -18,6 +18,8 @@ VM_NAME="winrun-vm"
 GALLERY="winrungallery"
 IMAGE="windows-runner"
 RUNNER_VERSION="${RUNNER_VERSION:-2.338.2}"
+# Pinned so a rebuild matches the last image; the value is the Git for Windows release tag of the image baked on 2026-11-17.
+GIT_TAG="${GIT_TAG:-v2.56.1.windows.1}"
 STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/share}/traction-control/azure-windows-runner"
 DRY_RUN=0
 
@@ -30,6 +32,7 @@ case "${1:-}" in
 esac
 
 [[ "$RUNNER_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "RUNNER_VERSION must look like 2.338.2"
+[[ "$GIT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.windows\.[0-9]+$ ]] || fail "GIT_TAG must look like v2.56.1.windows.1"
 for c in az base64 date; do command -v "$c" >/dev/null 2>&1 || fail "required command not found: $c"; done
 [[ -f "$CONF/bake-image.ps1" && -f "$CONF/start-runner.ps1" ]] || fail "missing scripts under $CONF"
 
@@ -37,8 +40,8 @@ VERSION="$(date -u +%Y).$(date -u +%m%d).$(date -u +%H%M)"
 if (( DRY_RUN == 0 )) && ! az vm show -g "$RESOURCE_GROUP" -n "$VM_NAME" --only-show-errors -o none 2>/dev/null; then
   fail "the template VM $RESOURCE_GROUP/$VM_NAME does not exist; create it with: TF_VAR_enable_template_vm=true ./scripts/azure_windows_runner_stack.sh apply"
 fi
-printf 'Template VM : %s/%s\nGallery     : %s/%s\nNew version : %s\nRunner      : %s\n' \
-  "$RESOURCE_GROUP" "$VM_NAME" "$GALLERY" "$IMAGE" "$VERSION" "$RUNNER_VERSION"
+printf 'Template VM : %s/%s\nGallery     : %s/%s\nNew version : %s\nRunner      : %s\nGit         : %s\n' \
+  "$RESOURCE_GROUP" "$VM_NAME" "$GALLERY" "$IMAGE" "$VERSION" "$RUNNER_VERSION" "$GIT_TAG"
 if (( DRY_RUN == 1 )); then
   printf 'dry run: nothing was changed.\n'
   exit 0
@@ -54,7 +57,7 @@ chmod 700 "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 START_B64="$(base64 -w0 "$CONF/start-runner.ps1")"
 {
-  printf "\$RunnerVersion = '%s'\n\$StartScriptB64 = '%s'\n" "$RUNNER_VERSION" "$START_B64"
+  printf "\$RunnerVersion = '%s'\n\$GitTag = '%s'\n\$StartScriptB64 = '%s'\n" "$RUNNER_VERSION" "$GIT_TAG" "$START_B64"
   cat "$CONF/bake-image.ps1"
 } > "$WORK/bake.ps1"
 
@@ -71,6 +74,8 @@ output="$(az vm run-command invoke -g "$RESOURCE_GROUP" -n "$VM_NAME" --command-
   --scripts @"$WORK/bake.ps1" --only-show-errors --query 'value[].message' -o tsv)"
 printf '%s\n' "$output"
 printf '%s\n' "$output" | grep -q "^baked runner=${RUNNER_VERSION}" || fail "the bake did not finish; the VM was not generalized"
+install -d -m 700 "$STATE_DIR/manifests"
+(umask 077; printf '%s\n' "$output" | grep -E '^(verified|git=|bash=|task=|baked)' > "$STATE_DIR/manifests/windows-$VERSION.txt")
 
 printf '== sysprep (the VM shuts itself down)\n'
 az vm run-command invoke -g "$RESOURCE_GROUP" -n "$VM_NAME" --command-id RunPowerShellScript --only-show-errors \

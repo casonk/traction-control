@@ -149,6 +149,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
 - `scripts/runner_pool.py`: show and switch which self-hosted runner pool (local, Azure, hosted) each private repository's CI uses
 - `services/win-broker`: Go broker that creates and deletes one Windows VM per job (see the runbook); `scripts/bake_azure_windows_image.sh` (and `bake_azure_linux_image.sh` for the optional premium Linux class) build its images and `scripts/install_azure_win_broker.sh` deploys it
+- `scripts/backup_azure_runner_images.sh`: verified local backup of the Windows and Linux golden runner images
 - `scripts/azure_windows_runner_stack.sh`: create or delete the separate Azure Windows runner VM stack (planned, not yet applied)
 - `scripts/install_azure_runner_scale_sets.sh`: install one scale set per private repository on the Azure runner VM
 - `scripts/monitor_codecov_emails.py`: Gmail inbox monitor for Codecov patch-coverage comments; opens a backlog pull request and schedules `scripts/codecov_repair_agentic.sh`

@@ -119,6 +119,8 @@ printf '== baking (tools, runner user, the Actions runner)\n'
 { printf "RUNNER_VERSION='%s'\n" "$RUNNER_VERSION"; cat "$CONF/bake-image.sh"; } > "$WORK/bake.sh"
 output="$(run_script "$BAKE_VM" "$WORK/bake.sh")"
 printf '%s\n' "$output" | grep -E '^(verified|git=|docker=|jq=|runner=|sudo=|baked|error)' || true
+install -d -m 700 "$STATE_DIR/manifests"
+(umask 077; printf '%s\n' "$output" | grep -E '^(built|os|kernel|runner|pkg|verified|baked)=?' > "$STATE_DIR/manifests/linux-$VERSION.txt")
 printf '%s\n' "$output" | grep -q "^baked runner=${RUNNER_VERSION}" || { printf '%s\n' "$output" | tail -15 >&2; fail "the bake did not finish; nothing was captured"; }
 
 printf '== deprovisioning (the VM shuts itself down)\n'

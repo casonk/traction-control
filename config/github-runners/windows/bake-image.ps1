@@ -1,6 +1,7 @@
 # Bakes the golden Windows runner image on the template VM: Git for Windows, the Actions runner and the start task.
 # Run through Azure Run Command by scripts/bake_azure_windows_image.sh, which prepends these variables:
 #   $RunnerVersion   the pinned runner release (for example 2.338.2)
+#   $GitTag          the pinned Git for Windows release tag (for example v2.56.1.windows.1)
 #   $StartScriptB64  config/github-runners/windows/start-runner.ps1, base64
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -15,10 +16,10 @@ function Get-Verified($Url, $OutFile, $Digest) {
   "verified $(Split-Path $OutFile -Leaf) $actual"
 }
 
-# Git for Windows (actions/checkout prefers a real git).
-$git = Invoke-RestMethod -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest' -Headers $headers
+# Git for Windows (actions/checkout prefers a real git), pinned to one release so a rebuild matches the last image.
+$git = Invoke-RestMethod -Uri "https://api.github.com/repos/git-for-windows/git/releases/tags/$GitTag" -Headers $headers
 $gitAsset = $git.assets | Where-Object { $_.name -match '^Git-[0-9.]+-64-bit\.exe$' } | Select-Object -First 1
-if (-not $gitAsset) { throw 'no 64-bit Git for Windows installer in the latest release' }
+if (-not $gitAsset) { throw "no 64-bit Git for Windows installer in release $GitTag" }
 $gitExe = Join-Path $env:TEMP $gitAsset.name
 Get-Verified $gitAsset.browser_download_url $gitExe $gitAsset.digest
 Start-Process -FilePath $gitExe -ArgumentList '/VERYSILENT', '/NORESTART', '/SP-', '/SUPPRESSMSGBOXES' -Wait
@@ -31,7 +32,10 @@ foreach ($dir in @("$gitRoot\bin", "$gitRoot\usr\bin")) {
 }
 [Environment]::SetEnvironmentVariable('Path', $machinePath, 'Machine')
 $env:Path = $machinePath
-"git=" + (& git --version)
+$gitVersion = (& git --version)
+"git=$gitVersion"
+$expected = 'git version ' + $GitTag.TrimStart('v')
+if ($gitVersion -ne $expected) { throw "the installed Git is '$gitVersion', expected '$expected'" }
 $bashVersion = (& bash --version | Select-Object -First 1)
 if (-not $bashVersion) { throw 'bash is not runnable after the Git for Windows install' }
 "bash=$bashVersion"
