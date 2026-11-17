@@ -147,6 +147,8 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
 - `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
+- `scripts/runner_pool.py`: show and switch which self-hosted runner pool (local, Azure, hosted) each private repository's CI uses
+- `scripts/install_azure_runner_scale_sets.sh`: install one scale set per private repository on the Azure runner VM
 - `scripts/monitor_codecov_emails.py`: Gmail inbox monitor for Codecov patch-coverage comments; opens a backlog pull request and schedules `scripts/codecov_repair_agentic.sh`
 - `scripts/tachometer_disk_pressure_agentic.sh`: unattended tachometer disk-pressure remediation handoff for clean candidate repos
 - `scripts/install_tachometer_disk_pressure_agentic_systemd.sh`: `clockwork` installer for the disk-pressure remediation timer

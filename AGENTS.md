@@ -515,6 +515,8 @@ python3 -m unittest discover -s tests -p test_codecov_secrets.py
 python3 -m unittest discover -s tests -p test_readme_badges.py
 python3 -m unittest discover -s tests -p test_portfolio_theme.py
 python3 -m unittest discover -s tests -p test_monitor_codecov_emails.py
+python3 -m unittest discover -s tests -p test_runner_pool.py
+python3 -m unittest discover -s tests -p test_install_azure_runner_scale_sets.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are

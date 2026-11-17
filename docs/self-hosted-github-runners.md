@@ -310,6 +310,71 @@ limit 1536Mi). The VM was destroyed afterwards (`azure_runner_stack.sh destroy`,
   source IPv4 address and the deny-all rule moved to priority 110 meanwhile. Everything was removed afterwards.
 - **Sizing:** 2 pods at a time on 2 vCPU is the limit; a VM of this size is for isolation and cost control, not speed.
 
+## Choosing a pool: local, Azure or hosted
+
+A repository's CI goes where its `CI_RUNS_ON` variable says (see the `casonk/.github` README). Scale sets are named by
+pool: `<repo>-ci` on the local K3s node and `<repo>-azure` on the Azure VM. `scripts/runner_pool.py` reads the private
+registry and switches repositories without editing any workflow:
+
+```sh
+python3 scripts/runner_pool.py status                    # which pool each private repository uses
+python3 scripts/runner_pool.py set azure --dry-run       # preview; then run without --dry-run
+python3 scripts/runner_pool.py set local --repo NAME
+python3 scripts/runner_pool.py set hosted --repo NAME   # removes the variable
+python3 scripts/runner_pool.py balance --weights azure=2,local=1
+```
+
+`set azure` refuses a repository with no recorded Azure scale set, because its CI would queue forever; the installer
+below records them (`runner_pool.py enroll azure`), and `--force` overrides the check. Only private repositories in the
+registry are ever touched. GitHub does not spread jobs across pools by itself: each repository points at one pool, so
+`balance` splits the repositories, not the jobs.
+
+To stand the Azure pool up again, run these in order (each guarded step asks you to type its confirmation):
+
+1. `./scripts/azure_runner_stack.sh apply` (type `APPLY`), then `chmod -R go-rwx ~/.azure`
+2. `./scripts/install_azure_runner_k3s.sh`, then `./scripts/install_azure_runner_arc_controller.sh`
+3. `./scripts/configure_azure_runner_network_policy.sh`
+4. `./scripts/rotate_azure_runner_secret.sh --pat ~/.config/traction-control/arc-runner/github-token` (type `ROTATE`)
+5. `./scripts/install_azure_runner_scale_sets.sh` (type `SCALESETS`): one `<repo>-azure` scale set per private
+   repository, with the runner image built on the VM and 2 runner pods at a time. `--dry-run` previews it.
+6. `python3 scripts/runner_pool.py set azure`
+
+Destroy the stack with `./scripts/azure_runner_stack.sh destroy` when the credits or the need run out.
+
+### `install-check` on a self-hosted runner
+
+`install-check.yml` in `casonk/.github` reads the caller's `CI_RUNS_ON`. While it is set, a push or pull request
+installs on that one Linux runner; the full matrix (hosted Linux, macOS, Windows) runs only on `workflow_dispatch` and
+`schedule`. A private repository therefore no longer fails on GitHub-hosted runners it cannot pay for. Tested from a
+private repository on 2026-11-17: only the self-hosted legs ran and all passed.
+
+## macOS and Windows runners (research, 2026-11-17)
+
+The self-hosted pools above are Linux pods. A repository that claims macOS or Windows support still needs those legs
+somewhere. Nothing below is built; this is what was found.
+
+- **macOS on Azure: not available.** Azure has no macOS VM image or Mac dedicated host (Apple's licence requires Apple
+  hardware). The cloud options are elsewhere: AWS EC2 Mac needs a Dedicated Host with a 24-hour minimum allocation, so
+  it only pays off if kept busy, and it is not covered by Azure credits; hosted Mac mini rental is cheaper per day
+  but is a standing machine. A Mac you already own can run a self-hosted runner (labels such as
+  `[self-hosted, macOS, ARM64]`), ideally with throwaway VMs from Tart or Anka. Keep that to a private repository
+  and trusted code only.
+- **Windows on Azure: works, as an ordinary VM, not as an ARC pod.** ARC scale sets need Windows nodes (AKS), which
+  the K3s design does not have. A Windows VM with a self-hosted runner in ephemeral mode (`--ephemeral`) fits. In
+  North Central US the Windows rate of `Standard_B2als_v2` is $0.0468 an hour with the licence included, against
+  $0.0376 for Linux (Azure Retail Prices API, 2026-11-17), so about $34 a month always on. The cheap pattern is a VM
+  that is deallocated when idle and started by the workflow for a scheduled or manual run; disk and IP charges
+  continue while it is deallocated.
+- **Recommendation:** keep macOS and Windows legs on `workflow_dispatch`/`schedule` (already how `install-check`
+  behaves for self-hosted repositories) and run them on hosted runners when billing allows. If a Windows leg must run
+  on every pull request, add a second, separately destroyable Terraform stack for one Windows VM and a runner
+  registered to it.
+
+Sources: [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices),
+[Azure has no macOS image (Microsoft Q&A)](https://learn.microsoft.com/en-us/answers/a/1191816),
+[EC2 Mac and Dedicated Hosts](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/mac-instance-launch.html),
+[ephemeral Windows 11 VM on Azure for GitHub Actions](https://paretosecurity.com/blog/ephemeral-windows-11-testing-vm-on-azure/).
+
 ## Expansion and teardown
 
 After the pilot is reviewed, add repositories deliberately, one at a time. Each
