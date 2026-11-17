@@ -63,3 +63,9 @@ variable "shutdown_time_utc" {
     error_message = "shutdown_time_utc must be empty or HHMM."
   }
 }
+
+variable "enable_template_vm" {
+  type        = bool
+  description = "Create the template VM that the golden image is baked from. Set to false once the image exists: the broker creates and deletes its own per-job VMs in the same subnet."
+  default     = true
+}

@@ -148,6 +148,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
 - `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
 - `scripts/runner_pool.py`: show and switch which self-hosted runner pool (local, Azure, hosted) each private repository's CI uses
+- `services/win-broker`: Go broker that creates and deletes one Windows VM per job (see the runbook); `scripts/bake_azure_windows_image.sh` and `scripts/install_azure_win_broker.sh` build its image and deploy it
 - `scripts/azure_windows_runner_stack.sh`: create or delete the separate Azure Windows runner VM stack (planned, not yet applied)
 - `scripts/install_azure_runner_scale_sets.sh`: install one scale set per private repository on the Azure runner VM
 - `scripts/monitor_codecov_emails.py`: Gmail inbox monitor for Codecov patch-coverage comments; opens a backlog pull request and schedules `scripts/codecov_repair_agentic.sh`

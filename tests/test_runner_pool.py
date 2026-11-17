@@ -215,5 +215,46 @@ class CliTests(RegistryFixture):
         self.assertEqual(out.split(), SLUGS)
 
 
+class WindowsTests(RegistryFixture):
+    def allowlist(self, *slugs: str) -> Path:
+        path = self.tmp / "allow.txt"
+        path.write_text("# comment\n" + "\n".join(slugs) + "\n", encoding="utf-8")
+        return path
+
+    def test_windows_scale_set_names(self) -> None:
+        self.assertEqual(pool.windows_scale_set_name("o/Beta_two"), "beta-two-windows")
+
+    def test_set_is_refused_for_a_repository_the_broker_does_not_serve(self) -> None:
+        gh = FakeGh()
+        code, _, err = self.run_cli("windows", "set", "--repo", "alpha", "--allowlist", str(self.allowlist("o/delta")), gh=gh)
+        self.assertEqual(code, 2)
+        self.assertIn("not in the Windows broker allowlist", err)
+        self.assertEqual(gh.values, {})
+
+    def test_set_and_clear_for_an_allowlisted_repository(self) -> None:
+        gh = FakeGh()
+        allow = str(self.allowlist("O/Alpha"))
+        self.assertEqual(self.run_cli("windows", "set", "--repo", "alpha", "--allowlist", allow, gh=gh)[0], 0)
+        self.assertEqual(gh.values, {"o/alpha": "alpha-windows"})
+        self.assertEqual(self.run_cli("windows", "clear", "--repo", "alpha", "--allowlist", allow, gh=gh)[0], 0)
+        self.assertEqual(gh.values, {})
+
+    def test_it_does_not_touch_the_main_pool_variable(self) -> None:
+        gh = FakeGh()
+        self.run_cli("windows", "set", "--repo", "alpha", "--force", gh=gh)
+        called = [c for c in gh.calls if c[:3] == ["gh", "variable", "set"]]
+        self.assertEqual(called[0][3], "CI_RUNS_ON_WINDOWS")
+
+    def test_dry_run_and_force(self) -> None:
+        gh = FakeGh()
+        code, out, _ = self.run_cli("windows", "set", "--dry-run", "--force", "--repo", "alpha", gh=gh)
+        self.assertEqual(code, 0)
+        self.assertIn("would set alpha CI_RUNS_ON_WINDOWS -> alpha-windows", out)
+        self.assertEqual(gh.values, {})
+
+    def test_missing_allowlist_file_means_empty(self) -> None:
+        self.assertEqual(pool.load_allowlist(self.tmp / "nope.txt"), set())
+
+
 if __name__ == "__main__":
     unittest.main()

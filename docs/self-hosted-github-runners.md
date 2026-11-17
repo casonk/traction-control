@@ -386,54 +386,63 @@ Sources: [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/co
 [EC2 Mac and Dedicated Hosts](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/mac-instance-launch.html),
 [ephemeral Windows 11 VM on Azure for GitHub Actions](https://paretosecurity.com/blog/ephemeral-windows-11-testing-vm-on-azure/).
 
-## Proposal: a Linux broker that builds and destroys Windows runners
+## Windows runner broker (built and tested 2026-11-17)
 
 A Windows runner cannot be an ARC scale set, and a personal account has no shared runner pool, so each repository
-needs its own registration. A runner that waits for jobs on a standing VM also keeps a credential on Windows. Instead,
-let the Linux side own every credential and make the Windows VM disposable:
+needs its own registration. The broker keeps every credential on the Linux side and makes the Windows VM disposable:
+one fresh VM per job, deleted afterwards. Code: `services/win-broker` (Go, uses GitHub's official
+[`actions/scaleset`](https://github.com/actions/scaleset) client, Public Preview).
 
-1. A small **broker** pod runs on the Azure Linux VM in its own namespace (`win-broker`, never `arc-runners`; no job
-   code runs in it). For each opted-in repository it registers a runner scale set (`<repo>-windows`) through the
-   official [`actions/scaleset`](https://github.com/actions/scaleset) Go client (Public Preview) and long-polls for
-   demand. That client is the same API ARC uses, so no REST polling and no webhook endpoint are needed.
-2. When a job for `runs-on: <repo>-windows` is waiting, the broker asks GitHub for a **just-in-time runner
-   configuration** (single use, repository-scoped, expires unused) and **creates a fresh VM** from a golden image
-   (Windows Server 2022 plus git and the runner, baked once from the VM tested above). It passes the configuration
-   through Run Command protected settings, so it is not in the activity log, and starts `run.cmd --jitconfig` as an
-   unprivileged local user.
-3. The runner takes one job and de-registers itself. The broker then **deletes the VM, its disk and NIC**. A reaper
-   deletes anything tagged for the broker that outlives a time limit (60 minutes), whatever the broker believes, so a
-   crash cannot leave a billing VM behind. The resource group, VNet, NSG (deny all inbound) and the gallery image stay.
-4. Callers reach it through the shared workflow, which passes the label for the Windows leg of `install-check` on
-   `workflow_dispatch` and `schedule` runs (`format('{0}-windows', github.event.repository.name)`).
+**How a job runs.**
+1. The broker pod (namespace `win-broker` on the Azure Linux VM; no job code runs in it) registers one scale set per
+   allowlisted repository, named `<repo>-windows`, and long-polls GitHub for demand: no REST polling, no webhook endpoint.
+2. When a job for `runs-on: <repo>-windows` waits, the broker asks GitHub for a single-use, repository-scoped
+   just-in-time runner configuration and creates a VM from the golden image with that configuration as its custom data.
+   The VM's disk, NIC and public IP are created with delete option "Delete", so deleting the VM removes all of them.
+3. A start task baked into the image (SYSTEM, at boot) reads the configuration from `C:\AzureData\CustomData.bin`,
+   deletes the file, and runs `run.cmd --jitconfig`. The runner takes one job and de-registers itself.
+4. On job completion the broker deletes the VM (retrying), keeping the cap slot taken until the cloud confirms it is
+   gone. A **reaper** sweeps every minute: it deletes any broker-tagged VM older than 60 minutes whatever the broker
+   believes, retries deletions that did not finish, and reclaims slots whose VM is gone.
 
-**Credentials and trust.** The broker holds the existing fine-grained PAT (Administration read and write on the opted-in
-repositories only) in the same encrypted Kubernetes Secret model as `runner-auth`. For Azure it uses the Linux VM's
-system-assigned managed identity with Contributor on `rg-win-runner` only, so no Azure secret is stored. Runner pods
-cannot reach the metadata address (the policy tested above blocks it); a NetworkPolicy would allow it for the broker pod
-alone. The Windows VMs run code from private repositories only, have no inbound path, hold no credential of their own,
-and disappear after one job, so nothing persists between jobs.
+**Measured.** Creating the VM took 2 to 3 minutes from the moment the job queued; a package install job took about 2
+minutes more; the VM was gone right after. Cost: $0.0468 an hour for the VM plus a prorated 128 GiB SSD and a static IP,
+about one to two cents for a four-minute job. The golden image costs a few dollars a month to store.
 
-**Cost.** Only Windows compute and disk exist while a job runs: $0.0468 an hour for the VM plus a prorated disk, about
-one cent for a ten-minute job. The golden image costs an estimated $5 to $7 a month to store. A cold start is about
-one to two minutes (the VM took 64 s to create) plus boot. Always-on is about $34 a month, so per-job wins until
-there are dozens of Windows jobs a day.
+**Credentials and trust.** The broker reads the existing fine-grained PAT from a Kubernetes Secret copied inside the
+cluster from `runner-auth` (it never leaves the VM and never appears in the Azure activity log). For Azure it uses the
+Linux VM's system-assigned managed identity with Contributor on `rg-win-runner` only, so no Azure secret is stored. The
+runner pods' network policy blocks the metadata address; the broker's policy allows it for that pod alone. Windows VMs
+run code from allowlisted private repositories only, have no inbound path (the subnet's security group denies all
+inbound), hold no credential beyond the single-use runner configuration, and disappear after one job. The runner runs as
+SYSTEM inside the disposable VM. The broker deletes only VMs that carry its ownership tag.
 
-**Limits and guards.** At most 2 VMs at once (a vCPU quota guard and a broker cap); a per-repository allowlist file;
-private repositories only; a hard job time limit; the reaper above; a dry-run mode that only logs what it would create.
+**Guards.** At most 2 VMs at once (a quota guard and a broker cap, 4 at most by validation); a per-repository allowlist
+file; private repositories only (the installer refuses a public one); a time limit enforced by the reaper; a dry-run mode
+that registers scale sets and logs what it would create without creating anything.
 
-**Build plan.**
-1. Bake the golden image from the test VM (install git, the runner, sysprep, capture to a Compute Gallery image) and
-   delete the test VM.
-2. Prototype the broker for one repository in Go: register the scale set, create a VM from the image, run one
-   workflow job, delete the VM, and prove the reaper by killing the broker mid-job.
-3. Add the broker identity, its NetworkPolicy and its Secret; run `scripts/verify`-style probes from the pod.
-4. Add the Windows label to the shared `install-check` workflow, then opt in more repositories.
+**Operating it.**
+- Allowlist: copy `config/github-runners/windows/allowlist.example.txt` to `allowlist.local.txt` (ignored by Git) and
+  list `owner/name` per line.
+- Golden image: `./scripts/azure_windows_runner_stack.sh apply` (creates the template VM, gallery and image
+  definition), `./scripts/bake_azure_windows_image.sh` (type `BAKE`; installs Git for Windows and the pinned runner, both
+  verified against their published digests, adds Git's `bin` directories to the PATH so `shell: bash` works, runs
+  sysprep and captures a new image version), then `TF_VAR_enable_template_vm=false ./scripts/azure_windows_runner_stack.sh
+  apply` to remove the template VM. Rebake for a new runner release; delete old image versions to save storage.
+- Deploy: `./scripts/install_azure_win_broker.sh --dry-run-broker` first, then `--live` (type `BROKER` each time). It
+  enables the identity and role, builds the image on the VM, copies the token inside the cluster and applies
+  `config/github-runners/windows/win-broker.yaml.template`.
+- Opt a repository in: `python3 scripts/runner_pool.py windows set --repo NAME` (refused unless it is in the allowlist;
+  `windows clear` and `windows status` also exist). This sets `CI_RUNS_ON_WINDOWS`; the shared `install-check` workflow
+  then adds a Windows leg on pushes and pull requests, and a workflow can target the scale set directly with
+  `runs-on: <repo>-windows`.
+- Watch: `kubectl -n win-broker logs deploy/win-broker` on the VM (through Azure Run Command), and
+  `az vm list -g rg-win-runner` should normally be empty.
 
-**Decisions for you.** Per-job VMs (recommended: clean slate, 2 to 3 minutes of start-up) against a warm VM that is
-started and deallocated (faster, but state carries between jobs); which repositories claim Windows support and should
-opt in; and Go for the broker (recommended, because the official client is Go) against a Python REST poller (simpler to
-write here, but it spends the PAT's rate limit on polling).
+**Known limits.** One broker replica (a second would double the VMs); a job waits 2 to 3 minutes for its VM; the 2 VM
+cap queues a third Windows job; the broker has not been tried with a job that runs for hours (the reaper would end it at
+60 minutes: raise `WIN_BROKER_TTL` for such a repository); `actions/scaleset` is a Public Preview API and v0.4.0 is
+pinned because later versions need a newer Go than the one used to build here.
 
 ## Expansion and teardown
 
