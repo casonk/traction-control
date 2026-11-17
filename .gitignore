@@ -45,6 +45,15 @@ infra/azure-windows-runner/terraform/*.tfvars.json
 infra/azure-windows-runner/terraform/crash.log
 infra/azure-windows-runner/terraform/crash.*.log
 
+# Golden runner disk images and their backups are large and belong outside Git
+# (scripts/backup_azure_runner_images.sh writes under ~/.local/share/portfolio-backups).
+*.vhd
+*.vhdx
+*.vhd.zst
+*.vhd.partial
+*.qcow2
+runner-images/
+
 # Windows runner broker: the allowlist names private repositories, so it stays local.
 config/github-runners/windows/*.local.*
 
