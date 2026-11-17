@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# codecov_repair_agentic.sh — consume the Codecov monitor's candidate file and run
+# the unattended agent to raise patch coverage on each open pull request.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORTFOLIO_ROOT_DEFAULT="$(cd "${REPO_ROOT}/../.." && pwd)"
+PROMPT_FILE_DEFAULT="${REPO_ROOT}/config/prompts/codecov-repair-agentic.md"
+PORTFOLIO_ROOT="${PORTFOLIO_ROOT:-${PORTFOLIO_ROOT_DEFAULT}}"
+PROMPT_FILE="${PROMPT_FILE:-${PROMPT_FILE_DEFAULT}}"
+LOG_DIR="${LOG_DIR:-${HOME}/.local/share/codecov-repair-agentic}"
+PROVIDER_REQUESTED="${CODECOV_REPAIR_AGENTIC_PROVIDER:-auto}"
+MODEL_REQUESTED="${CODECOV_REPAIR_AGENTIC_MODEL:-}"
+CANDIDATE_FILE="${CODECOV_CANDIDATE_FILE:-${HOME}/.local/share/traction-control/codecov-candidates.tsv}"
+
+source "${REPO_ROOT}/scripts/lib/agentic_provider.sh"
+
+usage() {
+  cat <<EOF
+Usage: codecov_repair_agentic.sh [--candidate-file PATH] [options]
+
+Run the unattended agent for the pull requests listed by
+monitor_codecov_emails.py (default: ~/.local/share/traction-control/codecov-candidates.tsv).
+
+Options:
+  --candidate-file PATH  TSV file written by monitor_codecov_emails.py.
+  --provider NAME        Provider to use: auto, codex, claude, copilot, or local.
+  --model MODEL          Optional model override for the selected provider.
+  --log-dir DIR          Override the run-log directory.
+  --prompt-file PATH     Override the maintenance prompt file.
+  --help                 Show this help text.
+EOF
+}
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+log() {
+  printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*" | tee -a "${LOG_FILE}"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --candidate-file)
+      CANDIDATE_FILE="$2"
+      shift 2
+      ;;
+    --provider)
+      PROVIDER_REQUESTED="$2"
+      shift 2
+      ;;
+    --model)
+      MODEL_REQUESTED="$2"
+      shift 2
+      ;;
+    --log-dir)
+      LOG_DIR="$2"
+      shift 2
+      ;;
+    --prompt-file)
+      PROMPT_FILE="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "unknown argument: $1"
+      ;;
+  esac
+done
+
+[[ -f "${PROMPT_FILE}" ]] || fail "missing prompt file: ${PROMPT_FILE}"
+[[ -f "${CANDIDATE_FILE}" ]] || fail "missing candidate file: ${CANDIDATE_FILE}"
+
+candidate_count="$(awk -F '\t' 'NR > 1 && $1 == "candidate" {count++} END {print count + 0}' "${CANDIDATE_FILE}")"
+if (( candidate_count == 0 )); then
+  printf 'info: no candidate repos found in %s\n' "${CANDIDATE_FILE}"
+  exit 0
+fi
+
+mkdir -p "${LOG_DIR}"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+RUN_DIR="${LOG_DIR}/repair-${TIMESTAMP}"
+LOG_FILE="${RUN_DIR}/run.log"
+PROMPT_RUNTIME_FILE="${RUN_DIR}/prompt.txt"
+AGENT_OUTPUT_FILE="${RUN_DIR}/agent-output.txt"
+LAST_MESSAGE_FILE="${RUN_DIR}/last-message.txt"
+LATEST_LOG_LINK="${LOG_DIR}/latest.log"
+LATEST_OUTPUT_LINK="${LOG_DIR}/latest-output.txt"
+mkdir -p "${RUN_DIR}"
+
+log "=== Codecov coverage repair execution ==="
+log "repo root       : ${REPO_ROOT}"
+log "portfolio root  : ${PORTFOLIO_ROOT}"
+log "candidate file  : ${CANDIDATE_FILE}"
+log "provider req    : ${PROVIDER_REQUESTED}"
+log "model override  : ${MODEL_REQUESTED:-<default>}"
+log "run dir         : ${RUN_DIR}"
+log ""
+
+agentic_defer_if_busy "${REPO_ROOT}"
+
+PROVIDER="$(agentic_resolve_provider "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}")" \
+  || fail "no ready agent provider found (codex, claude, copilot, local)"
+log "provider used   : ${PROVIDER}"
+
+PROMPT_TEXT="$(cat "${PROMPT_FILE}")"
+{
+  printf '%s\n\n' "${PROMPT_TEXT}"
+  printf 'Pull requests with a patch-coverage gap (%s):\n' "${CANDIDATE_FILE}"
+  printf '```tsv\n'
+  cat "${CANDIDATE_FILE}"
+  printf '```\n\n'
+} > "${PROMPT_RUNTIME_FILE}"
+
+run_codex() {
+  local cmd=(codex exec --sandbox workspace-write --color never -C "${REPO_ROOT}" --add-dir "${PORTFOLIO_ROOT}" -o "${LAST_MESSAGE_FILE}")
+  if [[ -n "${MODEL_REQUESTED}" ]]; then
+    cmd+=(--model "${MODEL_REQUESTED}")
+  fi
+  printf '%s\n' "$(cat "${PROMPT_RUNTIME_FILE}")" | "${cmd[@]}" -
+}
+
+run_claude() {
+  local cmd=(
+    claude
+    --print
+    --output-format text
+    --permission-mode bypassPermissions
+    --dangerously-skip-permissions
+    --add-dir "${PORTFOLIO_ROOT}"
+    --no-session-persistence
+  )
+  if [[ -n "${MODEL_REQUESTED}" ]]; then
+    cmd+=(--model "${MODEL_REQUESTED}")
+  fi
+  "${cmd[@]}" "$(cat "${PROMPT_RUNTIME_FILE}")"
+}
+
+run_copilot() {
+  local cmd=(
+    copilot
+    --prompt "$(cat "${PROMPT_RUNTIME_FILE}")"
+    --yolo
+    --no-ask-user
+    --add-dir "${PORTFOLIO_ROOT}"
+    --silent
+  )
+  if [[ -n "${MODEL_REQUESTED}" ]]; then
+    cmd+=(--model "${MODEL_REQUESTED}")
+  fi
+  "${cmd[@]}"
+}
+
+AGENT_STATUS=0
+agentic_run_with_fallback "${AGENT_OUTPUT_FILE}" "${PROVIDER_REQUESTED}" "${MODEL_REQUESTED}" \
+  || AGENT_STATUS=$?
+
+cat "${AGENT_OUTPUT_FILE}" >> "${LOG_FILE}"
+ln -sf "${LOG_FILE}" "${LATEST_LOG_LINK}"
+ln -sf "${AGENT_OUTPUT_FILE}" "${LATEST_OUTPUT_LINK}"
+
+if (( AGENT_STATUS != 0 )); then
+  log "agent exit status: ${AGENT_STATUS}"
+  exit "${AGENT_STATUS}"
+fi
+
+log "agent exit status: 0"

@@ -279,8 +279,8 @@ scale-set values and the `runs-on` mechanism are the same in both places.
 The whole path was run once on a fresh VM: `azure_runner_stack.sh apply`, `install_azure_runner_k3s.sh`,
 `install_azure_runner_arc_controller.sh` (secret encryption on, hashes matching), `configure_azure_runner_network_policy.sh`
 (public HTTPS allowed; the API service, the node's kubelet port, the metadata and the wireserver addresses blocked),
-`rotate_azure_runner_secret.sh --pat`, then a scale set for one private repository. A `tape-deck` CI run
-dispatched on that scale set passed both Python legs on `tape-deck-azure-runner-*` pods, which were gone afterwards.
+`rotate_azure_runner_secret.sh --pat`, then a scale set for one private repository. A CI run for one private
+repository dispatched on that scale set passed both Python legs on its `<repository>-azure-runner-*` pods, which were gone afterwards.
 Things to know when repeating it:
 
 - The helpers refuse any group- or world-readable file under `~/.azure`, and the Azure CLI writes its command logs
