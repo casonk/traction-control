@@ -4,6 +4,16 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Build the premium Linux golden image: `scripts/bake_azure_linux_image.sh` and `config/github-runners/linux-vm/bake-image.sh`
+  create a template VM, install the tools, a `runner` user and the digest-verified Actions runner, capture a `linux-runner`
+  image version and delete the VM, then verify the image by booting a throwaway VM with the broker's own cloud-init script
+  (`--verify-only` re-runs that). The definition is Trusted Launch (Azure's rule for a Trusted Launch template VM), and the
+  broker's Linux VM definition now requests Trusted Launch with Secure Boot and vTPM. The broker's Linux class stays off and
+  undeployed.
+- Flip two Terraform defaults in the Windows stack: `enable_template_vm` is now `false`, so a plain `apply` cannot recreate
+  a billing template VM (rebake with `TF_VAR_enable_template_vm=true`); `enable_linux_image_definition` is now `true`
+  because a Linux image version lives in it. The Windows bake script now checks that the template VM exists and says how
+  to create it.
 - Add an optional, **off-by-default premium class to the Windows runner broker**: one disposable Linux VM per job
   (`<repo>-linux-vm`), for deployments that need root, Docker, systemd or a VM boundary on Linux. A class is threaded
   through the fleet, scaler, reaper, VM definition (Linux image and size, cloud-init user data with a base64-only guard

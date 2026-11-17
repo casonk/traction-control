@@ -66,12 +66,12 @@ variable "shutdown_time_utc" {
 
 variable "enable_template_vm" {
   type        = bool
-  description = "Create the template VM that the golden image is baked from. Set to false once the image exists: the broker creates and deletes its own per-job VMs in the same subnet."
-  default     = true
+  description = "Create the Windows template VM that the golden image is baked from. Off by default, because the image exists and a template VM only bills: set it to true (TF_VAR_enable_template_vm=true) for a rebake, then back to false. The broker creates and deletes its own per-job VMs in the same subnet."
+  default     = false
 }
 
 variable "enable_linux_image_definition" {
   type        = bool
-  description = "Premium option: also create an image definition for a per-job Linux runner image in the gallery. Off by default; it creates a free, empty definition and nothing else."
-  default     = false
+  description = "Keep the image definition for the per-job Linux runner image in the gallery. On because a Linux image version exists in it (removing the definition would have to delete that version); it costs nothing by itself and does not enable the broker's Linux class."
+  default     = true
 }

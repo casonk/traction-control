@@ -424,11 +424,12 @@ that registers scale sets and logs what it would create without creating anythin
 **Operating it.**
 - Allowlist: copy `config/github-runners/windows/allowlist.example.txt` to `allowlist.local.txt` (ignored by Git) and
   list `owner/name` per line.
-- Golden image: `./scripts/azure_windows_runner_stack.sh apply` (creates the template VM, gallery and image
-  definition), `./scripts/bake_azure_windows_image.sh` (type `BAKE`; installs Git for Windows and the pinned runner, both
+- Golden image: the template VM is **off by default** (`enable_template_vm = false`), so a plain `apply` cannot leave a
+  billing VM behind. To rebake: `TF_VAR_enable_template_vm=true ./scripts/azure_windows_runner_stack.sh apply` (creates the
+  template VM), `./scripts/bake_azure_windows_image.sh` (type `BAKE`; installs Git for Windows and the pinned runner, both
   verified against their published digests, adds Git's `bin` directories to the PATH so `shell: bash` works, runs
-  sysprep and captures a new image version), then `TF_VAR_enable_template_vm=false ./scripts/azure_windows_runner_stack.sh
-  apply` to remove the template VM. Rebake for a new runner release; delete old image versions to save storage.
+  sysprep and captures a new image version), then a plain `./scripts/azure_windows_runner_stack.sh apply` removes the
+  template VM. Rebake for a new runner release; delete old image versions to save storage.
 - Deploy: `./scripts/install_azure_win_broker.sh --dry-run-broker` first, then `--live` (type `BROKER` each time). It
   enables the identity and role, builds the image on the VM, copies the token inside the cluster and applies
   `config/github-runners/windows/win-broker.yaml.template`.
@@ -463,27 +464,36 @@ almost every Linux job.
 Use it only where a job truly needs what a pod cannot give (root, Docker or Podman, systemd, a device) or where policy
 requires a VM boundary for the code. For plain queueing, raise the per-repository runner limit and the VM size first.
 
-**What it needs.** A Linux golden image in the same compute gallery (image definition `linux-runner`, created by
-`TF_VAR_enable_linux_image_definition=true` on the Windows stack; Ubuntu 24.04, generation 2, generalized) containing:
-cloud-init and the Azure agent; a user `runner` with passwordless sudo and Docker access if wanted; the Actions runner
-extracted to `/opt/actions-runner` and owned by `runner`; and whatever tools the jobs assume. The broker passes a
-cloud-init script as custom data that does `cd /opt/actions-runner` and runs `./run.sh --jitconfig '<single-use config>'`
-as `runner`; it refuses any runner configuration that is not plain base64 text, so it cannot inject shell. Capture the
-image version, then record its id in `~/.local/share/traction-control/azure-windows-runner/linux-image-version.txt`. No
-bake wrapper for the Linux image is provided: the Windows one (`scripts/bake_azure_windows_image.sh`) is the pattern.
+**The image (built and verified 2026-11-17).** The `linux-runner` definition in the same compute gallery (Ubuntu 24.04,
+generation 2, **Trusted Launch**) holds a golden image made by `./scripts/bake_azure_linux_image.sh` (type `BAKE`): it
+creates a short-lived template VM, installs the tools jobs assume (Git, Docker, jq, ShellCheck, age, Ruby, Python build
+tools), a `runner` user with passwordless sudo and Docker access, and the pinned Actions runner in `/opt/actions-runner`
+(verified against the digest GitHub publishes), deprovisions and generalizes it, captures a new image version, records its
+id in `~/.local/share/traction-control/azure-windows-runner/linux-image-version.txt`, and deletes the template VM. Unless
+`--skip-verify`, it then boots a throwaway VM from the new image with the broker's own cloud-init script (with a runner
+configuration that cannot register), checks the tools, Docker daemon, sudo and that the runner started, and deletes
+that VM. `--verify-only` re-runs just the verification against the recorded version. The broker passes a cloud-init script
+as custom data that does `cd /opt/actions-runner` and runs `./run.sh --jitconfig '<single-use config>'` as `runner`, and
+refuses any runner configuration that is not plain base64 text, so it cannot inject shell.
 
-**Turning it on.**
-1. `TF_VAR_enable_template_vm=false TF_VAR_enable_linux_image_definition=true ./scripts/azure_windows_runner_stack.sh apply`
-2. Build and record the Linux image version as above.
-3. `./scripts/install_azure_win_broker.sh --live --with-linux-vm` (type `BROKER`). The installer refuses the flag until the
+Trusted Launch is required by Azure's rules, not chosen: `az vm create` makes Trusted Launch VMs by default, Azure only
+captures such a VM into a definition of type Trusted Launch, and a VM created from that image must itself be Trusted
+Launch. The broker's Linux VM definition therefore requests Trusted Launch with Secure Boot and vTPM; the Windows path is
+unchanged. The Linux definition is kept by default (`enable_linux_image_definition = true`) because a version lives in it;
+it costs nothing by itself and does not enable the broker's class. Changing a definition's security type means replacing it
+(`AZURE_WINDOWS_RUNNER_ALLOW_REPLACE=1`), which is only possible while it holds no versions.
+
+**Turning the class on.**
+1. Make sure a Linux image version is recorded (above); rebake for a new runner release.
+2. `./scripts/install_azure_win_broker.sh --live --with-linux-vm` (type `BROKER`). The installer refuses the flag until the
    image id is recorded. Without the flag the manifest sets `WIN_BROKER_LINUX_VM=0`, and only exactly `1` enables it.
-4. Target it from a workflow with `runs-on: <repo>-linux-vm`. The same allowlist, global cap (shared with Windows),
+3. Target it from a workflow with `runs-on: <repo>-linux-vm`. The same allowlist, global cap (shared with Windows),
    deleting state, reaper and time limit apply, and the reaper handles both classes.
 
-**Status.** Implemented and unit-tested (class-aware fleet and scaler, the VM definition, the injection guard, the
-off-by-default configuration and the installer and Terraform defaults). It has **not been run against Azure**: no Linux
-image exists and nothing was created, so treat the first live run like any other new path: dry run first, one repository,
-watch the VM count return to zero.
+**Status.** The image is built and verified. The broker's Linux class is implemented and unit-tested (class-aware fleet and
+scaler, the VM definition including Trusted Launch, the injection guard, the off-by-default configuration and the installer
+and Terraform defaults), but it has **not been run live with a real job**, and it is **not enabled in this portfolio's
+deployment**. The first live use should be a dry run, then one repository, watching the VM count return to zero.
 
 ## Expansion and teardown
 

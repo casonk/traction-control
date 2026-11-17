@@ -24,10 +24,17 @@ class PremiumLinuxIsOptInTests(unittest.TestCase):
         self.assertIn("linux-image-version.txt", INSTALLER)
         self.assertIn("fail \"--with-linux-vm needs a Linux golden image", INSTALLER)
 
-    def test_the_terraform_image_definition_defaults_to_off(self) -> None:
-        block = re.search(r'variable "enable_linux_image_definition" \{(.*?)\n\}', VARIABLES, re.S)
+    def test_the_template_vm_is_off_by_default_so_a_plain_apply_cannot_bill_for_one(self) -> None:
+        block = re.search(r'variable "enable_template_vm" \{(.*?)\n\}', VARIABLES, re.S)
         self.assertIsNotNone(block)
         self.assertRegex(block.group(1), r"default\s*=\s*false")
+
+    def test_the_linux_image_definition_is_kept_but_does_not_enable_the_broker_class(self) -> None:
+        block = re.search(r'variable "enable_linux_image_definition" \{(.*?)\n\}', VARIABLES, re.S)
+        self.assertIsNotNone(block)
+        # On, because an image version lives in it; the broker class is still gated separately.
+        self.assertRegex(block.group(1), r"default\s*=\s*true")
+        self.assertIn('{name: WIN_BROKER_LINUX_VM, value: "__LINUX_VM__"}', TEMPLATE)
 
     def test_only_the_exact_value_one_enables_it(self) -> None:
         self.assertIn('cfg.LinuxVM = getenv("WIN_BROKER_LINUX_VM") == "1"', CONFIG_GO)

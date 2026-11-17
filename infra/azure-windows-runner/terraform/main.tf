@@ -185,6 +185,10 @@ resource "azurerm_shared_image" "linux" {
   location            = azurerm_resource_group.win.location
   os_type             = "Linux"
   hyper_v_generation  = "V2"
+  # `az vm create` makes Trusted Launch VMs by default, and Azure only captures such a VM into a definition of type
+  # TrustedLaunch (not "supported"). VMs created from this image must then be Trusted Launch too; the broker's Linux
+  # VM definition asks for that explicitly.
+  trusted_launch_enabled = true
 
   identifier {
     publisher = "portfolio"
