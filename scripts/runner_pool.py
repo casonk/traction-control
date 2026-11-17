@@ -20,6 +20,10 @@ Commands:
 - ``set POOL``: point repositories at a pool (``--repo`` limits it, ``--dry-run`` previews).
 - ``balance``: spread repositories over pools by weight (``--weights azure=2,local=1``).
 - ``enroll POOL`` / ``unenroll POOL``: record which repositories have a scale set in a pool.
+- ``windows set`` / ``windows clear``: point repositories at, or away from, the Windows runner broker through the
+  repository variable ``CI_RUNS_ON_WINDOWS`` (``<repo>-windows``). The shared ``install-check`` workflow then also runs
+  its Windows leg there on pushes and pull requests. ``windows set`` is refused for a repository that is not in the
+  broker's allowlist file unless ``--force`` is given.
 - ``private``: print the private repository slugs (used by the installers).
 """
 
@@ -42,6 +46,9 @@ REGISTRY_DIR = REPO_ROOT / "config" / "repository-visibility"
 STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
 DEFAULT_STATE_DIR = STATE_HOME / "portfolio-runner-pool"
 VARIABLE = "CI_RUNS_ON"
+WINDOWS_VARIABLE = "CI_RUNS_ON_WINDOWS"
+WINDOWS_SUFFIX = "-windows"
+DEFAULT_ALLOWLIST = REPO_ROOT / "config" / "github-runners" / "windows" / "allowlist.local.txt"
 POOLS = {"local": "{name}-ci", "azure": "{name}-azure"}
 HOSTED = "hosted"
 CHOICES = (*POOLS, HOSTED)
@@ -125,25 +132,25 @@ def save_enrolled(state_dir: Path, pool: str, slugs: set[str]) -> None:
 # --- GitHub -----------------------------------------------------------------
 
 
-def get_variable(slug: str, runner: Runner = run) -> str | None:
-    result = runner(["gh", "api", f"repos/{slug}/actions/variables/{VARIABLE}", "--jq", ".value"])
+def get_variable(slug: str, runner: Runner = run, name: str = VARIABLE) -> str | None:
+    result = runner(["gh", "api", f"repos/{slug}/actions/variables/{name}", "--jq", ".value"])
     if result.returncode != 0:
         if "404" in (result.stderr + result.stdout) or "Not Found" in (result.stderr + result.stdout):
             return None
-        raise PoolError(f"{slug}: cannot read {VARIABLE}: {(result.stderr or result.stdout).strip()[:120]}")
+        raise PoolError(f"{slug}: cannot read {name}: {(result.stderr or result.stdout).strip()[:120]}")
     return result.stdout.strip() or None
 
 
-def set_variable(slug: str, value: str | None, runner: Runner = run) -> None:
+def set_variable(slug: str, value: str | None, runner: Runner = run, name: str = VARIABLE) -> None:
     if value is None:
-        result = runner(["gh", "variable", "delete", VARIABLE, "--repo", slug])
+        result = runner(["gh", "variable", "delete", name, "--repo", slug])
         text = result.stderr + result.stdout
         if result.returncode != 0 and "404" not in text and "Not Found" not in text:
-            raise PoolError(f"{slug}: cannot delete {VARIABLE}: {text.strip()[:120]}")
+            raise PoolError(f"{slug}: cannot delete {name}: {text.strip()[:120]}")
         return
-    result = runner(["gh", "variable", "set", VARIABLE, "--repo", slug, "--body", value])
+    result = runner(["gh", "variable", "set", name, "--repo", slug, "--body", value])
     if result.returncode != 0:
-        raise PoolError(f"{slug}: cannot set {VARIABLE}: {(result.stderr or result.stdout).strip()[:120]}")
+        raise PoolError(f"{slug}: cannot set {name}: {(result.stderr or result.stdout).strip()[:120]}")
 
 
 # --- commands ---------------------------------------------------------------
@@ -155,6 +162,10 @@ def status(slugs: Sequence[str], runner: Runner = run) -> list[tuple[str, str, s
         value = get_variable(slug, runner)
         rows.append((slug, pool_of(slug, value), value))
     return rows
+
+
+def windows_status(slugs: Sequence[str], runner: Runner = run) -> dict[str, str | None]:
+    return {slug: get_variable(slug, runner, WINDOWS_VARIABLE) for slug in slugs}
 
 
 def plan_set(
@@ -173,6 +184,41 @@ def plan_set(
                 "or pass --force to point them there anyway."
             )
     return [(slug, None if pool == HOSTED else scale_set_name(pool, slug)) for slug in slugs]
+
+
+def windows_scale_set_name(slug: str) -> str:
+    return short_name(slug).lower().replace("_", "-").replace(".", "-") + WINDOWS_SUFFIX
+
+
+def load_allowlist(path: Path) -> set[str]:
+    """The broker's allowlist file (owner/name per line; # comments); empty when it does not exist."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return set()
+    out = set()
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if line and line != "OWNER/REPOSITORY":
+            out.add(line.casefold())
+    return out
+
+
+def plan_windows(slugs: Sequence[str], action: str, allowlist: set[str], *, force: bool = False) -> list[tuple[str, str | None]]:
+    """Return (slug, new CI_RUNS_ON_WINDOWS value); refuse repositories the broker does not serve."""
+    if action not in ("set", "clear"):
+        raise PoolError(f"unknown windows action {action!r}")
+    if action == "clear":
+        return [(slug, None) for slug in slugs]
+    if not force:
+        missing = [s for s in slugs if s.casefold() not in allowlist]
+        if missing:
+            raise PoolError(
+                "not in the Windows broker allowlist: " + ", ".join(short_name(s) for s in missing)
+                + ". Add them to config/github-runners/windows/allowlist.local.txt and redeploy the broker "
+                "(scripts/install_azure_win_broker.sh), or pass --force."
+            )
+    return [(slug, windows_scale_set_name(slug)) for slug in slugs]
 
 
 def parse_weights(text: str) -> dict[str, int]:
@@ -220,6 +266,12 @@ def _parser() -> argparse.ArgumentParser:
     repos(b)
     b.add_argument("--dry-run", action="store_true")
     b.add_argument("--force", action="store_true")
+    w = sub.add_parser("windows", help="Point repositories at the Windows runner broker.")
+    w.add_argument("action", choices=("set", "clear", "status"))
+    repos(w)
+    w.add_argument("--allowlist", type=Path, default=DEFAULT_ALLOWLIST)
+    w.add_argument("--dry-run", action="store_true")
+    w.add_argument("--force", action="store_true")
     for name in ("enroll", "unenroll"):
         e = sub.add_parser(name, help=f"{name.capitalize()} repositories in a pool's recorded scale sets.")
         e.add_argument("pool", choices=tuple(POOLS))
@@ -255,6 +307,26 @@ def main(argv: Sequence[str] | None = None, runner: Runner = run) -> int:
             save_enrolled(args.state_dir, args.pool, current)
             print(f"{args.pool}: {len(current)} repositories recorded")
             return 0
+
+        if args.command == "windows":
+            if args.action == "status":
+                for slug, value in windows_status(slugs, runner).items():
+                    print(f"{short_name(slug):<24} {value or '-'}")
+                return 0
+            wchanges = plan_windows(slugs, args.action, load_allowlist(args.allowlist), force=args.force)
+            wfail = 0
+            for slug, value in wchanges:
+                label = value or "(removed)"
+                if args.dry_run:
+                    print(f"would set {short_name(slug)} {WINDOWS_VARIABLE} -> {label}")
+                    continue
+                try:
+                    set_variable(slug, value, runner, WINDOWS_VARIABLE)
+                    print(f"{short_name(slug)} {WINDOWS_VARIABLE} -> {label}")
+                except PoolError as exc:
+                    wfail += 1
+                    print(f"error: {exc}", file=sys.stderr)
+            return 1 if wfail else 0
 
         if args.command == "set":
             changes = plan_set(slugs, args.pool, args.state_dir, force=args.force)

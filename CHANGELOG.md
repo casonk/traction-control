@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the Windows runner broker (`services/win-broker`, Go): a Linux pod that registers a runner scale set per allowlisted
+  private repository through GitHub's `actions/scaleset` client, creates one fresh Windows VM per job from a golden image
+  with a single-use runner configuration, and deletes it afterwards, with a global cap, a reaper that enforces a time limit,
+  a dry-run mode and its own network policy and managed identity. Includes the image bake
+  (`scripts/bake_azure_windows_image.sh`, `config/github-runners/windows/`), the installer
+  (`scripts/install_azure_win_broker.sh`), a compute gallery in the Windows Terraform stack with an optional template VM,
+  and `runner_pool.py windows set|clear|status` (the `CI_RUNS_ON_WINDOWS` variable that `casonk/.github` `install-check`
+  now reads). Tested live: the `install-check` Windows legs passed on broker VMs and no VM was left behind.
 - Record the live test of the Azure Windows runner VM (reachability, tools, closed inbound, the one-time `Microsoft.DevTestLab` registration the auto-shutdown needs) and propose a Linux broker that creates a fresh Windows VM per job from a golden image and deletes it, using GitHub's `actions/scaleset` client and just-in-time runner configs.
 - Add the Azure Windows runner stack: `scripts/azure_windows_runner_stack.sh` and `infra/azure-windows-runner/terraform`
   (separate resource group and state from the Linux pool, Windows Server 2022, no inbound port, generated password kept

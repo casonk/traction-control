@@ -54,6 +54,8 @@ resource "azurerm_subnet_network_security_group_association" "win" {
 }
 
 resource "azurerm_public_ip" "win" {
+  count = var.enable_template_vm ? 1 : 0
+
   name                    = "${var.name_prefix}-pip"
   location                = azurerm_resource_group.win.location
   resource_group_name     = azurerm_resource_group.win.name
@@ -65,6 +67,8 @@ resource "azurerm_public_ip" "win" {
 }
 
 resource "azurerm_network_interface" "win" {
+  count = var.enable_template_vm ? 1 : 0
+
   name                = "${var.name_prefix}-nic"
   location            = azurerm_resource_group.win.location
   resource_group_name = azurerm_resource_group.win.name
@@ -73,7 +77,7 @@ resource "azurerm_network_interface" "win" {
     name                          = "runner-ipconfig"
     subnet_id                     = azurerm_subnet.win.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.win.id
+    public_ip_address_id          = azurerm_public_ip.win[0].id
   }
 
   tags = local.tags
@@ -82,6 +86,8 @@ resource "azurerm_network_interface" "win" {
 # The password is never used interactively (nothing listens), but Windows requires one. It lives only in the
 # owner-only local state.
 resource "random_password" "admin" {
+  count = var.enable_template_vm ? 1 : 0
+
   length           = 32
   special          = true
   override_special = "!#%*-_=+"
@@ -92,14 +98,16 @@ resource "random_password" "admin" {
 }
 
 resource "azurerm_windows_virtual_machine" "win" {
+  count = var.enable_template_vm ? 1 : 0
+
   name                  = "${var.name_prefix}-vm"
   computer_name         = "${var.name_prefix}-vm"
   resource_group_name   = azurerm_resource_group.win.name
   location              = azurerm_resource_group.win.location
   size                  = var.vm_size
   admin_username        = var.admin_username
-  admin_password        = random_password.admin.result
-  network_interface_ids = [azurerm_network_interface.win.id]
+  admin_password        = random_password.admin[0].result
+  network_interface_ids = [azurerm_network_interface.win[0].id]
   provision_vm_agent    = true
   patch_mode            = "AutomaticByPlatform"
   tags                  = local.tags
@@ -126,8 +134,8 @@ resource "azurerm_windows_virtual_machine" "win" {
 }
 
 resource "azurerm_dev_test_global_vm_shutdown_schedule" "win" {
-  count                 = var.shutdown_time_utc == "" ? 0 : 1
-  virtual_machine_id    = azurerm_windows_virtual_machine.win.id
+  count                 = var.enable_template_vm && var.shutdown_time_utc != "" ? 1 : 0
+  virtual_machine_id    = azurerm_windows_virtual_machine.win[0].id
   location              = azurerm_resource_group.win.location
   enabled               = true
   daily_recurrence_time = var.shutdown_time_utc
@@ -138,4 +146,52 @@ resource "azurerm_dev_test_global_vm_shutdown_schedule" "win" {
   }
 
   tags = local.tags
+}
+
+# The golden image the broker creates its per-job VMs from. Terraform owns the gallery and the image definition; the
+# image versions are captured by scripts/bake_azure_windows_image.sh from the template VM.
+resource "azurerm_shared_image_gallery" "win" {
+  name                = "${var.name_prefix}gallery"
+  resource_group_name = azurerm_resource_group.win.name
+  location            = azurerm_resource_group.win.location
+  description         = "Golden Windows runner images for the broker."
+  tags                = local.tags
+}
+
+resource "azurerm_shared_image" "win" {
+  name                = "windows-runner"
+  gallery_name        = azurerm_shared_image_gallery.win.name
+  resource_group_name = azurerm_resource_group.win.name
+  location            = azurerm_resource_group.win.location
+  os_type             = "Windows"
+  hyper_v_generation  = "V2"
+
+  identifier {
+    publisher = "portfolio"
+    offer     = "github-runner"
+    sku       = "windows-server-2022"
+  }
+
+  tags = local.tags
+}
+
+# These resources gained `count`; the moved blocks keep the existing ones instead of replacing them.
+moved {
+  from = azurerm_public_ip.win
+  to   = azurerm_public_ip.win[0]
+}
+
+moved {
+  from = azurerm_network_interface.win
+  to   = azurerm_network_interface.win[0]
+}
+
+moved {
+  from = random_password.admin
+  to   = random_password.admin[0]
+}
+
+moved {
+  from = azurerm_windows_virtual_machine.win
+  to   = azurerm_windows_virtual_machine.win[0]
 }

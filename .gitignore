@@ -45,6 +45,9 @@ infra/azure-windows-runner/terraform/*.tfvars.json
 infra/azure-windows-runner/terraform/crash.log
 infra/azure-windows-runner/terraform/crash.*.log
 
+# Windows runner broker: the allowlist names private repositories, so it stays local.
+config/github-runners/windows/*.local.*
+
 # KeePass-snowbridge local config (contains host/path details, no passwords)
 config/keepass-snowbridge.env.local
 

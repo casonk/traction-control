@@ -1,0 +1,133 @@
+# The Windows runner broker on the Azure Linux VM. Rendered by scripts/install_azure_win_broker.sh, which fills the
+# double-underscore placeholders from the local, ignored allowlist and the Azure account. Holds no credential: the GitHub token is a
+# Secret copied inside the cluster, and Azure access is the VM's managed identity.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: win-broker
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: win-broker-config
+  namespace: win-broker
+data:
+  repos.json: '__REPOS_JSON__'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: win-broker
+  namespace: win-broker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # two brokers would each register listeners and double the VMs
+  selector:
+    matchLabels:
+      app: win-broker
+  template:
+    metadata:
+      labels:
+        app: win-broker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: broker
+          image: win-broker:__VERSION__
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: WIN_BROKER_REPOS_FILE, value: /config/repos.json}
+            - {name: WIN_BROKER_TOKEN_FILE, value: /secrets/token}
+            - {name: WIN_BROKER_DRY_RUN, value: "__DRY_RUN__"}
+            - {name: WIN_BROKER_MAX_VMS, value: "2"}
+            - {name: WIN_BROKER_TTL, value: 60m}
+            - {name: WIN_BROKER_AZURE_SUBSCRIPTION_ID, value: __SUBSCRIPTION_ID__}
+            - {name: WIN_BROKER_AZURE_RESOURCE_GROUP, value: __RESOURCE_GROUP__}
+            - {name: WIN_BROKER_AZURE_LOCATION, value: __LOCATION__}
+            - {name: WIN_BROKER_AZURE_SUBNET_ID, value: __SUBNET_ID__}
+            - {name: WIN_BROKER_AZURE_IMAGE_ID, value: __IMAGE_ID__}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: token, mountPath: /secrets, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: win-broker-config
+        - name: token
+          secret:
+            secretName: broker-token
+            defaultMode: 0440
+            items:
+              - {key: token, path: token}
+---
+# Egress: DNS, public HTTPS (GitHub and the Azure management endpoints), and the instance metadata address on port 80
+# for the managed identity. Nothing else; no ingress. Runner pods are blocked from the metadata address by their own
+# policy, so only this pod can obtain the identity.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: win-broker-egress
+  namespace: win-broker
+spec:
+  podSelector:
+    matchLabels:
+      app: win-broker
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+      ports:
+        - {protocol: TCP, port: 80}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 0.0.0.0/8
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 168.63.129.16/32
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.0.0.0/24
+              - 192.0.2.0/24
+              - 192.88.99.0/24
+              - 192.168.0.0/16
+              - 198.18.0.0/15
+              - 198.51.100.0/24
+              - 203.0.113.0/24
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+      ports:
+        - {protocol: TCP, port: 443}
