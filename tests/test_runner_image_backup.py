@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -20,18 +21,49 @@ class BackupScriptTests(unittest.TestCase):
         return subprocess.run(["bash", str(BACKUP), *args], capture_output=True, text=True, check=False)
 
     def test_a_dry_run_changes_nothing_and_exits_cleanly(self) -> None:
-        proc = self.run_script("--dry-run")
+        proc = self.run_script("--dry-run", "--allow-flash")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("nothing was changed", proc.stdout)
         self.assertIn("windows-runner", proc.stdout)
         self.assertIn("linux-runner", proc.stdout)
 
     def test_only_filters_and_rejects_unknown_values(self) -> None:
-        only = self.run_script("--dry-run", "--only", "linux")
+        only = self.run_script("--dry-run", "--allow-flash", "--only", "linux")
         self.assertEqual(only.returncode, 0, only.stderr)
         self.assertNotIn("windows-runner", only.stdout)
         self.assertNotEqual(self.run_script("--only", "mac").returncode, 0)
         self.assertNotEqual(self.run_script("--nope").returncode, 0)
+
+    def test_a_destination_inside_a_git_repository_is_refused(self) -> None:
+        proc = self.run_script("--dry-run", "--dest", str(ROOT / "scripts" / "images-here"))
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("inside a Git working tree", proc.stderr)
+
+    def test_a_destination_outside_any_repository_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            proc = self.run_script("--dry-run", "--allow-flash", "--dest", str(Path(raw) / "new" / "dir"))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    @unittest.skipUnless(Path("/dev/shm").is_dir(), "needs a memory-backed directory")
+    def test_a_destination_that_is_not_a_spinning_disk_is_refused_unless_overridden(self) -> None:
+        dest = "/dev/shm/runner-image-backup-test"  # no physical disk behind it: fails closed
+        refused = self.run_script("--dry-run", "--dest", dest)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("not a spinning disk", refused.stderr)
+        self.assertIn("--allow-flash", refused.stderr)
+        allowed = self.run_script("--dry-run", "--allow-flash", "--dest", dest)
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+
+    def test_the_disk_check_follows_symlinks_and_mapper_layers(self) -> None:
+        self.assertIn("readlink -f", TEXT)
+        self.assertIn("btrfs reports", TEXT)
+        self.assertIn("lsblk -s", TEXT)
+        self.assertIn("fail closed", TEXT)
+
+    def test_disk_images_are_gitignored_as_a_second_layer(self) -> None:
+        for name in ("a.vhd", "a.vhd.zst", ".a.vhd.partial", "a.vhdx", "runner-images/x.sha256"):
+            proc = subprocess.run(["git", "check-ignore", "-q", name], cwd=ROOT, check=False)
+            self.assertEqual(proc.returncode, 0, f"{name} is not ignored")
 
     def test_it_is_confirmed_by_typing(self) -> None:
         self.assertIn('[[ "$answer" == "BACKUP" ]]', TEXT)

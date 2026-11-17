@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Keep bulk golden-image backups on a spinning disk: they now live in `/mnt/16tb-sata/portfolio-backups/runner-images/` (the old
+  path is a symlink), and `backup_azure_runner_images.sh` refuses a destination whose physical disk is not rotational (through
+  symlinks and the encryption layer; unknown counts as flash) unless `--allow-flash` is given. The first backup run had written
+  its raw disks to NVMe before this was caught.
+- Keep golden-image backups out of Git on two more layers: `.gitignore` now covers `*.vhd`, `*.vhdx`, `*.vhd.zst`, `*.vhd.partial`, `*.qcow2`
+  and `runner-images/`, and `backup_azure_runner_images.sh` refuses a `--dest` inside any Git working tree. They already
+  lived outside every repository by default.
 - Add `scripts/backup_azure_runner_images.sh`: a local, verified backup of the Windows and Linux golden images (temporary disk,
   never-printed download link, size and VHD-footer checks, SHA-256, zstd, a decompress-and-rehash proof, then link revoked and disk
   deleted) into the owner-only `~/.local/share/portfolio-backups/runner-images/`. Restore is documented and marked not yet

@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # backup_azure_runner_images.sh — keep a local copy of the golden runner images.
 #
-#   backup_azure_runner_images.sh [--dry-run] [--only windows|linux] [--dest DIR]
+#   backup_azure_runner_images.sh [--dry-run] [--only windows|linux] [--dest DIR] [--allow-flash]
 #
 # The images live only in the Azure compute gallery, in one region and one replica, and the subscription runs on
 # credits, so a copy that survives the resource group is worth having. For each image this script creates a temporary
 # managed disk from the recorded image version, downloads it through a short-lived read-only link (never printed or put
 # on a command line), checks it is a complete fixed VHD, records its SHA-256, compresses it with zstd, proves the
 # compressed file decompresses to the same hash, then revokes the link and deletes the disk. Nothing running is touched.
+#
+# Bulk backups belong on a spinning disk, not on SSD or NVMe: the script writes the whole raw disk (up to 128 GiB) before it
+# compresses it, so it refuses a destination whose physical disk is not rotational (or cannot be identified) unless
+# --allow-flash is given. The default path is a symlink to a folder on the 16 TB HDD.
 #
 # Output (owner-only) under DIR (default ~/.local/share/portfolio-backups/runner-images):
 #   <image>-<version>.vhd.zst      the disk, compressed
@@ -24,19 +28,44 @@ STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/share}/traction-control/azure-window
 DEST="${HOME}/.local/share/portfolio-backups/runner-images"
 ONLY=""
 DRY_RUN=0
+ALLOW_FLASH=0
 SAS_SECONDS=21600
 
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
+    --allow-flash) ALLOW_FLASH=1; shift ;;
     --only) [[ $# -ge 2 ]] || fail "--only needs windows or linux"; ONLY="$2"; shift 2 ;;
     --dest) [[ $# -ge 2 ]] || fail "--dest needs a directory"; DEST="$2"; shift 2 ;;
-    --help|-h) sed -n 2,21p "$0"; exit 0 ;;
+    --help|-h) sed -n 2,25p "$0"; exit 0 ;;
     *) fail "unknown argument: $1" ;;
   esac
 done
 [[ -z "$ONLY" || "$ONLY" == "windows" || "$ONLY" == "linux" ]] || fail "--only must be windows or linux"
+# A disk image is gigabytes and may hold things that must never be committed: refuse a destination inside any Git
+# working tree (the nearest existing parent decides, so a not-yet-created directory is checked too).
+anchor="$DEST"
+while [[ ! -d "$anchor" && "$anchor" != "/" ]]; do anchor="$(dirname "$anchor")"; done
+if git -C "$anchor" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  fail "the destination $DEST is inside a Git working tree; choose a directory outside every repository"
+fi
+# Is the destination on a spinning disk? The nearest existing parent decides, symlinks are followed, and the physical
+# disk is found through any encryption or mapper layer. Anything unknown counts as "not spinning" (fail closed).
+disk_kind() {  # path -> "hdd" | "flash" | "unknown"
+  local p="$1" src rota
+  while [[ ! -e "$p" && "$p" != "/" ]]; do p="$(dirname "$p")"; done
+  p="$(readlink -f "$p")"
+  src="$(findmnt -no SOURCE -T "$p" 2>/dev/null || true)"
+  src="${src%%\[*}"  # btrfs reports /dev/xxx[/subvolume]
+  if [[ -z "$src" || "$src" != /dev/* ]]; then echo unknown; return; fi
+  rota="$(lsblk -s -n -o TYPE,ROTA "$src" 2>/dev/null | awk '$1=="disk"{print $2; exit}')"
+  case "$rota" in 1) echo hdd ;; 0) echo flash ;; *) echo unknown ;; esac
+}
+KIND="$(disk_kind "$DEST")"
+if [[ "$KIND" != "hdd" && $ALLOW_FLASH -eq 0 ]]; then
+  fail "the destination $DEST is on $KIND storage, not a spinning disk; bulk backups belong on an HDD (for example /mnt/16tb-sata/portfolio-backups/runner-images), or pass --allow-flash to override"
+fi
 for c in az curl zstd sha256sum stat; do command -v "$c" >/dev/null 2>&1 || fail "required command not found: $c"; done
 
 # name | gallery definition | recorded id file | OS | extra disk flags
@@ -166,7 +195,7 @@ backup_one() {
   printf '== %s: done: %s (%s, sha256 %s...)\n' "$name" "$base.vhd.zst" "$(du -h "$base.vhd.zst" | cut -f1)" "${sum:0:12}"
 }
 
-printf 'Destination: %s\n' "$DEST"
+printf 'Destination: %s (%s disk)\n' "$DEST" "$KIND"
 for entry in "${IMAGES[@]}"; do
   IFS='|' read -r name def idfile os extra <<< "$entry"
   if [[ -n "$ONLY" && "$ONLY" != "$name" ]]; then continue; fi

@@ -452,9 +452,19 @@ on credits, so `./scripts/backup_azure_runner_images.sh` (type `BACKUP`) keeps a
 each recorded image version it creates a temporary managed disk, downloads it through a short-lived read-only link that is
 never printed or put on a command line (curl reads it from an owner-only file), checks the size and that the file ends
 with a VHD footer, records the raw SHA-256, compresses with zstd, **proves the compressed copy decompresses to the same
-hash**, then revokes the link and deletes the disk. `--only windows|linux`, `--dest DIR` and `--dry-run` exist. Output, owner-only,
-in `~/.local/share/portfolio-backups/runner-images/`: `<image>-<version>.vhd.zst`, `.sha256` (the hash of the raw VHD) and
-`.manifest.txt` (what the bake installed). Re-running skips an image whose copy still verifies.
+hash**, then revokes the link and deletes the disk. `--only windows|linux`, `--dest DIR`, `--allow-flash` and `--dry-run` exist.
+Output, owner-only: `<image>-<version>.vhd.zst`, `.sha256` (the hash of the raw VHD) and `.manifest.txt` (what the bake
+installed). Re-running skips an image whose copy still verifies.
+
+**Where they live: a spinning disk, never SSD or NVMe.** The script writes the whole raw disk (up to 128 GiB) before it
+compresses it, which is bulk write traffic that belongs on an HDD. The backups are in
+`/mnt/16tb-sata/portfolio-backups/runner-images/` (the 16 TB Seagate; `/mnt/16tb-sata/backups/` is root-owned, so this
+user-owned sibling is used), and `~/.local/share/portfolio-backups/runner-images` is a symlink to it so the default path and
+older references keep working. The script **refuses** a destination whose physical disk is not rotational (it follows
+symlinks and the encryption layer, and treats an unidentifiable disk as not spinning) unless `--allow-flash` is given, and it
+refuses any destination inside a Git working tree. On this machine only `/mnt/16tb-sata` (and the 2 TB USB `/mnt/setup`) are
+spinning; `/home`, `/mnt/4tb-m2` and `/mnt/4tb-sata` are flash. The HDD copy is a single copy with no redundancy of its
+own: it protects against losing the Azure subscription, not against losing that disk.
 
 Cost and limits: a Windows disk is 128 GiB and a Linux disk 30 GiB; the first 100 GB a month leave Azure free and the rest
 is about $0.09 a GB. The Windows image's licence is Azure's, so it can only be restored into Azure; the Linux image is
