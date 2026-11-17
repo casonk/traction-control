@@ -216,3 +216,88 @@ func TestRandomNamesFitAWindowsComputerName(t *testing.T) {
 		seen[n] = true
 	}
 }
+
+func linuxScaler(cloud *fakeCloud, jit *fakeJit, fleet *Fleet) *Scaler {
+	s := newScaler(cloud, jit, fleet)
+	s.Class = ClassLinux
+	s.NewName = (&names{prefix: LinuxVMPrefix}).next
+	return s
+}
+
+func TestWindowsAndLinuxDemandForTheSameRepositoryAreCountedSeparately(t *testing.T) {
+	cloud, jit := newFakeCloud(), &fakeJit{}
+	fleet := NewFleet(4)
+	win, lin := newScaler(cloud, jit, fleet), linuxScaler(cloud, jit, fleet)
+	win.HandleDesiredRunnerCount(context.Background(), 1)
+	got, _ := lin.HandleDesiredRunnerCount(context.Background(), 1)
+	win.wg.Wait()
+	lin.wg.Wait()
+	if got != 1 || cloud.count() != 2 {
+		t.Fatalf("linux got %d, cloud has %d VMs; want 1 and 2 (one per class)", got, cloud.count())
+	}
+	classes := map[Class]int{}
+	for _, c := range cloud.created {
+		classes[c.Class]++
+		if c.Class == ClassLinux && c.Name[:3] != LinuxVMPrefix {
+			t.Errorf("linux VM named %q", c.Name)
+		}
+	}
+	if classes[ClassWindows] != 1 || classes[ClassLinux] != 1 {
+		t.Errorf("classes created = %v", classes)
+	}
+}
+
+func TestBothClassesShareTheSingleGlobalCap(t *testing.T) {
+	cloud, jit := newFakeCloud(), &fakeJit{}
+	fleet := NewFleet(2)
+	win, lin := newScaler(cloud, jit, fleet), linuxScaler(cloud, jit, fleet)
+	win.HandleDesiredRunnerCount(context.Background(), 2)
+	lin.HandleDesiredRunnerCount(context.Background(), 2)
+	win.wg.Wait()
+	lin.wg.Wait()
+	if cloud.count() != 2 {
+		t.Fatalf("%d VMs exist, the cap is 2", cloud.count())
+	}
+}
+
+func TestALinuxScalerAdoptsOnlyItsOwnClass(t *testing.T) {
+	cloud, jit := newFakeCloud(), &fakeJit{}
+	s := linuxScaler(cloud, jit, NewFleet(4))
+	s.Adopt([]VM{
+		{Name: "lr-aaaaaaaa", Repo: "o/widgets", Class: ClassLinux},
+		{Name: "wr-bbbbbbbb", Repo: "o/widgets", Class: ClassWindows},
+		{Name: "wr-cccccccc", Repo: "o/widgets"}, // created before the class tag existed: Windows
+	})
+	if _, ok := s.Fleet.Get("lr-aaaaaaaa"); !ok {
+		t.Error("own-class VM not adopted")
+	}
+	for _, n := range []string{"wr-bbbbbbbb", "wr-cccccccc"} {
+		if _, ok := s.Fleet.Get(n); ok {
+			t.Errorf("a Linux scaler adopted the Windows VM %s", n)
+		}
+	}
+}
+
+func TestALinuxScalerDeletesAnUntrackedLinuxVMButNotAWindowsOne(t *testing.T) {
+	cloud, jit := newFakeCloud(), &fakeJit{}
+	s := linuxScaler(cloud, jit, NewFleet(4))
+	cloud.vms["lr-deadbeef"] = VMSpec{Name: "lr-deadbeef"}
+	cloud.vms["wr-deadbeef"] = VMSpec{Name: "wr-deadbeef"}
+	s.HandleJobCompleted(context.Background(), &scaleset.JobCompleted{RunnerName: "lr-deadbeef"})
+	s.HandleJobCompleted(context.Background(), &scaleset.JobCompleted{RunnerName: "wr-deadbeef"})
+	s.wg.Wait()
+	if cloud.has("lr-deadbeef") {
+		t.Error("the Linux VM was not deleted")
+	}
+	if !cloud.has("wr-deadbeef") {
+		t.Error("a Linux scaler deleted a Windows VM")
+	}
+}
+
+func TestOwnsNameRecognisesBothPrefixesOnly(t *testing.T) {
+	for name, want := range map[string]bool{"wr-1234abcd": true, "lr-1234abcd": true, "build-1": false, "": false} {
+		if OwnsName(name) != want {
+			t.Errorf("OwnsName(%q) = %v", name, !want)
+		}
+	}
+}

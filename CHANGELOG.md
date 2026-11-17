@@ -4,6 +4,13 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add an optional, **off-by-default premium class to the Windows runner broker**: one disposable Linux VM per job
+  (`<repo>-linux-vm`), for deployments that need root, Docker, systemd or a VM boundary on Linux. A class is threaded
+  through the fleet, scaler, reaper, VM definition (Linux image and size, cloud-init user data with a base64-only guard
+  on the runner configuration, a `class` tag) and `main`; both classes share the one cap. Enabled only by
+  `WIN_BROKER_LINUX_VM=1` plus a Linux image id, by `install_azure_win_broker.sh --with-linux-vm`, and an optional empty
+  `linux-runner` image definition (`enable_linux_image_definition`). Not deployed or exercised against Azure: the
+  runbook documents the trade-offs (2 to 3 minute start, 5 to 10 times slower for typical jobs) and the image contract.
 - Add the Windows runner broker (`services/win-broker`, Go): a Linux pod that registers a runner scale set per allowlisted
   private repository through GitHub's `actions/scaleset` client, creates one fresh Windows VM per job from a golden image
   with a single-use runner configuration, and deletes it afterwards, with a global cap, a reaper that enforces a time limit,

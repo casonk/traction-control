@@ -23,9 +23,36 @@ const (
 	TagOwnerVal = "win-broker"
 	TagRepo     = "repo"
 	TagCreated  = "created"
-	// VMPrefix starts every VM name the broker creates (a Windows computer name is at most 15 characters).
+	TagClass    = "class"
+	// VMPrefix starts every Windows VM name the broker creates (a Windows computer name is at most 15 characters).
 	VMPrefix = "wr-"
+	// LinuxVMPrefix starts every per-job Linux VM name (the optional premium class).
+	LinuxVMPrefix = "lr-"
 )
+
+// Class is a kind of runner VM the broker can create.
+type Class string
+
+const (
+	// ClassWindows is the default: one disposable Windows VM per job.
+	ClassWindows Class = "windows"
+	// ClassLinux is the optional premium class: one disposable Linux VM per job, for jobs that need root, Docker or
+	// systemd, which a runner pod cannot give. It is off unless explicitly enabled.
+	ClassLinux Class = "linux"
+)
+
+// Prefix is the VM-name prefix of a class.
+func (c Class) Prefix() string {
+	if c == ClassLinux {
+		return LinuxVMPrefix
+	}
+	return VMPrefix
+}
+
+// OwnsName reports whether a VM name could have been created by the broker for any class.
+func OwnsName(name string) bool {
+	return strings.HasPrefix(name, VMPrefix) || strings.HasPrefix(name, LinuxVMPrefix)
+}
 
 var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
@@ -37,6 +64,9 @@ type AzureConfig struct {
 	SubnetID       string
 	ImageID        string
 	VMSize         string
+	// LinuxImageID and LinuxVMSize are used only when the premium Linux class is enabled.
+	LinuxImageID string
+	LinuxVMSize  string
 	// Credential selects how the broker authenticates: "managed-identity" (default) or "default" for development.
 	Credential string
 }
@@ -49,16 +79,33 @@ type Config struct {
 	TTL            time.Duration
 	ReapEvery      time.Duration
 	ScaleSetSuffix string
-	DryRun         bool
-	LogLevel       string
-	Azure          AzureConfig
+	// LinuxVM turns on the premium per-job Linux VM class. It is off by default.
+	LinuxVM          bool
+	LinuxScaleSuffix string
+	DryRun           bool
+	LogLevel         string
+	Azure            AzureConfig
 }
 
-// ScaleSetName is the `runs-on` label for a repository: <repo>-windows.
-func (c Config) ScaleSetName(slug string) string {
+// ScaleSetName is the `runs-on` label for a repository's Windows runners: <repo>-windows.
+func (c Config) ScaleSetName(slug string) string { return c.ScaleSetNameFor(slug, ClassWindows) }
+
+// ScaleSetNameFor is the `runs-on` label for a class: <repo>-windows or <repo>-linux-vm.
+func (c Config) ScaleSetNameFor(slug string, class Class) string {
 	name := slug[strings.LastIndex(slug, "/")+1:]
 	name = strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(name))
+	if class == ClassLinux {
+		return name + c.LinuxScaleSuffix
+	}
 	return name + c.ScaleSetSuffix
+}
+
+// Classes lists the VM classes this configuration serves: Windows always, Linux only when enabled.
+func (c Config) Classes() []Class {
+	if c.LinuxVM {
+		return []Class{ClassWindows, ClassLinux}
+	}
+	return []Class{ClassWindows}
 }
 
 // Validate rejects a configuration that could create runaway cost or reach the wrong place.
@@ -86,8 +133,22 @@ func (c Config) Validate() error {
 	if !strings.HasPrefix(c.ScaleSetSuffix, "-") {
 		return fmt.Errorf("the scale-set suffix must start with a hyphen")
 	}
+	if c.LinuxVM && !strings.HasPrefix(c.LinuxScaleSuffix, "-") {
+		return fmt.Errorf("the Linux scale-set suffix must start with a hyphen")
+	}
+	if c.LinuxVM && c.LinuxScaleSuffix == c.ScaleSetSuffix {
+		return fmt.Errorf("the Linux and Windows scale-set suffixes must differ")
+	}
 	if c.DryRun {
 		return nil
+	}
+	if c.LinuxVM {
+		if c.Azure.LinuxImageID == "" {
+			return fmt.Errorf("the premium Linux class is enabled but WIN_BROKER_AZURE_LINUX_IMAGE_ID is not set")
+		}
+		if c.Azure.LinuxVMSize == "" {
+			return fmt.Errorf("the premium Linux class is enabled but the Linux VM size is empty")
+		}
 	}
 	a := c.Azure
 	for name, value := range map[string]string{
@@ -109,12 +170,13 @@ func (c Config) Validate() error {
 // LoadFromEnv builds the configuration from WIN_BROKER_* variables and the files they name.
 func LoadFromEnv(getenv func(string) string, readFile func(string) ([]byte, error), stat func(string) (os.FileInfo, error)) (Config, error) {
 	cfg := Config{
-		MaxVMs:         2,
-		TTL:            60 * time.Minute,
-		ReapEvery:      time.Minute,
-		ScaleSetSuffix: "-windows",
-		LogLevel:       "info",
-		Azure:          AzureConfig{VMSize: "Standard_B2als_v2", Credential: "managed-identity"},
+		MaxVMs:           2,
+		TTL:              60 * time.Minute,
+		ReapEvery:        time.Minute,
+		ScaleSetSuffix:   "-windows",
+		LogLevel:         "info",
+		LinuxScaleSuffix: "-linux-vm",
+		Azure:            AzureConfig{VMSize: "Standard_B2als_v2", LinuxVMSize: "Standard_B2als_v2", Credential: "managed-identity"},
 	}
 	var errs []string
 	if v := getenv("WIN_BROKER_MAX_VMS"); v != "" {
@@ -145,6 +207,15 @@ func LoadFromEnv(getenv func(string) string, readFile func(string) ([]byte, erro
 		cfg.LogLevel = v
 	}
 	cfg.DryRun = getenv("WIN_BROKER_DRY_RUN") == "1"
+	// The premium per-job Linux VM class is opt-in: nothing enables it unless this is exactly "1".
+	cfg.LinuxVM = getenv("WIN_BROKER_LINUX_VM") == "1"
+	if v := getenv("WIN_BROKER_LINUX_SCALE_SET_SUFFIX"); v != "" {
+		cfg.LinuxScaleSuffix = v
+	}
+	cfg.Azure.LinuxImageID = getenv("WIN_BROKER_AZURE_LINUX_IMAGE_ID")
+	if v := getenv("WIN_BROKER_AZURE_LINUX_VM_SIZE"); v != "" {
+		cfg.Azure.LinuxVMSize = v
+	}
 	cfg.Azure.SubscriptionID = getenv("WIN_BROKER_AZURE_SUBSCRIPTION_ID")
 	cfg.Azure.ResourceGroup = getenv("WIN_BROKER_AZURE_RESOURCE_GROUP")
 	cfg.Azure.Location = getenv("WIN_BROKER_AZURE_LOCATION")

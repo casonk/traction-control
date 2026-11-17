@@ -519,6 +519,7 @@ python3 -m unittest discover -s tests -p test_runner_pool.py
 python3 -m unittest discover -s tests -p test_install_azure_runner_scale_sets.py
 python3 -m unittest discover -s tests -p test_azure_windows_runner_stack.py
 python3 -m unittest discover -s tests -p test_win_broker_go.py
+python3 -m unittest discover -s tests -p test_win_broker_premium_linux.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are

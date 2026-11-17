@@ -57,6 +57,9 @@ spec:
             - {name: WIN_BROKER_AZURE_LOCATION, value: __LOCATION__}
             - {name: WIN_BROKER_AZURE_SUBNET_ID, value: __SUBNET_ID__}
             - {name: WIN_BROKER_AZURE_IMAGE_ID, value: __IMAGE_ID__}
+            # The premium per-job Linux VM class. Off ("0") unless the installer is run with --with-linux-vm.
+            - {name: WIN_BROKER_LINUX_VM, value: "__LINUX_VM__"}
+            - {name: WIN_BROKER_AZURE_LINUX_IMAGE_ID, value: "__LINUX_IMAGE_ID__"}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

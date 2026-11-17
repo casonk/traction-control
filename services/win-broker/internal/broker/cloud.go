@@ -9,6 +9,7 @@ import (
 type VMSpec struct {
 	Name    string
 	Repo    string
+	Class   Class
 	Created time.Time
 	// JITConfig is the single-use runner configuration. The cloud delivers it as the VM's custom data.
 	JITConfig string
@@ -18,6 +19,7 @@ type VMSpec struct {
 type VM struct {
 	Name    string
 	Repo    string
+	Class   Class
 	Created time.Time
 }
 

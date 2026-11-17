@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install_azure_win_broker.sh — build and deploy the Windows runner broker on the Azure Linux VM.
 #
-#   install_azure_win_broker.sh [--dry-run-broker | --live] [--print-plan]
+#   install_azure_win_broker.sh [--dry-run-broker | --live] [--with-linux-vm] [--print-plan]
 #
 # Prerequisites: the Azure Linux runner pool (azure_runner_stack.sh and the install helpers), the Windows stack
 # (azure_windows_runner_stack.sh) with a golden image (bake_azure_windows_image.sh), and a private-repository
@@ -12,7 +12,8 @@
 # the runner-auth Secret to the broker's own Secret inside the cluster (it never leaves the VM), and (4) applies
 # config/github-runners/windows/win-broker.yaml.template. --dry-run-broker (the default) deploys the broker with
 # WIN_BROKER_DRY_RUN=1: it registers its scale sets and logs what it would create, but creates no VM. --live
-# deploys it for real. --print-plan only prints what would happen.
+# deploys it for real. --with-linux-vm also enables the premium per-job Linux VM class (see the runbook); it is OFF
+# unless that flag is given and a Linux golden image is recorded. --print-plan only prints what would happen.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,12 +28,14 @@ SUBNET="winrun-subnet"
 STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/share}/traction-control/azure-windows-runner"
 MODE="dry"
 PLAN_ONLY=0
+WITH_LINUX=0
 
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run-broker) MODE="dry"; shift ;;
     --live) MODE="live"; shift ;;
+    --with-linux-vm) WITH_LINUX=1; shift ;;
     --print-plan) PLAN_ONLY=1; shift ;;
     --help|-h) sed -n 2,18p "$0"; exit 0 ;;
     *) fail "unknown argument: $1" ;;
@@ -58,6 +61,12 @@ for r in "${REPOS[@]}"; do
 done
 
 IMAGE_ID="$(tr -d '[:space:]' < "$STATE_DIR/image-version.txt")"
+LINUX_IMAGE_ID=""
+if (( WITH_LINUX == 1 )); then
+  [[ -f "$STATE_DIR/linux-image-version.txt" ]] || fail "--with-linux-vm needs a Linux golden image id in $STATE_DIR/linux-image-version.txt (see the runbook's premium section)"
+  LINUX_IMAGE_ID="$(tr -d '[:space:]' < "$STATE_DIR/linux-image-version.txt")"
+  [[ "$LINUX_IMAGE_ID" == /subscriptions/* ]] || fail "linux-image-version.txt does not hold an Azure image version id"
+fi
 SUBSCRIPTION_ID="$(az account show --query id -o tsv --only-show-errors)"
 LOCATION="$(az group show -n "$WIN_RG" --query location -o tsv --only-show-errors)"
 SUBNET_ID="$(az network vnet subnet show -g "$WIN_RG" --vnet-name "$VNET" -n "$SUBNET" --query id -o tsv --only-show-errors)"
@@ -65,8 +74,9 @@ VERSION="$(date -u +%Y%m%d%H%M)"
 DRY=0; [[ "$MODE" == "dry" ]] && DRY=1
 REPOS_JSON="$(printf '"%s",' "${REPOS[@]}")"; REPOS_JSON="[${REPOS_JSON%,}]"
 
-printf 'Broker version : %s\nMode           : %s\nRepositories   : %s\nImage          : %s\n' \
-  "$VERSION" "$([[ $DRY == 1 ]] && echo 'dry run (creates no VM)' || echo LIVE)" "${REPOS[*]}" "${IMAGE_ID##*/}"
+printf 'Broker version : %s\nMode           : %s\nRepositories   : %s\nImage          : %s\nLinux VM class : %s\n' \
+  "$VERSION" "$([[ $DRY == 1 ]] && echo 'dry run (creates no VM)' || echo LIVE)" "${REPOS[*]}" "${IMAGE_ID##*/}" \
+  "$([[ $WITH_LINUX == 1 ]] && echo "ENABLED (premium): ${LINUX_IMAGE_ID##*/}" || echo 'off')"
 if (( PLAN_ONLY == 1 )); then exit 0; fi
 
 printf 'This changes the Linux VM (managed identity, role assignment, a new namespace and image). Type BROKER to continue: '
@@ -93,6 +103,7 @@ SRC_B64="$(base64 -w0 "$WORK/src.tgz")"
 sed -e "s|__VERSION__|${VERSION}|g" -e "s|__DRY_RUN__|${DRY}|g" -e "s|__SUBSCRIPTION_ID__|${SUBSCRIPTION_ID}|g" \
     -e "s|__RESOURCE_GROUP__|${WIN_RG}|g" -e "s|__LOCATION__|${LOCATION}|g" -e "s|__SUBNET_ID__|${SUBNET_ID}|g" \
     -e "s|__IMAGE_ID__|${IMAGE_ID}|g" -e "s|__REPOS_JSON__|${REPOS_JSON}|g" \
+    -e "s|__LINUX_VM__|${WITH_LINUX}|g" -e "s|__LINUX_IMAGE_ID__|${LINUX_IMAGE_ID}|g" \
     "$CONF/win-broker.yaml.template" > "$WORK/manifest.yaml"
 ! grep -q '__[A-Z_]*__' "$WORK/manifest.yaml" || fail "an unfilled placeholder is left in the manifest"
 MANIFEST_B64="$(base64 -w0 "$WORK/manifest.yaml")"

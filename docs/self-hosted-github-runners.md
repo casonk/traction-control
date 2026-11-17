@@ -444,6 +444,47 @@ cap queues a third Windows job; the broker has not been tried with a job that ru
 60 minutes: raise `WIN_BROKER_TTL` for such a repository); `actions/scaleset` is a Public Preview API and v0.4.0 is
 pinned because later versions need a newer Go than the one used to build here.
 
+### Premium option: a disposable Linux VM per job (off by default, not deployed)
+
+The broker can also serve a second class of runner for the same repository: one fresh **Linux VM per job**, registered
+as `<repo>-linux-vm`. It exists for deployments that want the Windows model's isolation and capabilities on Linux. It is
+**not enabled in this portfolio's deployment and is not the recommended default**: the runner pods are the right tool for
+almost every Linux job.
+
+| | Runner pod (default) | Per-job Linux VM (premium option) |
+|---|---|---|
+| Start-up | seconds | 2 to 3 minutes (VM create and boot) |
+| Typical job | gitleaks, install and gate checks take 10 to 40 s | the same job is about 5 to 10 times slower end to end |
+| Capacity | a few pods on one VM; queues when busy | one VM per job, limited by the broker cap and the Azure core quota |
+| Isolation | shared kernel, restricted namespace, egress policy, no service-account token | its own kernel, disk and network identity |
+| Can use root, Docker, systemd, nested virtualisation | no (no sudo, no-new-privileges) | yes |
+| Cost | the standing VM (about $1.07 a day) | about $0.04 an hour per running VM plus disk, on top of the standing VM |
+
+Use it only where a job truly needs what a pod cannot give (root, Docker or Podman, systemd, a device) or where policy
+requires a VM boundary for the code. For plain queueing, raise the per-repository runner limit and the VM size first.
+
+**What it needs.** A Linux golden image in the same compute gallery (image definition `linux-runner`, created by
+`TF_VAR_enable_linux_image_definition=true` on the Windows stack; Ubuntu 24.04, generation 2, generalized) containing:
+cloud-init and the Azure agent; a user `runner` with passwordless sudo and Docker access if wanted; the Actions runner
+extracted to `/opt/actions-runner` and owned by `runner`; and whatever tools the jobs assume. The broker passes a
+cloud-init script as custom data that does `cd /opt/actions-runner` and runs `./run.sh --jitconfig '<single-use config>'`
+as `runner`; it refuses any runner configuration that is not plain base64 text, so it cannot inject shell. Capture the
+image version, then record its id in `~/.local/share/traction-control/azure-windows-runner/linux-image-version.txt`. No
+bake wrapper for the Linux image is provided: the Windows one (`scripts/bake_azure_windows_image.sh`) is the pattern.
+
+**Turning it on.**
+1. `TF_VAR_enable_template_vm=false TF_VAR_enable_linux_image_definition=true ./scripts/azure_windows_runner_stack.sh apply`
+2. Build and record the Linux image version as above.
+3. `./scripts/install_azure_win_broker.sh --live --with-linux-vm` (type `BROKER`). The installer refuses the flag until the
+   image id is recorded. Without the flag the manifest sets `WIN_BROKER_LINUX_VM=0`, and only exactly `1` enables it.
+4. Target it from a workflow with `runs-on: <repo>-linux-vm`. The same allowlist, global cap (shared with Windows),
+   deleting state, reaper and time limit apply, and the reaper handles both classes.
+
+**Status.** Implemented and unit-tested (class-aware fleet and scaler, the VM definition, the injection guard, the
+off-by-default configuration and the installer and Terraform defaults). It has **not been run against Azure**: no Linux
+image exists and nothing was created, so treat the first live run like any other new path: dry run first, one repository,
+watch the VM count return to zero.
+
 ## Expansion and teardown
 
 After the pilot is reviewed, add repositories deliberately, one at a time. Each

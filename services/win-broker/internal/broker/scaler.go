@@ -23,6 +23,7 @@ type JitClient interface {
 // Scaler serves one repository's scale set: one VM per job, deleted when the job completes.
 type Scaler struct {
 	Repo          string
+	Class         Class // zero value means Windows
 	ScaleSetID    int
 	Jit           JitClient
 	Cloud         Cloud
@@ -41,21 +42,28 @@ type Scaler struct {
 
 var _ listener.Scaler = (*Scaler)(nil)
 
-// RandomName returns a fresh VM name: the broker prefix plus eight hex characters (11 characters in all).
-func RandomName() string {
+// RandomName returns a fresh Windows VM name: the broker prefix plus eight hex characters (11 characters in all).
+func RandomName() string { return RandomNameFor(ClassWindows) }
+
+// RandomNameFor returns a fresh VM name for a class.
+func RandomNameFor(class Class) string {
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		panic(err) // the system random source failing is not recoverable
 	}
-	return VMPrefix + hex.EncodeToString(b)
+	return class.Prefix() + hex.EncodeToString(b)
 }
 
 func (s *Scaler) defaults() {
+	if s.Class == "" {
+		s.Class = ClassWindows
+	}
 	if s.Now == nil {
 		s.Now = time.Now
 	}
 	if s.NewName == nil {
-		s.NewName = RandomName
+		class := s.Class
+		s.NewName = func() string { return RandomNameFor(class) }
 	}
 	if s.BaseCtx == nil {
 		s.BaseCtx = context.Background()
@@ -74,12 +82,20 @@ func (s *Scaler) defaults() {
 	}
 }
 
+// classOf treats a VM with no class tag (created before the class existed) as Windows.
+func classOf(c Class) Class {
+	if c == "" {
+		return ClassWindows
+	}
+	return c
+}
+
 // Adopt takes over VMs of this repository that already exist, after a restart, so their jobs can still clean up.
 func (s *Scaler) Adopt(vms []VM) {
 	s.defaults()
 	for _, vm := range vms {
-		if vm.Repo == s.Repo {
-			s.Fleet.Adopt(vm.Name, vm.Repo, vm.Created)
+		if vm.Repo == s.Repo && classOf(vm.Class) == s.Class {
+			s.Fleet.Adopt(vm.Name, vm.Repo, s.Class, vm.Created)
 			s.Log.Info("adopted an existing VM", "vm", vm.Name)
 		}
 	}
@@ -88,7 +104,7 @@ func (s *Scaler) Adopt(vms []VM) {
 // HandleDesiredRunnerCount creates VMs until this repository has as many as jobs want one.
 func (s *Scaler) HandleDesiredRunnerCount(_ context.Context, count int) (int, error) {
 	s.defaults()
-	current := s.Fleet.CountRepo(s.Repo)
+	current := s.Fleet.CountRepo(s.Repo, s.Class)
 	if count <= current {
 		return current, nil
 	}
@@ -98,14 +114,14 @@ func (s *Scaler) HandleDesiredRunnerCount(_ context.Context, count int) (int, er
 			s.Log.Info("dry run: would create a VM", "vm", name, "repo", s.Repo)
 			continue
 		}
-		if !s.Fleet.Reserve(name, s.Repo, s.Now()) {
+		if !s.Fleet.Reserve(name, s.Repo, s.Class, s.Now()) {
 			s.Log.Warn("not creating a VM: the cap is reached", "max", s.Fleet.Max(), "repo", s.Repo)
 			break
 		}
 		s.wg.Add(1)
 		go s.create(name)
 	}
-	return s.Fleet.CountRepo(s.Repo), nil
+	return s.Fleet.CountRepo(s.Repo, s.Class), nil
 }
 
 func (s *Scaler) create(name string) {
@@ -126,7 +142,7 @@ func (s *Scaler) create(name string) {
 	}
 	s.Fleet.SetState(name, StateCreating, runnerID)
 
-	spec := VMSpec{Name: name, Repo: s.Repo, Created: s.Now(), JITConfig: jit.EncodedJITConfig}
+	spec := VMSpec{Name: name, Repo: s.Repo, Class: s.Class, Created: s.Now(), JITConfig: jit.EncodedJITConfig}
 	if err := s.Cloud.CreateVM(ctx, spec); err != nil {
 		log.Error("could not create the VM", "error", err)
 		s.destroy(name, runnerID) // partial resources, and the runner registration that will never connect
@@ -153,7 +169,7 @@ func (s *Scaler) HandleJobCompleted(_ context.Context, job *scaleset.JobComplete
 	s.defaults()
 	name := job.RunnerName
 	entry, tracked := s.Fleet.Get(name)
-	if !tracked && !strings.HasPrefix(name, VMPrefix) {
+	if !tracked && !strings.HasPrefix(name, s.Class.Prefix()) {
 		return nil // a runner that is not one of ours
 	}
 	s.Log.Info("job completed; deleting its VM", "vm", name, "result", job.Result, "repo", s.Repo)
@@ -206,7 +222,7 @@ func (s *Scaler) Shutdown(ctx context.Context) {
 		s.Log.Warn("shutdown: gave up waiting for in-flight work")
 	}
 	for _, e := range s.Fleet.Entries() {
-		if e.Repo == s.Repo && e.State != StateBusy && e.State != StateDeleting {
+		if e.Repo == s.Repo && e.Class == s.Class && e.State != StateBusy && e.State != StateDeleting {
 			s.Log.Info("shutdown: deleting a VM with no job", "vm", e.Name, "state", e.State)
 			s.destroy(e.Name, e.RunnerID)
 		}
@@ -215,5 +231,5 @@ func (s *Scaler) Shutdown(ctx context.Context) {
 
 // Describe is a one-line summary for logs.
 func (s *Scaler) Describe() string {
-	return fmt.Sprintf("%s: %d VM(s)", s.Repo, s.Fleet.CountRepo(s.Repo))
+	return fmt.Sprintf("%s (%s): %d VM(s)", s.Repo, s.Class, s.Fleet.CountRepo(s.Repo, s.Class))
 }
