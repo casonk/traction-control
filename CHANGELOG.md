@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the Azure Windows runner stack: `scripts/azure_windows_runner_stack.sh` and `infra/azure-windows-runner/terraform`
+  (separate resource group and state from the Linux pool, Windows Server 2022, no inbound port, generated password kept
+  only in the local state, daily auto-shutdown). It has been planned against Azure (10 resources) and not applied; the
+  runner registration is still to be built.
 - Add `scripts/runner_pool.py`, which shows and switches the self-hosted runner pool (`local`, `azure`, `hosted`) of each
   private repository through its `CI_RUNS_ON` variable, with `balance`, a dry run, and a refusal to point a repository
   at Azure before its scale set is recorded.

@@ -35,6 +35,16 @@ infra/azure-runner/terraform/*.tfvars.json
 infra/azure-runner/terraform/crash.log
 infra/azure-runner/terraform/crash.*.log
 
+# Azure Windows runner Terraform: local provider cache and any in-tree state or variables.
+infra/azure-windows-runner/terraform/.terraform/
+infra/azure-windows-runner/terraform/*.tfstate
+infra/azure-windows-runner/terraform/*.tfstate.*
+infra/azure-windows-runner/terraform/*.tfplan
+infra/azure-windows-runner/terraform/*.tfvars
+infra/azure-windows-runner/terraform/*.tfvars.json
+infra/azure-windows-runner/terraform/crash.log
+infra/azure-windows-runner/terraform/crash.*.log
+
 # KeePass-snowbridge local config (contains host/path details, no passwords)
 config/keepass-snowbridge.env.local
 

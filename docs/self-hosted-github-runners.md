@@ -365,6 +365,13 @@ somewhere. Nothing below is built; this is what was found.
   $0.0376 for Linux (Azure Retail Prices API, 2026-11-17), so about $34 a month always on. The cheap pattern is a VM
   that is deallocated when idle and started by the workflow for a scheduled or manual run; disk and IP charges
   continue while it is deallocated.
+- **Stack (built, not applied):** `./scripts/azure_windows_runner_stack.sh plan|apply|destroy` manages a separate
+  stack (`infra/azure-windows-runner/terraform`, resource group `rg-win-runner`, its own owner-only state, Windows
+  Server 2022 on `Standard_B2als_v2`, 128 GiB SSD, daily 08:00 UTC auto-shutdown, 10 resources). It opens no inbound
+  port; the administrator password is generated and stays in the local state. It installs no runner yet, so do not
+  apply it until that is built: Windows runners cannot be ARC scale sets, a personal account needs one runner
+  registration per repository, and an ephemeral runner needs a fresh registration token for each job, which means
+  a credential on the VM. Decide that boundary first (a PAT scoped to only the repositories that claim Windows support).
 - **Recommendation:** keep macOS and Windows legs on `workflow_dispatch`/`schedule` (already how `install-check`
   behaves for self-hosted repositories) and run them on hosted runners when billing allows. If a Windows leg must run
   on every pull request, add a second, separately destroyable Terraform stack for one Windows VM and a runner
