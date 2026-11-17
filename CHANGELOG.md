@@ -4,6 +4,12 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/monitor_codecov_emails.py`, a read-only Gmail monitor for Codecov patch-coverage comments. For a
+  comment that reports missing coverage it opens a backlog pull request (`[codecov:DATE]` item in the repository's
+  `BACKLOG.md`) and, for an open pull request, schedules `scripts/codecov_repair_agentic.sh`, an unattended agent
+  (`config/prompts/codecov-repair-agentic.md`) that adds tests on the pull request branch, at most twice per pull
+  request. It sends no notification of its own. Includes a Clockwork job template and
+  `scripts/install_codecov_email_monitor_systemd.sh`.
 - Add `scripts/scaffold_deployment_modes.py`, which generates the deployment-modes contract into a repository for one
   of four kinds (`job`, `worker`, `service`, `sandbox`): `deploy/deploy.sh`, the generic `deploy/k3s/` helpers, the
   example config, docs, a README section, a `.gitignore` rule, and a full `tests/test_deploy_modes.py` that passes from

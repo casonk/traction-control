@@ -147,6 +147,7 @@ bash tests/test_create_private_github_repo.sh
 - `scripts/check_github_push_ci.sh`: reusable GitHub Actions sweep for batches of pushed commits
 - `scripts/ci_repair_agentic.sh`: unattended scan of default-branch GitHub Actions failures plus agentic repair handoff for clean repos
 - `scripts/monitor_github_ci_emails.py`: Gmail inbox monitor for GitHub Actions failure notification emails
+- `scripts/monitor_codecov_emails.py`: Gmail inbox monitor for Codecov patch-coverage comments; opens a backlog pull request and schedules `scripts/codecov_repair_agentic.sh`
 - `scripts/tachometer_disk_pressure_agentic.sh`: unattended tachometer disk-pressure remediation handoff for clean candidate repos
 - `scripts/install_tachometer_disk_pressure_agentic_systemd.sh`: `clockwork` installer for the disk-pressure remediation timer
 - `scripts/template_consolidation_agentic.sh`: unattended review pass that scans repo `SECURITY.md` and `LESSONSLEARNED.md` files for guidance worth promoting into the shared templates
@@ -793,6 +794,33 @@ To install the user-level systemd timer through `clockwork`, use:
 
 ```bash
 bash scripts/install_github_ci_email_monitor_systemd.sh
+```
+
+### Codecov patch-coverage monitor
+
+Codecov reaches the inbox as a GitHub pull-request comment notification (sender
+`notifications@github.com`, body "codecov[bot] left a comment"), so the monitor filters on
+that sender and recognises the Codecov body. When a comment reports missing patch coverage it:
+
+- opens a pull request that adds a pending `[codecov:YYYY-MM-DD]` item to the repository's
+  `BACKLOG.md` (a temporary worktree of `origin/main`; it never touches a live checkout and
+  never merges; an item already carrying `codecov-pr:<number>` is not added twice);
+- for a pull request that is still open and not from a fork, writes
+  `~/.local/share/traction-control/codecov-candidates.tsv` and schedules
+  `codecov-repair-agentic.service`, which runs an unattended agent
+  (`config/prompts/codecov-repair-agentic.md`) that adds tests on the pull request branch.
+  Each pull request is tried at most `CODECOV_EMAIL_MAX_ATTEMPTS` times (default 2).
+
+The mailbox is only read: the monitor sends no notification (Codecov's own email is the
+notification) and never moves or marks a message. Run it by hand with `--dry-run`
+to see what it would do. Useful overrides: `CODECOV_EMAIL_SINCE_DAYS`,
+`CODECOV_EMAIL_MIN_PATCH_PCT` (also act below a floor Codecov did not flag),
+`CODECOV_EMAIL_ADD_BACKLOG=0`, `CODECOV_EMAIL_TRIGGER_REPAIR=0`, and
+`~/.config/traction-control/codecov-email-monitor.env`.
+
+```bash
+python3 scripts/monitor_codecov_emails.py --dry-run
+bash scripts/install_codecov_email_monitor_systemd.sh
 ```
 
 For batch post-push GitHub Actions checks, use:

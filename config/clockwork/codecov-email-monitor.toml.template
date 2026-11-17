@@ -1,0 +1,31 @@
+[[jobs]]
+name = "codecov-email-monitor"
+description = "Periodic Gmail scan for Codecov patch-coverage comments; records a backlog item and schedules an agentic repair"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/monitor_codecov_emails.py"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+environment_files = ["-%h/.config/traction-control/codecov-email-monitor.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Monitor Codecov patch-coverage emails in Gmail"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+CODECOV_EMAIL_ADD_BACKLOG = "1"
+CODECOV_EMAIL_TRIGGER_REPAIR = "1"
+CODECOV_EMAIL_TRIGGER_REPAIR_DELAY_MINUTES = "15"
+CODECOV_EMAIL_TRIGGER_REPAIR_SERVICE = "codecov-repair-agentic.service"
+CODECOV_EMAIL_TRIGGER_REPAIR_UNIT = "codecov-repair-agentic-email-trigger"
+CODECOV_EMAIL_MAX_ATTEMPTS = "2"
+# The operator already receives the Codecov emails, so this job sends no
+# notification and never moves or marks a message.
+
+[jobs.timer]
+kind = "interval"
+on_boot_sec = "10m"
+on_unit_active_sec = "15m"
+persistent = true
+randomized_delay_sec = "120"
