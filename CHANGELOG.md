@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Make "bulk data goes on a spinning disk" a portfolio standard: `docs/bulk-storage.md` and Agent Operating Rule 18, plus
+  `scripts/check_bulk_storage.py`, which the portfolio audit runs. It reads local env files for bulk-suffixed paths
+  (`_DOWNLOAD_DIR`, `_BACKUP_DIR` ...) and the ignored `config/bulk-storage.local.toml`, and reports any on flash or on an
+  unidentifiable disk (fail closed). `config/bulk-storage.toml.example` is the synthetic template.
 - Keep bulk golden-image backups on a spinning disk: they now live in `/mnt/16tb-sata/portfolio-backups/runner-images/` (the old
   path is a symlink), and `backup_azure_runner_images.sh` refuses a destination whose physical disk is not rotational (through
   symlinks and the encryption layer; unknown counts as flash) unless `--allow-flash` is given. The first backup run had written

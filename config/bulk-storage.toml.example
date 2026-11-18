@@ -1,0 +1,11 @@
+# Copy to config/bulk-storage.local.toml (ignored). Paths here are checked by scripts/check_bulk_storage.py, which the
+# portfolio audit runs. Everything listed must sit on a spinning disk unless it is also in allow_flash.
+bulk_paths = [
+  "/mnt/example-hdd/datasets",
+  "/mnt/example-hdd/portfolio-backups",
+]
+
+# Paths that are deliberately on flash (a working set that needs the speed). Keep this short and say why in a comment.
+allow_flash = [
+  # "/mnt/example-nvme/working-set",
+]

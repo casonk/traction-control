@@ -98,3 +98,6 @@ infra/azure-static-web-app-stack/*.tfvars
 infra/azure-static-web-app-stack/*.tfvars.json
 infra/azure-static-web-app-stack/crash.log
 infra/azure-static-web-app-stack/crash.*.log
+
+# Bulk-storage audit: machine-local path declarations.
+config/bulk-storage.local.toml

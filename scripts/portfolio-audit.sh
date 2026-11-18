@@ -21,6 +21,8 @@
 #     origin, and a checkout on a work branch must not hold unpushed commits
 #   - open pull requests: any PR the account authored that has sat open for more
 #     than STALE_PR_DAYS (default 3) days
+#   - bulk storage: configured download/backup/dataset paths on flash instead of
+#     a spinning disk (check_bulk_storage.py, docs/bulk-storage.md)
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -583,6 +585,29 @@ else
     esac
 fi
 
+# ── bulk storage on flash ────────────────────────────────────────────────────
+# Downloads, backups and dataset mirrors belong on a spinning disk (docs/bulk-storage.md). The checker reads each
+# repository's local env files and config/bulk-storage.local.toml and reports any bulk path on flash or on a medium it
+# cannot identify.
+log ""
+log "=== bulk storage ==="
+BULK_COUNT=0
+set +e
+bulk_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/check_bulk_storage.py" --root "${PORTFOLIO_ROOT}" 2>&1)"
+bulk_status=$?
+set -e
+case "${bulk_status}" in
+    0) log "every configured bulk path is on a spinning disk" ;;
+    1)
+        while IFS= read -r line; do
+            [[ -n "${line}" ]] || continue
+            warn "bulk storage: ${line}"
+            BULK_COUNT=$(( BULK_COUNT + 1 ))
+        done <<< "${bulk_output}"
+        ;;
+    *) warn "bulk storage check could not run: $(tail -1 <<< "${bulk_output}")" ;;
+esac
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
@@ -593,6 +618,7 @@ log "vault access   : ${VAULT_COUNT}"
 log "stale checkouts: ${STALE_COUNT}"
 log "stale open PRs : ${STALE_PR_COUNT}"
 log "README badges  : ${BADGE_COUNT}"
+log "bulk on flash  : ${BULK_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -601,7 +627,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 || BULK_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi

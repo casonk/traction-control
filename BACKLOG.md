@@ -16,6 +16,13 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-18] **Bulk data off flash (follow-ups to the storage survey).** Done: the standard
+  (`docs/bulk-storage.md`, Agent Operating Rule 18) and the audit check (`check_bulk_storage.py`). Remaining, each a copy,
+  checksum-compare, then remove only with the owner's go-ahead: a verified HDD copy of the large dataset mirror that sits
+  single-copy on NVMe; move the torrent download directory to the HDD (the daemon user needs write access, in-flight
+  torrents must be relocated first); deduplicate the local model files held on three flash locations; prune about 26 GB of
+  unused container images; move the small history-rewrite backups to the HDD.
+
 - [ ] [manual:2026-11-15] **Portfolio standards review: what is done and what is left.** A read-only audit of the 52
   repositories (33 public, 19 private; two directories that look like repositories are git worktrees of `crew-chief`
   and are not counted) found the gaps below. Done 2026-11-15: the Contributor Covenant 3.0 is the account default in
