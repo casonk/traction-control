@@ -494,6 +494,12 @@ Add:
 15. Preserve established architecture, naming, and folder conventions unless the task explicitly calls for restructuring.
 16. When a repo contains architecture docs, diagrams, or workflow docs, keep them in sync with behavioral changes.
 17. **Never commit or push directly to `main`** without the user's explicit permission for that change. Create a branch, push it, and open a pull request; leave merging to the user unless they ask otherwise. See [Main-Branch Guard](#main-branch-guard).
+18. **Put bulk data on a spinning disk, never SSD or NVMe.** Downloads, backups, archives, dataset mirrors and model stores
+    go on an HDD, with a second copy for anything that matters. A script that writes bulk data checks the destination's
+    physical disk (`lsblk -s -o TYPE,ROTA`, through symlinks and the encryption layer), refuses flash unless given an
+    explicit override, and treats an unidentifiable disk as flash. Name bulk settings with a `_DOWNLOAD_DIR`, `_BACKUP_DIR`,
+    `_ARCHIVE_DIR`, `_DATASET_DIR` or `_MODELS_DIR` suffix so `scripts/check_bulk_storage.py` (run by the portfolio audit)
+    flags one on flash. See [the bulk storage guide](docs/bulk-storage.md).
 
 ## Sudo Boundary
 
@@ -522,6 +528,7 @@ python3 -m unittest discover -s tests -p test_win_broker_go.py
 python3 -m unittest discover -s tests -p test_win_broker_premium_linux.py
 python3 -m unittest discover -s tests -p test_bake_azure_linux_image.py
 python3 -m unittest discover -s tests -p test_runner_image_backup.py
+python3 -m unittest discover -s tests -p test_check_bulk_storage.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are

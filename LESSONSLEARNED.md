@@ -2416,3 +2416,16 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - **Do not trust a CLI field name across versions, and never end an EXIT trap with `[[ test ]] && cmd`.** `az disk grant-access` returned `accessSAS` where the script asked for `accessSas` and got nothing; query both spellings. A trap whose last command returns 1 turns a clean `exit 0` into exit 1 under `set -e`; use `if`.
 - **Pin what you can, record what you cannot.** Git for Windows and the runner are pinned by tag and digest; Ubuntu packages cannot be pinned (the archive drops old versions), so write a manifest into the image and keep a copy beside the backup.
 - **Bulk and backup writes go to a spinning disk.** Here `/mnt/16tb-sata` (and the USB `/mnt/setup`) are HDDs; `/home`, `/mnt/4tb-m2` and `/mnt/4tb-sata` are flash. A script that writes hundreds of GiB must check the physical disk under its destination (through symlinks and LUKS/mapper layers; btrfs sources look like `/dev/x[/subvol]`) and fail closed, instead of trusting a default path.
+
+### 2026-11-18 — Decide the storage medium before the first bulk write, and make the check mechanical
+
+- A backup script wrote 158 GiB of raw disks to NVMe before anyone asked where they should go, and a survey of the rest
+  of the workstation found the same pattern outside the repositories: a 2.4 TB dataset with no second copy filling an
+  NVMe drive, and a download directory on the system disk. Nothing was wrong at the time each was created; the default
+  was simply whatever disk was nearest.
+- Bulk data (downloads, backups, archives, dataset mirrors, model stores) belongs on an HDD with a second copy. A script
+  that writes it must look up the destination's physical disk (`lsblk -s -o TYPE,ROTA`, past symlinks and the
+  encryption layer), refuse flash without an explicit override, and treat an unidentifiable disk as flash.
+- A rule only written down is forgotten, so the audit enforces it: name bulk settings with the suffixes in
+  `docs/bulk-storage.md` and `scripts/check_bulk_storage.py` flags one on flash. Moving data off flash is copy,
+  checksum-compare, then delete only with the owner's go-ahead.
