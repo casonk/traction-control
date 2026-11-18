@@ -4,6 +4,11 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Run every standalone unittest module from pre-commit (and so from CI, which runs pre-commit): the Codecov monitor, runner pool,
+  Azure scale-set installer, Azure Windows runner stack, Windows runner broker (Go; skipped without Go), premium Linux class, Linux
+  image bake, image backup and bulk-storage checks were listed in `AGENTS.md` but ran only by hand. Add
+  `tests/test_audit_bulk_storage.py`, which runs the whole portfolio audit against a fake portfolio and fake disks and checks that
+  a bulk path on flash is counted and fails the audit, and that one on a spinning disk does not.
 - Make "bulk data goes on a spinning disk" a portfolio standard: `docs/bulk-storage.md` and Agent Operating Rule 18, plus
   `scripts/check_bulk_storage.py`, which the portfolio audit runs. It reads local env files for bulk-suffixed paths
   (`_DOWNLOAD_DIR`, `_BACKUP_DIR` ...) and the ignored `config/bulk-storage.local.toml`, and reports any on flash or on an

@@ -529,6 +529,7 @@ python3 -m unittest discover -s tests -p test_win_broker_premium_linux.py
 python3 -m unittest discover -s tests -p test_bake_azure_linux_image.py
 python3 -m unittest discover -s tests -p test_runner_image_backup.py
 python3 -m unittest discover -s tests -p test_check_bulk_storage.py
+python3 -m unittest discover -s tests -p test_audit_bulk_storage.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are
