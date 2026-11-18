@@ -107,3 +107,63 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: monitor-codecov-emails-tests
+        name: Codecov email monitor tests
+        entry: python3 -m unittest discover -s tests -p test_monitor_codecov_emails.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: runner-pool-tests
+        name: runner pool switching tests
+        entry: python3 -m unittest discover -s tests -p test_runner_pool.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: azure-runner-scale-set-installer-tests
+        name: Azure scale-set installer tests
+        entry: python3 -m unittest discover -s tests -p test_install_azure_runner_scale_sets.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: azure-windows-runner-stack-tests
+        name: Azure Windows runner stack tests
+        entry: python3 -m unittest discover -s tests -p test_azure_windows_runner_stack.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: win-broker-go-tests
+        name: Windows runner broker Go tests (skip without Go)
+        entry: python3 -m unittest discover -s tests -p test_win_broker_go.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: win-broker-premium-linux-tests
+        name: premium Linux runner class tests
+        entry: python3 -m unittest discover -s tests -p test_win_broker_premium_linux.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: bake-azure-linux-image-tests
+        name: Linux golden image bake tests
+        entry: python3 -m unittest discover -s tests -p test_bake_azure_linux_image.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: runner-image-backup-tests
+        name: runner image backup tests
+        entry: python3 -m unittest discover -s tests -p test_runner_image_backup.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: bulk-storage-tests
+        name: bulk storage check tests
+        entry: python3 -m unittest discover -s tests -p test_check_bulk_storage.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: audit-bulk-storage-wiring-tests
+        name: portfolio audit bulk-storage wiring test
+        entry: python3 -m unittest discover -s tests -p test_audit_bulk_storage.py
+        language: system
+        pass_filenames: false
+        always_run: true
