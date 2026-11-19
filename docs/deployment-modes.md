@@ -173,12 +173,14 @@ independent of pod restarts.
 | What | Address | Notes |
 |---|---|---|
 | In-cluster image registry | ClusterIP `10.43.0.50:5000` | node-only; `localhost:5000/<name>` for pods |
-| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.63`, then up to `10.43.0.99` |
+| web-app pod (GPS trace) | ClusterIP `10.43.0.60:5434` | next free in the portfolio range: `10.43.0.63` and `10.43.0.65`, then up to `10.43.0.99` |
 | web app on the host (GPS trace) | `127.0.0.1:5434` | the host service, or the forwarder in `k3s` mode |
 | intake extractor sandbox pod | ClusterIP `10.43.0.61:5455` | node-only, no egress at all |
 | intake extractor on the host | `127.0.0.1:5455` | the foreground service in `dev`, or the forwarder in `k3s` mode |
 | torrent web UI pod | ClusterIP `10.43.0.62:5400` | reaches the host's Transmission RPC through one port-limited allow |
 | torrent web UI on the host | `127.0.0.1:5400` | the host service, or the forwarder in `k3s` mode |
+| File Browser pod (snowbridge) | ClusterIP `10.43.0.64:8080` | node-only, no egress at all; mounts each real source folder of the share |
+| File Browser on the host (snowbridge) | `127.0.0.1:8080` | the rootful host container, or the forwarder in `k3s` mode; Caddy proxies here |
 | Transmission RPC forwarder | pod-network address (`cilium_host`) `:9091` | user socket forwarding to the host's loopback RPC; only the pod's policy admits it |
 | Hubble UI forward | `127.0.0.1:8195` | `forward.sh ui` |
 | Prometheus forward | `127.0.0.1:9190` | `forward.sh prometheus` |

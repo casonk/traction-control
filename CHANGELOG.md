@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Register the File Browser pod (`10.43.0.64:8080`) and its host address in the deployment-modes address table.
 - Add a restic engine for the ignored datasets (`scripts/state_restic_backup.py`): deduplicated, client-side encrypted and
   compressed backups on the spinning disk with 7 daily / 5 weekly / 12 monthly / 3 yearly retention, SQLite staged through its
   backup API, a restore drill and a read-back check. Its password file is separate from the age keys. A third daily timer runs it,
