@@ -20,6 +20,7 @@ def fake_bin(base: Path, rota: str) -> Path:
     )
     (b / "age-keygen").write_text(
         f"#!/bin/sh\nwhile [ $# -gt 0 ]; do case $1 in -o) out=$2; shift 2;; *) shift;; esac; done\n"
+        "[ -e \"$out\" ] && { echo 'age-keygen: failed to open output file: file exists' >&2; exit 1; }\n"
         f"echo '{SECRET}' > \"$out\"; echo 'Public key: age1testrecipientabc' >&2\n"
     )
     for f in b.iterdir():

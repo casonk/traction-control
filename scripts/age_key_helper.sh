@@ -45,17 +45,23 @@ umask 077
 mkdir -p "${DIR}"; chmod 700 "${DIR}"
 
 TMP=""
-cleanup() { if [[ -n "${TMP}" && -e "${TMP}" ]]; then shred -u "${TMP}" 2>/dev/null || rm -f "${TMP}"; fi; }
+WORKDIR=""
+cleanup() {
+  if [[ -n "${TMP}" && -e "${TMP}" ]]; then shred -u "${TMP}" 2>/dev/null || rm -f "${TMP}"; fi
+  if [[ -n "${WORKDIR}" ]]; then rm -rf "${WORKDIR}"; fi
+}
 trap cleanup EXIT
-tmpdir="${XDG_RUNTIME_DIR:-/dev/shm}"; [[ -d "${tmpdir}" && -w "${tmpdir}" ]] || tmpdir="$(mktemp -d)"
+# age-keygen refuses to write to a file that already exists, so give it a path inside a private directory, not a pre-made file.
+tmpbase="${XDG_RUNTIME_DIR:-/dev/shm}"; [[ -d "${tmpbase}" && -w "${tmpbase}" ]] || tmpbase="${TMPDIR:-/tmp}"
+WORKDIR="$(mktemp -d "${tmpbase}/age-key-helper.XXXXXX")"
 
 case "${cmd}" in
   recovery-key)
     out="${DIR}/recovery-key.age"; pub="${DIR}/recovery-recipient.pub"
     [[ ! -e "${out}" && ! -e "${pub}" ]] || fail "refusing to overwrite ${out} or ${pub}"
-    TMP="$(mktemp "${tmpdir}/age-recovery.XXXXXX")"
-    age-keygen -o "${TMP}" 2> "${TMP}.pub" || { rm -f "${TMP}.pub"; fail "age-keygen failed"; }
-    recipient="$(sed -n 's/^Public key: //p' "${TMP}.pub")"; rm -f "${TMP}.pub"
+    TMP="${WORKDIR}/recovery.txt"
+    age-keygen -o "${TMP}" 2> "${WORKDIR}/pub.txt" || { cat "${WORKDIR}/pub.txt" >&2; fail "age-keygen failed"; }
+    recipient="$(sed -n 's/^Public key: //p' "${WORKDIR}/pub.txt")"
     [[ "${recipient}" == age1* ]] || fail "could not read the public key"
     age -p -o "${out}" "${TMP}"
     printf '%s\n' "${recipient}" > "${pub}"
