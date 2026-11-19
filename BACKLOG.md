@@ -25,9 +25,9 @@ with a `README.md` pointing back here. The item names its id as
      one disk.
   2. Offsite copy of the dataset generations in the cloud. They are already client-side encrypted; choose the destination,
      bound its cost, and add the transfer as a third step after the verified local generation. Not started on purpose.
-  3. Move the dataset backups to restic once it is installed: its deduplication would store only the changed part of the large
-     datasets instead of a whole new generation each time, and it has built-in pruning and `check --read-data`. Keep the
-     age-and-zstd format until a drill of the restic repository passes.
+  3. restic is built and running (7 daily / 5 weekly / 12 monthly / 3 yearly) beside the age engine. Repeat the restic drill over
+     a few weeks, then retire the age-and-zstd dataset generations and their timer; keep the age keys for the configuration
+     bundle.
   4. Fix the one unreadable local config file (root-owned) so the bundle covers it, and repeat the restore drill quarterly.
 - [ ] [manual:2026-11-18] **Bulk data off flash (follow-ups to the storage survey).** Done: the standard
   (`docs/bulk-storage.md`, Agent Operating Rule 18) and the audit check (`check_bulk_storage.py`). Remaining, each a copy,

@@ -653,6 +653,23 @@ else
             ;;
         *) warn "dataset backup check could not run: $(tail -1 <<< "${dataset_output}")" ;;
     esac
+    if grep -q '^\[restic\]' "${STATE_DATASETS_CONFIG:-${SCRIPT_DIR}/../config/state-datasets.local.toml}"; then
+        set +e
+        restic_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/state_restic_backup.py" status --max-age-days "${DATASET_BACKUP_MAX_AGE_DAYS:-3}" 2>&1)"
+        restic_status=$?
+        set -e
+        case "${restic_status}" in
+            0) log "every restic dataset backup is current" ;;
+            1)
+                while IFS= read -r line; do
+                    [[ "${line}" == *"no backup"* || "${line}" == *"STALE"* || "${line}" == *"no restic repository"* ]] || continue
+                    warn "restic backup: ${line}"
+                    STATE_BACKUP_COUNT=$(( STATE_BACKUP_COUNT + 1 ))
+                done <<< "${restic_output}"
+                ;;
+            *) warn "restic backup check could not run: $(tail -1 <<< "${restic_output}")" ;;
+        esac
+    fi
 fi
 
 log ""

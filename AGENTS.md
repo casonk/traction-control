@@ -538,6 +538,7 @@ python3 -m unittest discover -s tests -p test_check_bulk_storage.py
 python3 -m unittest discover -s tests -p test_audit_bulk_storage.py
 python3 -m unittest discover -s tests -p test_state_dataset_backup.py
 python3 -m unittest discover -s tests -p test_age_key_helper.py
+python3 -m unittest discover -s tests -p test_state_restic_backup.py
 python3 -m unittest discover -s tests -p test_local_state_bundle.py
 ```
 
