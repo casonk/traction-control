@@ -1,0 +1,21 @@
+# Copy to config/state-datasets.local.toml (ignored). Synthetic example: real paths and repository names stay in the ignored file.
+#
+# dest        spinning disk only; a flash destination is refused (docs/bulk-storage.md)
+# keep        generations kept per dataset after a verified backup
+# recipients       age public keys, or
+# recipients_from  a TOML file with [scopes.global] recipients = [...] (the config store's sources file)
+# identity         age identity file used ONLY to verify and restore
+dest = "/mnt/example-hdd/portfolio-backups/state"
+keep = 8
+recipients_from = "example-store/config/sources.toml"
+identity = "~/.config/example/identity.age"
+
+[[dataset]]
+name = "example-records"
+paths = ["example-repo/data", "example-repo/reports"]   # relative to the portfolio root, or absolute / ~
+sqlite = ["example-repo/data/app.sqlite"]               # copied with SQLite's backup API, never as a raw file
+exclude = ["*/profile/*", "*.tmp"]                      # fnmatch against the full path and the file name
+
+[[dataset]]
+name = "example-notes"
+globs = ["*/*/NOTES.md"]                                # globs relative to the portfolio root

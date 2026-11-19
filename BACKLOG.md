@@ -16,6 +16,11 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-19] **Local-state backups: remaining steps.** Done: the daily configuration bundle (private config store, private
+  `local-state-backups` branch), the encrypted dataset backups on the HDD, their audit checks and the standard
+  (`docs/local-state-backup.md`, Agent Operating Rule 19). Remaining: keep an offline copy of the age identity and add a
+  recovery recipient to the store's global layer; decide whether agent session history is backed up; send dataset generations
+  offsite (client-side encrypted, destination to be chosen); repeat the restore drill quarterly.
 - [ ] [manual:2026-11-18] **Bulk data off flash (follow-ups to the storage survey).** Done: the standard
   (`docs/bulk-storage.md`, Agent Operating Rule 18) and the audit check (`check_bulk_storage.py`). Remaining, each a copy,
   checksum-compare, then remove only with the owner's go-ahead: a verified HDD copy of the large dataset mirror that sits

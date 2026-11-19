@@ -1447,6 +1447,8 @@ smoke_wrapper() {
     HOME="${TEST_ROOT}/wrapper-home" \
     PORTFOLIO_ROOT="${portfolio_root}" \
     LOG_DIR="${log_dir}" \
+    LOCAL_STATE_CONFIG="${TEST_ROOT}/no-local-state.toml" \
+    STATE_DATASETS_CONFIG="${TEST_ROOT}/no-state-datasets.toml" \
     /bin/bash "$@"
   assert_status 0 "${label} executes safely under /bin/bash"
 }

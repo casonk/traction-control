@@ -4,6 +4,14 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Back up local-only state on a schedule (docs/local-state-backup.md, Agent Operating Rule 19). `scripts/local_state_bundle.py`
+  discovers every Git-ignored local config file, the SSH and GPG keys, the clockwork certificate authority and Terraform state,
+  writes one deterministic archive, and has the private encrypted-config store encrypt it and push it to a private `local-state-backups` branch.
+  `scripts/state_dataset_backup.py` writes age-encrypted, checksummed, versioned generations of large ignored datasets to a
+  spinning disk (SQLite copied through its backup API, each generation decrypted and read back before it counts, oldest pruned
+  after a verified run) and refuses a flash or in-repository destination. `scripts/install_local_state_backup_systemd.sh`
+  installs the two daily timers, and `portfolio-audit.sh` fails when either backup is stale or unverified. The private sidecar is
+  not used: it accepts only public-registry repositories and SFTP targets.
 - Run every standalone unittest module from pre-commit (and so from CI, which runs pre-commit): the Codecov monitor, runner pool,
   Azure scale-set installer, Azure Windows runner stack, Windows runner broker (Go; skipped without Go), premium Linux class, Linux
   image bake, image backup and bulk-storage checks were listed in `AGENTS.md` but ran only by hand. Add
