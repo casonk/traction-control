@@ -29,13 +29,13 @@ with a `README.md` pointing back here. The item names its id as
   3. restic is built and running (7 daily / 5 weekly / 12 monthly / 3 yearly) beside the age engine. Repeat the restic drill over
      a few weeks, then retire the age-and-zstd dataset generations and their timer; keep the age keys for the configuration
      bundle.
-  4. Fix the one unreadable local config file (root-owned) so the bundle covers it, and repeat the restore drill quarterly.
+  4. Repeat the restore drill quarterly. (The unreadable root-owned config file was fixed 2026-11-19; the bundle covers it.)
 - [ ] [manual:2026-11-18] **Bulk data off flash (follow-ups to the storage survey).** Done: the standard
-  (`docs/bulk-storage.md`, Agent Operating Rule 18) and the audit check (`check_bulk_storage.py`). Remaining, each a copy,
-  checksum-compare, then remove only with the owner's go-ahead: a verified HDD copy of the large dataset mirror that sits
-  single-copy on NVMe; move the torrent download directory to the HDD (the daemon user needs write access, in-flight
-  torrents must be relocated first); deduplicate the local model files held on three flash locations; prune about 26 GB of
-  unused container images; move the small history-rewrite backups to the HDD.
+  (`docs/bulk-storage.md`, Agent Operating Rule 18), the audit check (`check_bulk_storage.py`), the verified HDD copy of the
+  large dataset mirror (the NVMe original is kept on purpose, with a README marking the copy as removable; delete it only
+  with the owner's go-ahead) and the torrent download directory moved to the HDD. Remaining: the duplicated local model
+  files stay for now because the owner may benchmark again (revisit occasionally); prune about 26 GB of unused container
+  images; move the small history-rewrite backups to the HDD.
 
 - [ ] [manual:2026-11-15] **Portfolio standards review: what is done and what is left.** A read-only audit of the 52
   repositories (33 public, 19 private; two directories that look like repositories are git worktrees of `crew-chief`
