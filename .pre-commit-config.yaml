@@ -179,3 +179,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: age-key-helper-tests
+        name: age key helper tests
+        entry: python3 -m unittest discover -s tests -p test_age_key_helper.py
+        language: system
+        pass_filenames: false
+        always_run: true

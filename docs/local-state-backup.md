@@ -47,6 +47,19 @@ python3 scripts/state_dataset_backup.py restore NAME --to DIR # into a new, empt
 
 Start from `config/state-datasets.toml.example`. Keep the real list ignored: it names private repositories and paths.
 
+## Rotation and compression (current policy)
+
+- **Dataset backups:** each run that finds changed files writes a new generation; the newest `keep` (default 8) per dataset
+  are retained and older ones are deleted after the new one verifies. This is count-based, not time-based: an unchanged dataset
+  writes nothing, so eight generations can span months for a quiet dataset and days for a busy one. There is no daily, weekly
+  or monthly thinning yet.
+- **Configuration bundle:** every changed bundle is a commit on the private branch and none are pruned, so history is
+  unbounded (about 0.2 MB per change).
+- **Compression:** every dataset is compressed with zstd level 3 before it is encrypted, and the bundle with gzip. There is
+  no recompression as data ages: a generation keeps the compression it was written with. At this size (about 1 GB stored)
+  a stronger level or tiering saves little. restic has no age-based recompression either; its tools are deduplication,
+  retention thinning and `prune --repack-uncompressed`.
+
 ## The key is the single point of failure
 
 Both jobs encrypt to the store's global age recipient, and the matching identity file lives
@@ -69,6 +82,16 @@ and each generation is one self-contained file.
 `scripts/portfolio-audit.sh` fails when the bundle is older than two days (`LOCAL_STATE_MAX_AGE_DAYS`), or a dataset's
 newest generation is missing, unverified or older than three days (`DATASET_BACKUP_MAX_AGE_DAYS`). It skips the dataset
 check, without counting it, on a machine with no dataset config.
+
+### Key helper
+
+`scripts/age_key_helper.sh` keeps identities recoverable without printing a secret. Run it in your own terminal, because age
+prompts for the passphrase on the TTY: `recovery-key` creates a new recovery key pair, passphrase-protects the secret half
+and writes the public recipient beside it; `protect FILE` passphrase-protects an existing identity. Both write below
+`/mnt/16tb-sata/portfolio-backups/keys` (a spinning disk outside every repository) and never overwrite. Use a strong passphrase
+that is not stored only in a vault these backups are needed to restore, and copy the `.age` files to removable media kept
+away from this machine: a copy on the same host does not survive losing the host. Each host also holds its own machine
+identity next to the global one; protect that file too.
 
 Rehearse a restore after any change to the job and at least once a quarter: restore into a scratch directory and compare
 (for databases, run `PRAGMA integrity_check`).

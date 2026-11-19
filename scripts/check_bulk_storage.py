@@ -115,7 +115,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", type=Path, default=here.parent.parent, help="portfolio root to scan for env files")
     ap.add_argument("--config", type=Path, default=here / "config" / "bulk-storage.local.toml")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--kind", metavar="PATH", help="print hdd, flash or unknown for PATH and exit")
     args = ap.parse_args(argv)
+    if args.kind:
+        print(disk_kind(args.kind))
+        return 0
     if not all(subprocess.run(["which", c], capture_output=True).returncode == 0 for c in ("findmnt", "lsblk")):
         print("error: findmnt and lsblk are required", file=sys.stderr)
         return 2
