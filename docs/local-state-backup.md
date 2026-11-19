@@ -47,9 +47,34 @@ python3 scripts/state_dataset_backup.py restore NAME --to DIR # into a new, empt
 
 Start from `config/state-datasets.toml.example`. Keep the real list ignored: it names private repositories and paths.
 
+## Restic engine
+
+`scripts/state_restic_backup.py` backs up the same datasets into a restic repository on the spinning disk
+(`[restic]` table of `config/state-datasets.local.toml`). restic stores only the changed parts of each dataset, encrypts and
+compresses on the client (repository format 2, compression `max`), and `forget --prune` thins snapshots after every run. Its
+password is a random owner-only file created by `init` (`~/.config/traction-control/restic-password`, never printed); it sits in
+a directory the configuration bundle backs up, which is its recovery path. Unlike the age engine it does not use the age keys,
+so the two engines do not share a single point of failure. SQLite files are staged through SQLite's backup API under a stable
+path and re-staged only when the source database (or its WAL) changed.
+
+```bash
+python3 scripts/state_restic_backup.py init           # create the repository and password file once
+python3 scripts/state_restic_backup.py backup [NAME]  # snapshot, then apply retention
+python3 scripts/state_restic_backup.py check          # structure plus a 5% read-back (--read-data 100% for all of it)
+python3 scripts/state_restic_backup.py drill NAME     # restore the newest snapshot to a scratch dir and compare
+python3 scripts/state_restic_backup.py restore NAME --to DIR
+```
+
+Each run adds one tiny snapshot per dataset even when no data changed, because restic records the metadata of ancestor
+directories; the data itself is deduplicated and adds nothing. The age-and-zstd engine keeps running alongside until a
+restic restore drill has been repeated over time and you retire it.
+
 ## Rotation and compression (current policy)
 
-- **Dataset backups:** each run that finds changed files writes a new generation; the newest `keep` (default 8) per dataset
+- **restic datasets:** retention per dataset is 7 daily, 5 weekly, 12 monthly and 3 yearly snapshots, applied after every run;
+  unreferenced data is pruned. Compression is `max`, applied when data is first written.
+
+- **Age-engine dataset backups:** each run that finds changed files writes a new generation; the newest `keep` (default 8) per dataset
   are retained and older ones are deleted after the new one verifies. This is count-based, not time-based: an unchanged dataset
   writes nothing, so eight generations can span months for a quiet dataset and days for a busy one. There is no daily, weekly
   or monthly thinning yet.

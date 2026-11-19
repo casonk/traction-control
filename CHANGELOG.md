@@ -4,6 +4,10 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add a restic engine for the ignored datasets (`scripts/state_restic_backup.py`): deduplicated, client-side encrypted and
+  compressed backups on the spinning disk with 7 daily / 5 weekly / 12 monthly / 3 yearly retention, SQLite staged through its
+  backup API, a restore drill and a read-back check. Its password file is separate from the age keys. A third daily timer runs it,
+  and the audit reports a missing or stale restic backup. The age-and-zstd engine keeps running alongside it.
 - Add `scripts/age_key_helper.sh` (`recovery-key`, `protect FILE`): passphrase-protect an age identity or create a recovery key
   pair on a spinning disk without printing the secret, and `check_bulk_storage.py --kind PATH`. Document the current rotation and
   compression policy in `docs/local-state-backup.md`.

@@ -86,6 +86,14 @@ class AuditStateBackups(unittest.TestCase):
         self.assertIn("dataset backup: x: no backup", out)
         self.assertIn("state backups  : 1", out)
 
+    def test_a_missing_restic_repository_is_counted(self):
+        with tempfile.TemporaryDirectory() as t:
+            cfg = Path(t, "datasets.toml")
+            cfg.write_text(f'dest = "{t}/dest"\n[restic]\nrepository = "{t}/repo"\npassword_file = "{t}/pw"\n'
+                           '[[dataset]]\nname = "x"\npaths = ["/nope"]\n')
+            _rc, out = run_audit("1", "", state={"last_success": int(time.time())}, datasets_config=str(cfg))
+        self.assertIn("restic backup: no restic repository", out)
+
 
 if __name__ == "__main__":
     unittest.main()

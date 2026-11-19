@@ -185,3 +185,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: state-restic-backup-tests
+        name: restic dataset backup tests (skip without restic)
+        entry: python3 -m unittest discover -s tests -p test_state_restic_backup.py
+        language: system
+        pass_filenames: false
+        always_run: true

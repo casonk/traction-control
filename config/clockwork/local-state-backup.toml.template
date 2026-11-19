@@ -1,8 +1,9 @@
-# Two daily jobs that keep the portfolio's local-only state backed up.
+# Three daily jobs that keep the portfolio's local-only state backed up.
 #   local-state-backup    every Git-ignored local config, key and Terraform state -> one bundle -> the private config store (encrypted,
 #                         pushed to a private branch): small, off-machine copy
 #   state-dataset-backup  large ignored datasets -> age-encrypted, verified generations on a spinning disk
-# Neither sends a notification; the portfolio audit reports a stale or failed backup.
+#   state-restic-backup   the same datasets into a deduplicated, thinned restic repository on the same spinning disk
+# None sends a notification; the portfolio audit reports a stale or failed backup.
 
 [[jobs]]
 name = "local-state-backup"
@@ -43,5 +44,25 @@ PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
 [jobs.timer]
 kind = "calendar"
 on_calendar = "*-*-* 04:15:00"
+persistent = true
+randomized_delay_sec = "600"
+
+[[jobs]]
+name = "state-restic-backup"
+description = "Daily deduplicated restic backup of ignored datasets onto a spinning disk, with retention thinning"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/state_restic_backup.py backup"
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Back up ignored datasets with restic"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* 04:45:00"
 persistent = true
 randomized_delay_sec = "600"

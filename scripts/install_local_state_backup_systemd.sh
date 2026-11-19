@@ -14,7 +14,7 @@ usage() {
   cat <<USAGE
 Usage: install_local_state_backup_systemd.sh [--render-only] [--unit-dir DIR] [--portfolio-root PATH] [--clockwork-repo PATH]
 
-Renders local-state-backup.timer and state-dataset-backup.timer and enables them. Run \`python3 scripts/state_dataset_backup.py plan\`
+Renders local-state-backup.timer, state-dataset-backup.timer and state-restic-backup.timer and enables them. Run \`python3 scripts/state_dataset_backup.py plan\`
 first: the dataset job needs config/state-datasets.local.toml.
 USAGE
 }
@@ -36,6 +36,7 @@ done
 command -v python3 >/dev/null 2>&1 || fail "python3 not found"
 command -v age >/dev/null 2>&1 || fail "age not found (the dataset backup encrypts with it)"
 command -v zstd >/dev/null 2>&1 || fail "zstd not found"
+command -v restic >/dev/null 2>&1 || fail "restic not found (the restic job needs it)"
 [[ -f "${TEMPLATE_PATH}" ]] || fail "missing template: ${TEMPLATE_PATH}"
 
 if command -v clockwork >/dev/null 2>&1; then
@@ -57,5 +58,5 @@ if (( RENDER_ONLY == 1 )); then
   exit 0
 fi
 systemctl --user daemon-reload
-systemctl --user enable --now local-state-backup.timer state-dataset-backup.timer
-systemctl --user list-timers local-state-backup.timer state-dataset-backup.timer
+systemctl --user enable --now local-state-backup.timer state-dataset-backup.timer state-restic-backup.timer
+systemctl --user list-timers local-state-backup.timer state-dataset-backup.timer state-restic-backup.timer
