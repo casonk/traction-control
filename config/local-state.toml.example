@@ -1,0 +1,10 @@
+# Copy to config/local-state.local.toml (ignored). Synthetic example: the real store's name and paths stay in the ignored file.
+#
+# The private encrypted-config store that captures the bundle (a Git repository with a capture command).
+store_repo = "example-repos/example-store"            # relative to the portfolio root, or absolute / ~
+store_script = "scripts/store.py"                     # run as: python3 <worktree>/<store_script> capture --id local-state-bundle
+store_root_env = ["EXAMPLE_STORE_PORTFOLIO_ROOT"]     # environment variables to set to the portfolio root for the capture
+
+# Extra out-of-repository paths to bundle (relative to $HOME). Defaults already cover SSH/GPG keys and the state tree.
+home_paths = [".config/example-tool"]
+extra_files = ["~/.local/share/example/state.json"]

@@ -167,3 +167,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: local-state-bundle-tests
+        name: local-state bundle tests
+        entry: python3 -m unittest discover -s tests -p test_local_state_bundle.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: state-dataset-backup-tests
+        name: dataset backup tests (skip without age/zstd)
+        entry: python3 -m unittest discover -s tests -p test_state_dataset_backup.py
+        language: system
+        pass_filenames: false
+        always_run: true

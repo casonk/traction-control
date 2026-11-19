@@ -2429,3 +2429,18 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - A rule only written down is forgotten, so the audit enforces it: name bulk settings with the suffixes in
   `docs/bulk-storage.md` and `scripts/check_bulk_storage.py` flags one on flash. Moving data off flash is copy,
   checksum-compare, then delete only with the owner's go-ahead.
+
+### 2026-11-19 — Discover what to back up instead of declaring it, and make the backup prove it can be read
+
+- A survey found the portfolio's ignored local state (about 250 config and key files, several gigabytes of databases and
+  records, four password vaults) backed up nowhere, while two backup designs existed on paper: a config store with five
+  entries and a sidecar with no live policy. A per-file declaration list goes stale the day a new `*.local.*` file appears,
+  and a design that cannot take the data (the sidecar accepts only public-registry repositories and SFTP targets) is not
+  a backup however thorough its documentation.
+- Discover the small, high-value set by pattern (one deterministic archive, so an unchanged state costs nothing), declare only
+  the large datasets, and fail the audit when either backup is stale or unverified. A backup that stops running is invisible
+  until the day it is needed.
+- A generation counts only after it has been decrypted and read end to end, and a restore drill (files compared, databases
+  integrity-checked) is part of finishing the work. Copy databases through their backup API, never as raw files.
+- Every encrypted backup shares one failure: the key. Keep an offline copy of the age identity, or the backups are unreadable
+  after the loss they exist for.

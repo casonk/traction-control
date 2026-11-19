@@ -21,6 +21,8 @@
 #     origin, and a checkout on a work branch must not hold unpushed commits
 #   - open pull requests: any PR the account authored that has sat open for more
 #     than STALE_PR_DAYS (default 3) days
+#   - local-state backups: the local configuration bundle and the dataset backups
+#     must be recent and verified (local_state_bundle.py, state_dataset_backup.py)
 #   - bulk storage: configured download/backup/dataset paths on flash instead of
 #     a spinning disk (check_bulk_storage.py, docs/bulk-storage.md)
 #
@@ -608,6 +610,51 @@ case "${bulk_status}" in
     *) warn "bulk storage check could not run: $(tail -1 <<< "${bulk_output}")" ;;
 esac
 
+# ── local-state backups ──────────────────────────────────────────────────────
+# Ignored local configuration, keys and datasets exist nowhere else (docs/local-state-backup.md). A backup that stops
+# running is invisible until the day it is needed, so the audit fails when either one is older than its limit, or when
+# the newest dataset generation was never verified.
+log ""
+log "=== local-state backups ==="
+STATE_BACKUP_COUNT=0
+if [[ ! -f "${LOCAL_STATE_CONFIG:-${SCRIPT_DIR}/../config/local-state.local.toml}" ]]; then
+    log "local configuration bundle SKIPPED: no config/local-state.local.toml"
+else
+    set +e
+    bundle_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/local_state_bundle.py" --portfolio-root "${PORTFOLIO_ROOT}" status --max-age-days "${LOCAL_STATE_MAX_AGE_DAYS:-2}" 2>&1)"
+    bundle_status=$?
+    set -e
+    if (( bundle_status == 0 )); then
+        log "local configuration bundle is current"
+    else
+        while IFS= read -r line; do
+            [[ -n "${line}" ]] || continue
+            case "${line}" in
+                *"never been backed up"*|*"days ago"*) warn "local state: ${line}"; STATE_BACKUP_COUNT=$(( STATE_BACKUP_COUNT + 1 )) ;;
+            esac
+        done <<< "${bundle_output}"
+    fi
+fi
+if [[ ! -f "${STATE_DATASETS_CONFIG:-${SCRIPT_DIR}/../config/state-datasets.local.toml}" ]]; then
+    log "dataset backups SKIPPED: no config/state-datasets.local.toml"
+else
+    set +e
+    dataset_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/state_dataset_backup.py" status --max-age-days "${DATASET_BACKUP_MAX_AGE_DAYS:-3}" 2>&1)"
+    dataset_status=$?
+    set -e
+    case "${dataset_status}" in
+        0) log "every dataset backup is current and verified" ;;
+        1)
+            while IFS= read -r line; do
+                [[ "${line}" == *"no backup"* || "${line}" == *"STALE"* || "${line}" == *"NOT VERIFIED"* ]] || continue
+                warn "dataset backup: ${line}"
+                STATE_BACKUP_COUNT=$(( STATE_BACKUP_COUNT + 1 ))
+            done <<< "${dataset_output}"
+            ;;
+        *) warn "dataset backup check could not run: $(tail -1 <<< "${dataset_output}")" ;;
+    esac
+fi
+
 log ""
 log "=== done ==="
 log "repos scanned  : ${#REPO_DIRS[@]}"
@@ -619,6 +666,7 @@ log "stale checkouts: ${STALE_COUNT}"
 log "stale open PRs : ${STALE_PR_COUNT}"
 log "README badges  : ${BADGE_COUNT}"
 log "bulk on flash  : ${BULK_COUNT}"
+log "state backups  : ${STATE_BACKUP_COUNT}"
 log ""
 
 # keep a stable symlink to the most recent log
@@ -627,7 +675,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 || BULK_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 || BULK_COUNT > 0 || STATE_BACKUP_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi

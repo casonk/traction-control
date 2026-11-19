@@ -500,6 +500,12 @@ Add:
     explicit override, and treats an unidentifiable disk as flash. Name bulk settings with a `_DOWNLOAD_DIR`, `_BACKUP_DIR`,
     `_ARCHIVE_DIR`, `_DATASET_DIR` or `_MODELS_DIR` suffix so `scripts/check_bulk_storage.py` (run by the portfolio audit)
     flags one on flash. See [the bulk storage guide](docs/bulk-storage.md).
+19. **Back up local-only state.** Everything a repository keeps out of Git (local configuration, credentials, databases,
+    records, vaults) must be covered by the scheduled backups in [the local-state backup guide](docs/local-state-backup.md):
+    the auto-discovered configuration bundle (through the private encrypted-config store, off-machine) and the encrypted, verified dataset backups on a
+    spinning disk. A new ignored data directory is added to the ignored `config/state-datasets.local.toml`; a new local config
+    file needs nothing. Keep an offline copy of the age identity: without it every backup is unreadable. The portfolio audit
+    fails when a backup is stale or unverified.
 
 ## Sudo Boundary
 
@@ -530,6 +536,8 @@ python3 -m unittest discover -s tests -p test_bake_azure_linux_image.py
 python3 -m unittest discover -s tests -p test_runner_image_backup.py
 python3 -m unittest discover -s tests -p test_check_bulk_storage.py
 python3 -m unittest discover -s tests -p test_audit_bulk_storage.py
+python3 -m unittest discover -s tests -p test_state_dataset_backup.py
+python3 -m unittest discover -s tests -p test_local_state_bundle.py
 ```
 
 The visibility registry, portfolio materializer, and lifecycle reviewer are

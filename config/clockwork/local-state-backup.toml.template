@@ -1,0 +1,47 @@
+# Two daily jobs that keep the portfolio's local-only state backed up.
+#   local-state-backup    every Git-ignored local config, key and Terraform state -> one bundle -> the private config store (encrypted,
+#                         pushed to a private branch): small, off-machine copy
+#   state-dataset-backup  large ignored datasets -> age-encrypted, verified generations on a spinning disk
+# Neither sends a notification; the portfolio audit reports a stale or failed backup.
+
+[[jobs]]
+name = "local-state-backup"
+description = "Daily encrypted off-machine backup of ignored local configuration, keys and state"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/local_state_bundle.py backup"
+after = ["network-online.target"]
+wants = ["network-online.target"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Back up ignored local configuration through the private config store"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* 03:30:00"
+persistent = true
+randomized_delay_sec = "600"
+
+[[jobs]]
+name = "state-dataset-backup"
+description = "Daily encrypted, verified backup of ignored datasets onto a spinning disk"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "python3 __REPO_ROOT__/scripts/state_dataset_backup.py backup"
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Back up ignored datasets to the HDD"
+
+[jobs.environment]
+PORTFOLIO_ROOT = "__PORTFOLIO_ROOT__"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* 04:15:00"
+persistent = true
+randomized_delay_sec = "600"
