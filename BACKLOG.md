@@ -19,10 +19,11 @@ with a `README.md` pointing back here. The item names its id as
 - [ ] [manual:2026-11-19] **Local-state backups: remaining steps.** Done: the daily configuration bundle (private config store,
   private `local-state-backups` branch), the encrypted dataset backups on the HDD including agent session history, their audit
   checks and the standard (`docs/local-state-backup.md`, Agent Operating Rule 19). Remaining:
-  1. Offline copy of the age identities (the passphrase-protected global identity is on the HDD; protect the machine identity
-     and copy both to removable media), and a second (recovery) recipient added to the store's global and machine layers and to
-     the dataset recipients, then re-encrypt existing payloads and generations to it (`scripts/age_key_helper.sh recovery-key`). Without this every backup depends on one file on
-     one disk.
+  1. Done: a passphrase-protected global identity copy and a recovery key (decryption proven 2026-11-19) are on the HDD in
+     `portfolio-backups/keys`, and the recovery recipient is on the global and desk layers and the age dataset generations.
+     Remaining: copy both `.age` files to removable media kept off this machine; passphrase-protect the machine identity with
+     `scripts/age_key_helper.sh protect`; add the recovery recipient to the other machine's layer and re-encrypt its payloads
+     (this host cannot decrypt them); prove a decrypt from the removable copy.
   2. Offsite copy of the dataset generations in the cloud. They are already client-side encrypted; choose the destination,
      bound its cost, and add the transfer as a third step after the verified local generation. Not started on purpose.
   3. restic is built and running (7 daily / 5 weekly / 12 monthly / 3 yearly) beside the age engine. Repeat the restic drill over
