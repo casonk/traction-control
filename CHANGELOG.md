@@ -4,6 +4,9 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add `scripts/age_key_helper.sh` (`recovery-key`, `protect FILE`): passphrase-protect an age identity or create a recovery key
+  pair on a spinning disk without printing the secret, and `check_bulk_storage.py --kind PATH`. Document the current rotation and
+  compression policy in `docs/local-state-backup.md`.
 - Back up local-only state on a schedule (docs/local-state-backup.md, Agent Operating Rule 19). `scripts/local_state_bundle.py`
   discovers every Git-ignored local config file, the SSH and GPG keys, the clockwork certificate authority and Terraform state,
   writes one deterministic archive, and has the private encrypted-config store encrypt it and push it to a private `local-state-backups` branch.
