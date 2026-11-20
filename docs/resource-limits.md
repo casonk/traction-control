@@ -71,6 +71,26 @@ the registry at or below what is approved. Raising `cpu_quota`, `memory_max` or
 counts. Removing a limit counts as raising it. `lower` is free, is logged, and
 cannot be used to raise. `nice` is a preference and is not regulated.
 
+## Sizing worker pools
+
+A limit only helps if the job fits inside it: a pool of 16 workers under a 200% quota is just
+throttled. The scheduler therefore tells each job how big it may be, through two environment
+variables set on every limited unit and lease:
+
+| Variable | Meaning |
+|---|---|
+| `PORTFOLIO_CPU_CORES` | whole cores the job's CPU quota allows (rounded down, at least 1) |
+| `PORTFOLIO_MEMORY_MIB` | the job's memory ceiling in MiB |
+
+Tooling that starts parallel workers (process or thread pools, `-j` flags, container fan-out) reads
+`PORTFOLIO_CPU_CORES` for its default worker count and falls back to its own default when the
+variable is unset or not a positive integer; an explicit flag still wins. A tool must not name
+the scheduler: it only reads the variable. Raising a job's quota (see above) therefore also raises
+its parallelism at the next run, with no change to the tool.
+
+I/O-bound pools (HTTP requests, API calls) do not need scaling. A benchmark that measures the whole
+host should not be scaled either, or it would report the quota instead of the machine.
+
 ## Checking
 
 ```bash
