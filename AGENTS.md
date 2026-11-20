@@ -507,6 +507,12 @@ Add:
     file needs nothing. Keep an offline copy of the age identity: without it every backup is unreadable. The portfolio audit
     fails when a backup is stale or unverified.
 
+20. **Make every change atomic.** A change is one complete, self-contained unit that leaves the repository working, and it lands whole or not at all:
+    - One logical purpose per commit and per pull request. Do not mix a feature with an unrelated cleanup, a fix with a refactor, or two features; split them. A follow-up to an open pull request that serves the same purpose may be a further commit on it, never a hidden part of the first.
+    - Each commit builds and passes its own tests. Code, tests, docs, changelog and registry or config schema that belong together travel together; do not land code that needs a later commit to stop failing.
+    - A change that must update several files, services or records together (a registry plus the generator that reads it, a secret plus its allowlist) is applied all-or-nothing: stage it, verify it, then switch it in with one rename, one commit or one restart, and leave the old state intact if any step fails. When a multi-step rollout cannot be made atomic, order the steps so each intermediate state is safe, and say which state it is in.
+    - Verify the change as a unit before pushing (rule 10) and report any step that was skipped rather than leaving it half done.
+
 ## Sudo Boundary
 
 Agents will never be able to run `sudo` commands in this environment. If a task requires elevated system changes, make the repo edits and run the validation that can be done without `sudo`, then give the user the exact command(s) to run.
