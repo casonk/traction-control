@@ -546,6 +546,17 @@ Always require the user to run those commands instead of retrying `sudo`; do not
 
 Write every handed-off command with absolute paths for the executable and every file it touches, including `/usr/bin/sudo` itself (for example `/usr/bin/sudo /usr/bin/bash /mnt/4tb-m2/git/util-repos/<repo>/scripts/install.sh`, not `sudo bash scripts/install.sh`), so it can be pasted from any working directory. Alerts and docs that tell the user to run an elevated command follow the same rule.
 
+Hand off a rework as one script, not a numbered list of commands. Whenever the user must run more than one command, or any command that depends on the result of another (a config install, a service restart, then a verify; a migration and its rollback), write a single script, run `bash -n` and a no-sudo dry run on it, and give the user one line: `/usr/bin/bash /mnt/4tb-m2/git/util-repos/<repo>/scripts/<name>.sh`. A single elevated command with no follow-up may stay inline. The script must:
+
+- start with `set -euo pipefail`, take `--dry-run` (print every step, change nothing) and make that the safe thing to try first, and be idempotent so a second run changes nothing;
+- check its preconditions before changing anything (the files, units and tools it needs exist; the current state is what it expects) and say which check failed, rather than failing halfway;
+- call `/usr/bin/sudo` itself, per step and with absolute paths, so the user types one password and the script never assumes a prior `sudo` (agents still never run it);
+- back up each file it replaces, apply the change atomically where it can (rule 20), and stop at the first failure with the old state intact;
+- verify the end state itself (the status, mode, or API answer the rework was meant to produce), print it, and exit non-zero when it is wrong, so "it ran" and "it worked" are the same statement;
+- be tracked in the repo's `scripts/` when it is reusable, or kept in the session scratch directory when it is a one-off tied to this machine, and never contain secrets, which it reads at run time from the vault or a gitignored file.
+
+Test the script as far as the sandbox allows before handing it over. A numbered list moves that testing to the user, one paste at a time, along with any surprise such as a unit-file flag overriding the config file the list just installed.
+
 ## Local CI Verification — traction-control
 
 Run before every push:
