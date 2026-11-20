@@ -1,0 +1,28 @@
+# Clockwork manifest: start the Azure runner VM when CI is waiting for it and deallocate it once it
+# has been idle (the subscription runs on free credits, so the VM should only run while CI does).
+#
+#   bash scripts/install_azure_runner_power.sh
+#
+# Needs a logged-in `az` and `gh` for your user. See scripts/azure_runner_power.py.
+
+[[jobs]]
+name = "azure-runner-power"
+description = "Start the Azure runner VM for waiting CI and deallocate it when idle"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "/usr/bin/python3 __REPO_ROOT__/scripts/azure_runner_power.py tick --idle-minutes 20"
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Every 5 minutes: power the runner VM up or down to match CI demand"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* *:00/5:00"
+persistent = false
+randomized_delay_sec = "30"
+
+[jobs.cron]
+expression = "*/5 * * * *"
+command = "/usr/bin/python3 __REPO_ROOT__/scripts/azure_runner_power.py tick --idle-minutes 20"
+comments = ["Auto-generated from systemd timer: every 5 minutes"]

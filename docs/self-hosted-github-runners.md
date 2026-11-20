@@ -557,3 +557,21 @@ confirming the resource group contains only pilot resources.
 - [Bicep overview](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview)
 - [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices)
 - [Azure public IP addresses](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses)
+
+## Power management (start on demand, deallocate when idle)
+
+The Linux runner VM bills compute while it runs, and the subscription is paid from free credits, so it
+should only run while CI does. `scripts/azure_runner_power.py` does both halves; `tick` is what the timer runs
+(`bash scripts/install_azure_runner_power.sh` installs it as a user timer through Clockwork, every 5 minutes):
+
+- **Start:** a queued, waiting or pending run (created in the last 6 hours) in any enrolled repository starts a
+  deallocated VM. k3s and the ARC listeners come back on their own, because the disk and static IP are kept.
+- **Stop:** when no enrolled repository has a queued, waiting or in-progress run for `--idle-minutes` (default 20) the VM
+  is deallocated (`az vm deallocate`).
+- **Safe by default:** an unknown state (a failed `gh` query, an unreadable VM state) counts as busy and never
+  powers anything off; `tick --dry-run` and `status` change nothing.
+
+A run that sits queued because no runner exists (a repository pointed at a pool it is not enrolled in, or a missing
+`CI_RUNS_ON` target) keeps the VM up for the 6-hour staleness window; `scripts/runner_pool.py status` shows the pool
+each repository really uses. Runners are ephemeral: GitHub lists none while the pool is idle, which is normal and not
+an outage. Queued jobs wait for a free pod (2 at a time on this VM), so a burst of pull requests drains slowly.
