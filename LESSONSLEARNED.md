@@ -2444,3 +2444,9 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   integrity-checked) is part of finishing the work. Copy databases through their backup API, never as raw files.
 - Every encrypted backup shares one failure: the key. Keep an offline copy of the age identity, or the backups are unreadable
   after the loss they exist for.
+
+### 2026-11-20 — Start a timeout from the thing it bounds, not from a helper that can fail fast
+
+- A wrapper waited 300 s after `kubectl logs -f` returned. When the log call failed at once, the clock began while the job
+  had barely started and the wrapper deleted a healthy run. Take the deadline at job creation, size it to the job's own
+  limit, and test the wrapper with the helper failing immediately.
