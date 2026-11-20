@@ -2450,3 +2450,10 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - A wrapper waited 300 s after `kubectl logs -f` returned. When the log call failed at once, the clock began while the job
   had barely started and the wrapper deleted a healthy run. Take the deadline at job creation, size it to the job's own
   limit, and test the wrapper with the helper failing immediately.
+
+### 2026-11-20 — A browser test must wait for the new state's own signal, not for something the old state already satisfied
+
+- A smoke test clicked from one chart view to another and waited for `path.stk`, a selector the first view had already
+  drawn, so it returned at once and read stale text; it failed only when the render lost the race. Wait for something only
+  the new state produces (its own text, attribute or count change), and expect an intermittent failure from a wait that
+  the previous state can satisfy.
