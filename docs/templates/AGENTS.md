@@ -42,7 +42,8 @@ work and run the validation that does not need elevation, then hand the exact
 elevated command(s) to the user to run themselves rather than retrying `sudo`.
 
 Do not claim a sudo-backed live change was applied until the user shares the
-result.
+result. Write handed-off commands with absolute paths, including `/usr/bin/sudo`, so they paste
+from any directory.
 
 ## Local CI Verification
 
