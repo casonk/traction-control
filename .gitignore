@@ -108,3 +108,4 @@ config/local-state.local.toml
 
 # Resource limits: the registry and its audit log name real scheduled jobs.
 config/resource-limits/*.local.*
+config/clockwork/azure-runner-power.toml
