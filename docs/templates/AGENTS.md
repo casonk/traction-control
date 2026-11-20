@@ -45,6 +45,10 @@ Do not claim a sudo-backed live change was applied until the user shares the
 result. Write handed-off commands with absolute paths, including `/usr/bin/sudo`, so they paste
 from any directory.
 
+Hand off more than one dependent command as a single script (`set -euo pipefail`, `--dry-run`,
+preconditions checked first, backups, a verified end state, exit non-zero on failure) and give the
+user one `/usr/bin/bash /absolute/path/script.sh` line; see the control plane's Sudo Boundary.
+
 ## Local CI Verification
 
 [Required once the repo ships a CI workflow. Give the exact commands that
