@@ -16,6 +16,14 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-20] **Ask GitHub Support to purge the old commits left behind by the private-name history rewrite.**
+  The history of seven public repositories (clockwork, crew-chief, intake, snowbridge, terminility, tradility, wiring-harness)
+  was rewritten on 2026-11-20 and branches and tags are clean, but GitHub keeps the old commits reachable through hidden
+  `refs/pull/*` refs, direct commit URLs and cached views, which cannot be rewritten from a push. Open one "Remove sensitive data
+  from a repository" request covering all seven (draft and the old commit IDs are in the attachment), then confirm with a fresh
+  `git clone --mirror` that `refs/pull/*` no longer reaches them. Also edit or delete pull-request titles, descriptions and
+  comments that name private repositories; Support cannot change those. Delete the pre-rewrite backups once confirmed.
+  attachment: github-support-purge-leaked-names
 - [ ] [manual:2026-11-20] **Run `resource_limits.py check` from the portfolio audit and on a timer.** The regulator
   (`scripts/resource_limits.py`) exists and is tested, but nothing runs `check` yet, so an unapproved raise is only caught when
   someone runs it. Wire it into `scripts/portfolio-audit.sh` (fail on exit 1, show the warnings) and add a weekly `observe` so a job
