@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-11-20 — Never hand-edit a version to stay current
+
+A hard-coded CI Python list, a pinned base image and an un-patched host all fail the same way: nobody notices the
+drift. 39 repositories carried a literal `python-versions` list and 22 still declared a `requires-python` floor
+(3.10) that went end of life on 2026-10-31. Give each layer one owner that resolves the version (`auto` /
+`auto-edges` in `dot-github`, the rotation in `windshield`), verifies every supported combination in a throwaway
+instance before promoting, and alerts on failure. When a verification matrix widens it finds real breakage (Playwright
+1.65's driver needs `libatomic1` on `python:*-slim`). See `docs/auto-upgrades.md`.
+
 - **Restarting a systemd service kills every process it started, including ones you meant to outlive it.** A tmux server first created by a web service's "Open" action lived in that service's cgroup, so `systemctl --user restart` closed every web-terminal window and the agent shell running in one. Start long-lived children in their own transient scope (`systemd-run --user --scope`, falling back to a plain start when there is no user manager), and check `/proc/<pid>/cgroup` before restarting a service you or an agent are working inside. Keep tests from depending on the host having `systemd-run`: stub the scope helper in `conftest.py`, because CI runners have a user manager and a developer shell may not.
 - **Sunday Secret Scan `not in gzip format` is a failed Gitleaks download.** The weekly jobs start together and the GitHub release CDN sometimes returns HTML instead of the archive. `tar` then fails before gitleaks runs. Retry the download, reject a body that is not a tar archive, and sleep a short random time on `schedule`. The live shared workflow is `casonk/.github/.github/workflows/secret-scan.yml`; inline workflows and `docs/templates/secret-scan.yml` must keep the same install step.
 
