@@ -33,7 +33,7 @@ def hardcoded_lists(repo: Path) -> list[tuple[str, str]]:
     for path in sorted(workflows.glob("*.y*ml")) if workflows.is_dir() else []:
         for match in LIST_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
             value = match.group("value").strip().strip("'\"")
-            if value and value not in {"auto", "auto-edges"} and not value.startswith("${{"):
+            if value.startswith("["):  # a literal list; prose, auto/auto-edges and expressions are fine
                 found.append((path.name, value))
     return found
 
