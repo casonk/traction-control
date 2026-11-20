@@ -2467,4 +2467,30 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   the new state produces (its own text, attribute or count change), and expect an intermittent failure from a wait that
   the previous state can satisfy.
 
+### 2026-11-20 — A clean tree does not clear history, and a push cannot clear pull-request refs
+
+- The private-name sweep reads only each checkout's index, so it passed on trees while the same names sat in hundreds of
+  earlier commits. After the history was rewritten and force-pushed, GitHub still served the old commits through hidden
+  `refs/pull/*` refs, which only Support can remove. Scrub a name before the first commit of a pull request that mentions it,
+  scan history (`git log --all -S<name> -i`, plus messages and paths) when auditing, and treat a leak that reached a merged
+  pull request as needing a Support request, not only a rewrite.
+
+### 2026-11-20 — Rewriting public history: back up, toggle protections, and expect the clone to lose its wiring
+
+- Sequence that worked: mirror-clone and back up first; run `git filter-repo --replace-text` and `--replace-message` with the
+  same expressions on a mirror (delete `refs/pull/*` locally first); confirm every `main` tree is byte-identical to before;
+  turn off the branch ruleset and set classic branch protection to allow force pushes (both guard `main`, so one is not enough),
+  push heads and tags only, then restore both from saved copies. Run the same filter in each working checkout so commit IDs
+  match, answering `N` when it asks to continue a run older than a day.
+- `filter-repo` removes `origin`, drops branch upstream settings and resets the working tree, so save uncommitted changes as
+  a patch (`git diff HEAD --binary`) and the per-branch config first, re-add the remote and reapply both afterwards.
+
+### 2026-11-20 — Tell tools their budget through a generic variable, and keep private names out of every spelling
+
+- Public tooling should size its worker pool from a neutral variable (`PORTFOLIO_CPU_CORES`) that the scheduler sets, never from
+  anything that names the scheduler. The same rule covers environment variable names, default paths and image tags: put the
+  location in a gitignored local config or an environment variable, and use generic wording in comments and tests. A common-word
+  repository name still trips the sweep as a path segment (a Gmail label `Career/...`); read such a default from the code
+  instead of restating it in a test.
+
 - **Hand the user one script for a multi-step rework, not a list of commands.** A K3s change (install a config, restart the service, confirm encryption, read the kubeconfig, apply RBAC) was handed over as nine separate commands. Pasting them one by one surfaced the failure late: the unit file passed `--write-kubeconfig-mode=600` on the command line, which overrides `config.yaml`, so `kubectl` still failed after the restart that was meant to fix it. A script would have checked `systemctl cat` for the flag before installing anything, backed up what it replaced, verified the final mode, and exited non-zero on that mismatch. Write it with `set -euo pipefail`, `--dry-run`, preconditions first, `/usr/bin/sudo` per step, and a verified end state, then give the user one `/usr/bin/bash <absolute path>` line. The rule is in the Sudo Boundary section of `AGENTS.md`. Also check where a setting can be overridden (command-line flags, drop-ins, environment files) before telling the user that editing one file will change it.
