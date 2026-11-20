@@ -59,3 +59,8 @@ def test_strict_exit_code(tmp_path, capsys):
     assert mod.main(["--repo", str(r)]) == 0
     assert mod.main(["--repo", str(r), "--strict"]) == 1
     assert "hard-coded" in capsys.readouterr().out
+
+
+def test_prose_mentioning_python_versions_is_not_flagged(tmp_path):
+    doc = repo(tmp_path, "on:\n  inputs:\n    python-versions:\n      description: >-\n        text\n", name="doc")
+    assert mod.hardcoded_lists(doc) == []
