@@ -242,7 +242,7 @@ Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-git
 
 | Workflow | Call Path | Key Inputs |
 |---|---|---|
-| Python CI | `casonk/.github/.github/workflows/python-ci.yml@main` | `python-versions`, `install-extra`, `run-pytest` |
+| Python CI | `casonk/.github/.github/workflows/python-ci.yml@main` | `python-versions` (`auto`, `auto-edges` or a JSON list), `python-count`, `install-extra`, `run-pytest` |
 | Secret Scan | `casonk/.github/.github/workflows/secret-scan.yml@main` | `gitleaks-version` |
 | Python Build | `casonk/.github/.github/workflows/python-build.yml@main` | none; pair with a caller-local PyPI upload job |
 | Shell CI | `casonk/.github/.github/workflows/shell-ci.yml@main` | `run-tests`, `test-script` |
@@ -263,8 +263,10 @@ jobs:
   ci:
     uses: casonk/.github/.github/workflows/python-ci.yml@main
     with:
-      python-versions: '["3.10", "3.12"]'
+      python-versions: auto   # newest three supported CPython releases; never hard-code a list
 ```
+
+Python versions, base images and OS packages are kept current automatically; see [`docs/auto-upgrades.md`](docs/auto-upgrades.md) for the layers, rules and the drift checker (`scripts/check_ci_python_versions.py`).
 
 ### Dependabot Conflict Rules
 

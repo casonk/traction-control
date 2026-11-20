@@ -273,6 +273,12 @@ while (( repo_index < ${#REPO_DIRS[@]} )); do
             ;;
     esac
 
+    # Advisory: hard-coded CI Python lists and end-of-life requires-python floors
+    # (docs/auto-upgrades.md). Reported as warnings, never as a failed audit.
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] && warn "${rel}: ${line#*: }"
+    done < <(python3 "${SCRIPT_DIR}/check_ci_python_versions.py" --repo "${repo}" 2>/dev/null || true)
+
     # The structure/artifact contract reads the Git index, so an untracked
     # scaffold cannot satisfy the baseline merely by existing on disk.
     quality_status=0

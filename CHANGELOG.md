@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Add the "stay current automatically" standard (`docs/auto-upgrades.md`): CI Python matrices use `python-versions: auto` / `auto-edges` resolved centrally by `dot-github`, container and Playwright/Node currency is owned by `windshield`, host packages by `fedora-debugg`. `scripts/check_ci_python_versions.py` reports repositories with a hard-coded Python list or an end-of-life `requires-python` floor, and `portfolio-audit.sh` surfaces both as warnings.
 - Register the File Browser pod (`10.43.0.64:8080`) and its host address in the deployment-modes address table.
 - Add a restic engine for the ignored datasets (`scripts/state_restic_backup.py`): deduplicated, client-side encrypted and
   compressed backups on the spinning disk with 7 daily / 5 weekly / 12 monthly / 3 yearly retention, SQLite staged through its
