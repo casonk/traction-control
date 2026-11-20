@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -15,7 +17,12 @@ TF = (ROOT / "infra" / "azure-windows-runner" / "terraform" / "main.tf").read_te
 
 class WrapperTests(unittest.TestCase):
     def run_script(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["bash", str(SCRIPT), *args], capture_output=True, text=True, check=False)
+        # The script insists on a real (non-symlink) public key; do not depend on the machine having one.
+        with tempfile.TemporaryDirectory() as tmp:
+            key = Path(tmp) / "id_test.pub"
+            key.write_text("ssh-ed25519 AAAA-test-key\n", encoding="utf-8")
+            env = {**os.environ, "AZURE_RUNNER_SSH_PUBLIC_KEY_FILE": str(key)}
+            return subprocess.run(["bash", str(SCRIPT), *args], capture_output=True, text=True, check=False, env=env)
 
     def test_dry_run_changes_nothing_and_names_the_plan(self) -> None:
         proc = self.run_script("--dry-run")

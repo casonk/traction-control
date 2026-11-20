@@ -11,7 +11,7 @@ from pathlib import Path
 AUDIT = Path(__file__).resolve().parent.parent / "scripts" / "portfolio-audit.sh"
 
 
-def run_audit(rota: str, env_text: str, *, state: dict | None = None, datasets_config: str | None = None, configured: bool = True) -> tuple[int, str]:
+def run_audit(rota: str, env_text: str, *, state: dict | None = None, datasets_config: str | None = None, configured: bool = True, fake_restic: bool = False) -> tuple[int, str]:
     with tempfile.TemporaryDirectory() as t:
         root, bin_, log = Path(t, "root"), Path(t, "bin"), Path(t, "log")
         (root / "proj").mkdir(parents=True)
@@ -19,6 +19,9 @@ def run_audit(rota: str, env_text: str, *, state: dict | None = None, datasets_c
         (root / "proj" / "x.env.local").write_text(env_text)
         (bin_ / "findmnt").write_text("#!/bin/sh\necho /dev/fakedisk\n")
         (bin_ / "lsblk").write_text(f'#!/bin/sh\necho "disk {rota}"\n')
+        if fake_restic:
+            # The missing-repository check returns before restic runs; it only needs the binary to exist.
+            (bin_ / "restic").write_text("#!/bin/sh\nexit 0\n")
         for f in bin_.iterdir():
             f.chmod(0o755)
         env = {
@@ -91,7 +94,7 @@ class AuditStateBackups(unittest.TestCase):
             cfg = Path(t, "datasets.toml")
             cfg.write_text(f'dest = "{t}/dest"\n[restic]\nrepository = "{t}/repo"\npassword_file = "{t}/pw"\n'
                            '[[dataset]]\nname = "x"\npaths = ["/nope"]\n')
-            _rc, out = run_audit("1", "", state={"last_success": int(time.time())}, datasets_config=str(cfg))
+            _rc, out = run_audit("1", "", state={"last_success": int(time.time())}, datasets_config=str(cfg), fake_restic=True)
         self.assertIn("restic backup: no restic repository", out)
 
 
