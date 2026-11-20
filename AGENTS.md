@@ -234,6 +234,29 @@ ignored `.portfolio` symlink per checkout). Public repositories are enrolled in 
 `config/portfolio-sites/sites.conf`; private ones only in the ignored, verified overlay. See
 [the portfolio sites guide](docs/portfolio-sites.md).
 
+## Site PIN Gate
+
+A private web page served through the shared Caddy can be locked behind a per-site 4-digit PIN. The mechanism
+lives in `./util-repos/wiring-harness` (`docs/pin-gate.md`); this is the portfolio standard it follows.
+
+- **Opt in per site** with `pin = true` in the private site registry. Only shared-Caddy sites can have one; any other
+  ingress with `pin = true` is a registry error. The PIN is a convenience lock on top of mTLS, never a replacement.
+- **Each site has its own PIN.** PINs and the cookie-signing key live in the `infra` vault, read and changed through the
+  `auto-pass` provisioning daemon with a read grant, and a separate write grant only for the PINs. Never put a PIN, the
+  signing key or an allowlist in a tracked file, a log, a commit message or a pull request.
+- **Lockouts are mandatory:** a per-site counter and a per-client-address counter, doubling lock lengths, and a correct
+  PIN is refused while either holds. New locks, PIN changes and rotation notices are sent through `shock-relay` on every
+  channel, never carrying a PIN.
+- **PINs rotate.** A PIN expires 180 days after its last change, warns for the last 30 days, and past the limit the old
+  PIN only leads to the change page. Weak PINs (repeats, straight runs) are always refused. Reusing the current PIN is
+  allowed for now and is to be switched off once the placeholder PINs are replaced; do not rely on it.
+- **Change PINs through the keypad's Change PIN page**, not by editing the vault, so the rotation clock restarts and
+  other devices are signed out. Rotation, lockout and cookie state are local, owner-only files.
+- **Registry edits** for a locally defined site go inside its existing entry; a second block with the same name
+  replaces it instead of merging.
+- **Fail closed:** when the vault is locked or an entry is missing the gate answers 503. A gated site is therefore down
+  until `auto-pass` is unlocked after a restart, so check that first when one misbehaves.
+
 ## Reusable Workflow Strategy
 
 Reusable CI/CD workflows live in `casonk/.github` (locally `./util-repos/dot-github`). Build and CI action version pins live in that repo and Dependabot keeps them current. PyPI trusted publishing requires the upload job in the calling repository, so `actions/download-artifact` and `pypa/gh-action-pypi-publish` are the two caller-local exceptions; review their versions across package callers.
