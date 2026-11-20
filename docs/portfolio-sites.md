@@ -132,3 +132,9 @@ Theme assets are generic and safe to vendor anywhere. The private parts are `sit
 Root-staged services (nordility) and pages whose security policy forbids external files (a sign-in
 page) are not enrolled: they serve pinned real copies of the files from code they control, with no
 symlinks, as nordility's installer does.
+
+## PIN-protected sites
+
+A site served by the shared Caddy can ask for a per-site PIN before any of its pages, including `/_portfolio/*`, are
+served; the unlock and change pages are the only paths open without it. The standard is in `AGENTS.md` (Site PIN
+Gate) and the mechanism in the wiring-harness PIN gate guide. `direct` and `repo-caddy` sites cannot be PIN-gated.
