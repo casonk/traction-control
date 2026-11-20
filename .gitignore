@@ -105,3 +105,6 @@ config/bulk-storage.local.toml
 # Local-state backup: machine-local dataset lists and extras name private repositories and paths.
 config/state-datasets.local.toml
 config/local-state.local.toml
+
+# Resource limits: the registry and its audit log name real scheduled jobs.
+config/resource-limits/*.local.*

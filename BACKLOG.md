@@ -16,6 +16,10 @@ with a `README.md` pointing back here. The item names its id as
 
 ## Pending
 
+- [ ] [manual:2026-11-20] **Run `resource_limits.py check` from the portfolio audit and on a timer.** The regulator
+  (`scripts/resource_limits.py`) exists and is tested, but nothing runs `check` yet, so an unapproved raise is only caught when
+  someone runs it. Wire it into `scripts/portfolio-audit.sh` (fail on exit 1, show the warnings) and add a weekly `observe` so a job
+  approaching its ceiling is raised on evidence before it is killed.
 - [ ] [manual:2026-11-19] **Local-state backups: remaining steps.** Done: the daily configuration bundle (private config store,
   private `local-state-backups` branch), the encrypted dataset backups on the HDD including agent session history, their audit
   checks and the standard (`docs/local-state-backup.md`, Agent Operating Rule 19). Remaining:
