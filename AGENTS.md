@@ -544,6 +544,8 @@ Agents will never be able to run `sudo` commands in this environment. If a task 
 
 Always require the user to run those commands instead of retrying `sudo`; do not claim a sudo-backed live change was applied until the user shares the result.
 
+Write every handed-off command with absolute paths for the executable and every file it touches, including `/usr/bin/sudo` itself (for example `/usr/bin/sudo /usr/bin/bash /mnt/4tb-m2/git/util-repos/<repo>/scripts/install.sh`, not `sudo bash scripts/install.sh`), so it can be pasted from any working directory. Alerts and docs that tell the user to run an elevated command follow the same rule.
+
 ## Local CI Verification — traction-control
 
 Run before every push:
