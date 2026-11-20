@@ -161,6 +161,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: resource-limits-tests
+        name: resource limits regulator tests
+        entry: python3 -m unittest discover -s tests -p test_resource_limits.py
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: audit-bulk-storage-wiring-tests
         name: portfolio audit bulk-storage wiring test
         entry: python3 -m unittest discover -s tests -p test_audit_bulk_storage.py

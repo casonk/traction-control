@@ -1,0 +1,25 @@
+# Per-job resource limits, as `scripts/resource_limits.py` writes them to the
+# ignored config/resource-limits/limits.local.toml. Unit names here are synthetic.
+#
+# The arbiter reads this file through its `limits_file` setting and enforces each
+# value (CPUQuota=, MemoryMax=, Nice=) on the unit. A value is only ever raised
+# with `resource_limits.py raise ... --reason ... --evidence ...`, which appends
+# to the audit log first; `check` fails on a value above its last approved one.
+
+[units."example-nightly-render"]
+cpu_quota = 400          # percent of one core (400 = four cores)
+memory_max = 3072        # MiB; the job is killed above it
+nice = 5
+note = "42 runs: peak 1980 MiB, max 910 CPU-s, busiest 1.20 cores"
+
+# A tier: while this runs, at most 2 other jobs may run beside it (0 = alone).
+[units."example-benchmark"]
+cpu_quota = 800
+memory_max = 16384
+companions = 2
+note = "6 runs: peak 10900 MiB, max 7200 CPU-s, busiest 7.40 cores"
+
+[units."example-mail-poller"]
+cpu_quota = 100
+memory_max = 256
+note = "900 runs: peak 60 MiB, max 7 CPU-s, busiest 0.30 cores"

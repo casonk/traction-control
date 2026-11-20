@@ -567,6 +567,7 @@ python3 -m unittest discover -s tests -p test_bake_azure_linux_image.py
 python3 -m unittest discover -s tests -p test_runner_image_backup.py
 python3 -m unittest discover -s tests -p test_check_bulk_storage.py
 python3 -m unittest discover -s tests -p test_audit_bulk_storage.py
+python3 -m unittest discover -s tests -p test_resource_limits.py
 python3 -m unittest discover -s tests -p test_state_dataset_backup.py
 python3 -m unittest discover -s tests -p test_age_key_helper.py
 python3 -m unittest discover -s tests -p test_state_restic_backup.py

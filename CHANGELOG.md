@@ -5,6 +5,11 @@ All notable changes to `traction-control` are documented here.
 ## Unreleased
 
 - Add the "stay current automatically" standard (`docs/auto-upgrades.md`): CI Python matrices use `python-versions: auto` / `auto-edges` resolved centrally by `dot-github`, container and Playwright/Node currency is owned by `windshield`, host packages by `fedora-debugg`. `scripts/check_ci_python_versions.py` reports repositories with a hard-coded Python list or an end-of-life `requires-python` floor, and `portfolio-audit.sh` surfaces both as warnings.
+- Add `scripts/resource_limits.py`: explicit CPU and memory limits for every scheduled job, derived from the per-run peaks systemd logs
+  in the user journal, and a regulated way to raise them. `baseline` proposes limits from history, `raise` needs a reason and
+  evidence and writes a hash-chained audit log before changing the registry, `check` fails on a value above its last approved one or
+  on an edited log, and `observe`/`history` show the evidence. The registry and log name real jobs, so they stay in ignored
+  `config/resource-limits/*.local.*` files; a synthetic example and `docs/resource-limits.md` are tracked.
 - Register the File Browser pod (`10.43.0.64:8080`) and its host address in the deployment-modes address table.
 - Add a restic engine for the ignored datasets (`scripts/state_restic_backup.py`): deduplicated, client-side encrypted and
   compressed backups on the spinning disk with 7 daily / 5 weekly / 12 monthly / 3 yearly retention, SQLite staged through its
