@@ -12,6 +12,10 @@
 
 ## Lessons
 
+### 2026-11-24 — A removed worktree stays in the untracked portfolio index
+
+The workspace-root and `util-repos/` `AGENTS.md` files are not Git repositories. Deleting a worktree directory does not remove its table row, and a prose count of repositories stays wrong until the rows are recounted. After a worktree goes away, delete its row in both indexes and set the count to the number of remaining rows. Do not list a linked worktree as its own repository.
+
 ### 2026-11-24 — Keep the user journal out of the daily portfolio audit
 
 A check that has to read `journalctl --user` over a month does not belong in
@@ -2503,3 +2507,8 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
   instead of restating it in a test.
 
 - **Hand the user one script for a multi-step rework, not a list of commands.** A K3s change (install a config, restart the service, confirm encryption, read the kubeconfig, apply RBAC) was handed over as nine separate commands. Pasting them one by one surfaced the failure late: the unit file passed `--write-kubeconfig-mode=600` on the command line, which overrides `config.yaml`, so `kubectl` still failed after the restart that was meant to fix it. A script would have checked `systemctl cat` for the flag before installing anything, backed up what it replaced, verified the final mode, and exited non-zero on that mismatch. Write it with `set -euo pipefail`, `--dry-run`, preconditions first, `/usr/bin/sudo` per step, and a verified end state, then give the user one `/usr/bin/bash <absolute path>` line. The rule is in the Sudo Boundary section of `AGENTS.md`. Also check where a setting can be overridden (command-line flags, drop-ins, environment files) before telling the user that editing one file will change it.
+
+- **A recovery UI cannot bootstrap from the vault it exists to unlock.** A PIN gate could validate from a TPM-sealed
+  fingerprint key after reboot, but the credential UI still fetched its own login token from the locked daemon and
+  restart-looped. Seal only a narrow UI token separately, deliver it through a systemd credential, keep the vault
+  password interactive, and fail closed when the configured credential is missing or empty.
