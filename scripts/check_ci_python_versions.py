@@ -21,7 +21,9 @@ from datetime import date
 from pathlib import Path
 
 FEED = "https://endoflife.date/api/python.json"
-LIST_RE = re.compile(r"^\s*python-versions:\s*(?P<value>.+?)\s*(?:#.*)?$", re.MULTILINE)
+LIST_RE = re.compile(r"^\s*python-versions?:\s*(?P<value>.+?)\s*(?:#.*)?$", re.MULTILINE)
+VERSION_RE = re.compile(r"(?<![\d.])3\.\d{1,2}(?![\d.])")
+SIBLING_RE = re.compile(r"github\.com[/:]casonk/([\w.-]+?)(?:\.git)?(?=[\s\"'@#)]|$)")
 REQUIRES_RE = re.compile(r'^\s*requires-python\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 SKIP_PARTS = {".git", ".venv", "node_modules", "archive-repos", "vendor"}
 
@@ -33,7 +35,7 @@ def hardcoded_lists(repo: Path) -> list[tuple[str, str]]:
     for path in sorted(workflows.glob("*.y*ml")) if workflows.is_dir() else []:
         for match in LIST_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
             value = match.group("value").strip().strip("'\"")
-            if value.startswith("["):  # a literal list; prose, auto/auto-edges and expressions are fine
+            if value.startswith("["):  # a literal list (python-versions or a matrix python-version)
                 found.append((path.name, value))
     return found
 
@@ -75,11 +77,72 @@ def discover(root: Path) -> list[Path]:
     return sorted(set(repos))
 
 
+def minor_key(minor: str) -> tuple[int, int]:
+    major, _, rest = minor.partition(".")
+    return int(major), int(rest)
+
+
+def literal_versions(repo: Path) -> list[str]:
+    """Every literal ``python-version(s)`` minor a workflow names, list or scalar (not auto)."""
+    found: list[str] = []
+    workflows = repo / ".github" / "workflows"
+    for path in sorted(workflows.glob("*.y*ml")) if workflows.is_dir() else []:
+        for match in LIST_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
+            found.extend(VERSION_RE.findall(match.group("value")))
+    return found
+
+
+def sibling_floor(repo: Path, name: str) -> str | None:
+    """Declared ``requires-python`` floor of the checked-out sibling repo *name*, if present."""
+    for base in (repo.parent, repo.parent.parent):
+        for candidate in (base / name, *sorted(base.glob(f"*/{name}"))):
+            if (candidate / "pyproject.toml").is_file() and candidate.resolve() != repo.resolve():
+                return declared_floor(candidate)
+    return None
+
+
+def sibling_dependencies(repo: Path) -> list[str]:
+    """Names of ``casonk/<name>`` packages the repo installs in CI or from requirements."""
+    sources = list((repo / ".github" / "workflows").glob("*.y*ml"))
+    sources += [*repo.glob("requirements*.txt"), repo / "pyproject.toml"]
+    names: list[str] = []
+    for path in sources:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        names.extend(SIBLING_RE.findall(text))
+    return sorted(set(names) - {repo.name, ".github"})
+
+
+def dependency_floor_problems(repo: Path) -> list[str]:
+    """CI or ``requires-python`` below the Python floor of a sibling package the repo installs."""
+    problems = []
+    tested = literal_versions(repo)
+    own_floor = declared_floor(repo)
+    for name in sibling_dependencies(repo):
+        floor = sibling_floor(repo, name)
+        if not floor:
+            continue
+        too_old = sorted({v for v in tested if minor_key(v) < minor_key(floor)}, key=minor_key)
+        if too_old:
+            problems.append(
+                f"CI tests Python {', '.join(too_old)} but dependency {name} requires >={floor}"
+                " (use auto / auto-edges or raise the version)"
+            )
+        if own_floor and minor_key(own_floor) < minor_key(floor):
+            problems.append(
+                f"requires-python floor {own_floor} is below dependency {name}'s >={floor}"
+            )
+    return problems
+
+
 def check_repo(repo: Path, eol: set[str] | None) -> list[str]:
     problems = [f"{name}: python-versions {value} is hard-coded (use auto / auto-edges)" for name, value in hardcoded_lists(repo)]
     floor = declared_floor(repo)
     if floor and eol and floor in eol:
         problems.append(f"requires-python floor {floor} is end of life (raise it, or test it knowingly)")
+    problems += dependency_floor_problems(repo)
     return problems
 
 
@@ -92,12 +155,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.repo and not args.root:
         parser.error("give --repo or --root")
     eol = eol_minors()
-    repos = [args.repo] if args.repo else discover(args.root)
+    repos = [args.repo.resolve()] if args.repo else discover(args.root.resolve())
     reported = 0
     for repo in repos:
         for problem in check_repo(repo, eol):
             reported += 1
-            label = repo.name if args.repo else str(repo.relative_to(args.root))
+            label = repo.name if args.repo else str(repo.relative_to(args.root.resolve()))
             print(f"{label}: {problem}")
     if eol is None:
         print("note: endoflife.date unreachable; end-of-life floors were not checked", file=sys.stderr)

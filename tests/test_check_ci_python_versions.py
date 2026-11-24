@@ -64,3 +64,47 @@ def test_strict_exit_code(tmp_path, capsys):
 def test_prose_mentioning_python_versions_is_not_flagged(tmp_path):
     doc = repo(tmp_path, "on:\n  inputs:\n    python-versions:\n      description: >-\n        text\n", name="doc")
     assert mod.hardcoded_lists(doc) == []
+
+
+PINNED_MATRIX = (
+    "jobs:\n  pytest:\n    strategy:\n      matrix:\n        python-version: [\"3.10\"]\n"
+    "    steps:\n      - run: pip install git+https://github.com/casonk/dyno-lab.git\n"
+)
+
+
+def sibling(tmp_path: Path, name: str, requires: str) -> Path:
+    path = tmp_path / name
+    path.mkdir()
+    (path / "pyproject.toml").write_text(f'[project]\nrequires-python = "{requires}"\n')
+    return path
+
+
+def test_matrix_python_version_list_is_flagged_as_hardcoded(tmp_path):
+    bad = repo(tmp_path, PINNED_MATRIX, name="bad")
+    assert mod.hardcoded_lists(bad) == [("ci.yml", '["3.10"]')]
+
+
+def test_ci_python_below_a_sibling_dependency_floor_is_reported(tmp_path):
+    sibling(tmp_path, "dyno-lab", ">=3.11")
+    bad = repo(tmp_path, PINNED_MATRIX, name="app")
+    problems = mod.check_repo(bad, None)
+    assert any("tests Python 3.10 but dependency dyno-lab requires >=3.11" in p for p in problems)
+
+
+def test_declared_floor_below_a_sibling_dependency_floor_is_reported(tmp_path):
+    sibling(tmp_path, "dyno-lab", ">=3.11")
+    bad = repo(tmp_path, "jobs: {}\n# pip install git+https://github.com/casonk/dyno-lab.git\n", requires=">=3.10", name="app")
+    assert any("below dependency dyno-lab's >=3.11" in p for p in mod.check_repo(bad, None))
+
+
+def test_auto_versions_and_missing_siblings_are_clean(tmp_path):
+    ok = repo(tmp_path, "python-versions: auto\n# git+https://github.com/casonk/dyno-lab.git\n", name="ok")
+    assert mod.check_repo(ok, None) == []  # sibling not checked out: nothing to compare
+    sibling(tmp_path, "dyno-lab", ">=3.11")
+    assert mod.check_repo(ok, None) == []
+
+
+def test_strict_exits_nonzero_on_a_dependency_conflict(tmp_path):
+    sibling(tmp_path, "dyno-lab", ">=3.11")
+    bad = repo(tmp_path, PINNED_MATRIX, name="app")
+    assert mod.main(["--repo", str(bad), "--strict"]) == 1
