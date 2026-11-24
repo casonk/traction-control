@@ -4,6 +4,7 @@ All notable changes to `traction-control` are documented here.
 
 ## Unreleased
 
+- Run `scripts/resource_limits.py check --no-journal` from `scripts/portfolio-audit.sh`. An unapproved raise, a missing baseline, or an edited audit log fails the audit; warning lines are shown and do not. The user-journal peak scan stays on a weekly timer, `resource-limits-observe-weekly`, installed by `scripts/install_resource_limits_observe_systemd.sh`. The timer prints peaks and then runs `check`, and it does not raise a limit.
 - Add `scripts/azure_runner_power.py` and its Clockwork timer (`scripts/install_azure_runner_power.sh`): start the Azure runner VM when CI is waiting for it and deallocate it after 20 idle minutes, so the free-credit subscription only pays while CI runs.
 - Sudo hand-offs must use absolute paths for the executable and every file, including `/usr/bin/sudo`, so the command pastes from any directory (AGENTS.md and the AGENTS template).
 - Add the "stay current automatically" standard (`docs/auto-upgrades.md`): CI Python matrices use `python-versions: auto` / `auto-edges` resolved centrally by `dot-github`, container and Playwright/Node currency is owned by `windshield`, host packages by `fedora-debugg`. `scripts/check_ci_python_versions.py` reports repositories with a hard-coded Python list or an end-of-life `requires-python` floor, and `portfolio-audit.sh` surfaces both as warnings.

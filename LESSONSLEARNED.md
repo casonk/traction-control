@@ -12,6 +12,15 @@
 
 ## Lessons
 
+### 2026-11-24 — Keep the user journal out of the daily portfolio audit
+
+A check that has to read `journalctl --user` over a month does not belong in
+`scripts/portfolio-audit.sh`. On this workstation that scan took about 40
+seconds. Keep the daily pass on something that only reads the local registry
+(`resource_limits.py check --no-journal`) and put the peak comparison on its
+own weekly timer. Set `RESOURCE_LIMITS_WITH_JOURNAL=1` only when a single audit
+run should include the warnings.
+
 ### 2026-11-20 — Never hand-edit a version to stay current
 
 A hard-coded CI Python list, a pinned base image and an un-patched host all fail the same way: nobody notices the
@@ -2490,7 +2499,7 @@ Fixing only the user gsettings is insufficient — the machine will still suspen
 - Public tooling should size its worker pool from a neutral variable (`PORTFOLIO_CPU_CORES`) that the scheduler sets, never from
   anything that names the scheduler. The same rule covers environment variable names, default paths and image tags: put the
   location in a gitignored local config or an environment variable, and use generic wording in comments and tests. A common-word
-  repository name still trips the sweep as a path segment (a Gmail label `Career/...`); read such a default from the code
+  repository name still trips the sweep as a path segment (for example, a Gmail label `<category>/...`); read such a default from the code
   instead of restating it in a test.
 
 - **Hand the user one script for a multi-step rework, not a list of commands.** A K3s change (install a config, restart the service, confirm encryption, read the kubeconfig, apply RBAC) was handed over as nine separate commands. Pasting them one by one surfaced the failure late: the unit file passed `--write-kubeconfig-mode=600` on the command line, which overrides `config.yaml`, so `kubectl` still failed after the restart that was meant to fix it. A script would have checked `systemctl cat` for the flag before installing anything, backed up what it replaced, verified the final mode, and exited non-zero on that mismatch. Write it with `set -euo pipefail`, `--dry-run`, preconditions first, `/usr/bin/sudo` per step, and a verified end state, then give the user one `/usr/bin/bash <absolute path>` line. The rule is in the Sudo Boundary section of `AGENTS.md`. Also check where a setting can be overridden (command-line flags, drop-ins, environment files) before telling the user that editing one file will change it.

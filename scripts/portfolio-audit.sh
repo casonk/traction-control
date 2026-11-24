@@ -25,6 +25,10 @@
 #     must be recent and verified (local_state_bundle.py, state_dataset_backup.py)
 #   - bulk storage: configured download/backup/dataset paths on flash instead of
 #     a spinning disk (check_bulk_storage.py, docs/bulk-storage.md)
+#   - resource limits: a hand-raised CPU or memory limit, a job with no approved
+#     baseline, or an edited audit log (resource_limits.py check --no-journal).
+#     Peak warnings need the user journal, so the weekly
+#     resource-limits-observe timer runs that scan (docs/resource-limits.md).
 #
 # Exit code 0 = everything clean; 1 = gaps found; 2 = setup error.
 # Logs are written to LOG_DIR (default: ~/.local/share/portfolio-audit/).
@@ -616,6 +620,49 @@ case "${bulk_status}" in
     *) warn "bulk storage check could not run: $(tail -1 <<< "${bulk_output}")" ;;
 esac
 
+# ── resource limits ──────────────────────────────────────────────────────────
+# Raising a job's CPU quota, memory ceiling, or companion count is a recorded
+# decision (docs/resource-limits.md). This pass fails when the registry is above
+# the approved baseline, a job has no baseline, or the audit log was edited.
+# It does not read the user journal: 30 days of `journalctl --user` is slow enough
+# to stay on the weekly resource-limits-observe timer, which prints peaks and the
+# near-ceiling warnings. Set RESOURCE_LIMITS_WITH_JOURNAL=1 to include them here.
+# Any warning line is shown and does not count.
+log ""
+log "=== resource limits ==="
+RESOURCE_LIMIT_COUNT=0
+LIMITS_DIR="${RESOURCE_LIMITS_DIR:-${SCRIPT_DIR}/../config/resource-limits}"
+if [[ ! -f "${LIMITS_DIR}/limits.local.toml" ]]; then
+    log "resource limits SKIPPED: no config/resource-limits/limits.local.toml"
+else
+    check_args=(--dir "${LIMITS_DIR}" check)
+    if [[ "${RESOURCE_LIMITS_WITH_JOURNAL:-}" != "1" ]]; then
+        check_args+=(--no-journal)
+    fi
+    set +e
+    limits_output="$(PYTHONDONTWRITEBYTECODE=1 python3 "${SCRIPT_DIR}/resource_limits.py" "${check_args[@]}" 2>&1)"
+    limits_status=$?
+    set -e
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] || continue
+        case "${line}" in
+            warning:*) warn "resource limits: ${line#warning: }" ;;
+            FAIL:*)
+                warn "resource limits: ${line#FAIL: }"
+                RESOURCE_LIMIT_COUNT=$(( RESOURCE_LIMIT_COUNT + 1 ))
+                ;;
+            ok:*) log "resource limits: ${line#ok: }" ;;
+            error:*) warn "resource limits: ${line#error: }" ;;
+        esac
+    done <<< "${limits_output}"
+    if (( limits_status != 0 && limits_status != 1 )); then
+        warn "resource limits check could not run"
+        RESOURCE_LIMIT_COUNT=$(( RESOURCE_LIMIT_COUNT + 1 ))
+    elif (( limits_status == 1 && RESOURCE_LIMIT_COUNT == 0 )); then
+        RESOURCE_LIMIT_COUNT=1
+    fi
+fi
+
 # ── local-state backups ──────────────────────────────────────────────────────
 # Ignored local configuration, keys and datasets exist nowhere else (docs/local-state-backup.md). A backup that stops
 # running is invisible until the day it is needed, so the audit fails when either one is older than its limit, or when
@@ -689,6 +736,7 @@ log "stale checkouts: ${STALE_COUNT}"
 log "stale open PRs : ${STALE_PR_COUNT}"
 log "README badges  : ${BADGE_COUNT}"
 log "bulk on flash  : ${BULK_COUNT}"
+log "resource limits: ${RESOURCE_LIMIT_COUNT}"
 log "state backups  : ${STATE_BACKUP_COUNT}"
 log ""
 
@@ -698,7 +746,7 @@ ln -sf "${LOG_FILE}" "${LATEST_LINK}"
 if (( DISCLOSURE_COUNT > 0 )); then
     log "ACTION REQUIRED: ${DISCLOSURE_COUNT} indexed file(s) in local checkouts of registry-public repositories name a private repository; check the branch before inferring hosted exposure"
 fi
-if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 || BULK_COUNT > 0 || STATE_BACKUP_COUNT > 0 )); then
+if (( GAP_COUNT > 0 || DISCLOSURE_COUNT > 0 || POLICY_COUNT > 0 || VAULT_COUNT > 0 || STALE_COUNT > 0 || STALE_PR_COUNT > 0 || BADGE_COUNT > 0 || BULK_COUNT > 0 || RESOURCE_LIMIT_COUNT > 0 || STATE_BACKUP_COUNT > 0 )); then
     log "ACTION REQUIRED: open ${LATEST_LINK} and apply fixes"
     exit 1
 fi
