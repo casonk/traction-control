@@ -64,8 +64,9 @@ with a `README.md` pointing back here. The item names its id as
     **public** utility repositories (a torrent UI, a remote-access config repo, a VPN config repo and a file-sharing
     repo) carry an all-rights-reserved licence, one reading "Private - not for distribution", while the rest of the
     public portfolio is MIT. Decide each on purpose: relicense under MIT, or keep reserved and say why.
-  - **Index accuracy:** the repository tables in the portfolio `AGENTS.md` files list two repositories that are
-    worktrees of `crew-chief`, not repositories of their own. Remove them from the index or give them real repositories.
+  - **Index accuracy (done 2026-11-24):** removed the two `crew-chief` worktree rows from the untracked portfolio
+    `AGENTS.md` indexes (the workspace root and `util-repos/`). Those directories are gone and `crew-chief` has one
+    worktree. The stated shared-utility count is 35.
   - **Smaller gaps:** two repositories show no generated badge block; four have `CLAUDE.md` as a copy or missing instead
     of the link to `AGENTS.md`; the weekly description sync does not set topics (only `repo_settings.py apply` does).
   - **Not found:** a "2.0 Contributor Covenant badge" is not in any checked-out README; locate where it is displayed.
