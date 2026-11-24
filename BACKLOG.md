@@ -63,8 +63,11 @@ with a `README.md` pointing back here. The item names its id as
   - **Index accuracy (done 2026-11-24):** removed the two `crew-chief` worktree rows from the untracked portfolio
     `AGENTS.md` indexes (the workspace root and `util-repos/`). Those directories are gone and `crew-chief` has one
     worktree. The stated shared-utility count is 35.
-  - **Smaller gaps:** two repositories show no generated badge block; four have `CLAUDE.md` as a copy or missing instead
-    of the link to `AGENTS.md`; the weekly description sync does not set topics (only `repo_settings.py apply` does).
+  - **Smaller gaps (done 2026-11-24):** every checked-out README already has a generated badge block.
+    The checkouts whose `CLAUDE.md` was a copy or absent now use a gitignored symlink to `AGENTS.md`.
+    The weekly description sync applies topics from the merged settings file when GitHub's list differs.
+    It still does not invent a topic list, change branch rules, or unarchive a repository. Badge blocks
+    that have since drifted from the repository's facts are a separate refresh.
   - **Not found:** a "2.0 Contributor Covenant badge" is not in any checked-out README; locate where it is displayed.
   Next: turn the audit into a checked-in, read-only script with tests, wire it into `portfolio-audit.sh`, and add the
   topics and Covenant checks to it.
