@@ -12,6 +12,10 @@
 
 ## Lessons
 
+### 2026-11-24 — A removed worktree stays in the untracked portfolio index
+
+The workspace-root and `util-repos/` `AGENTS.md` files are not Git repositories. Deleting a worktree directory does not remove its table row, and a prose count of repositories stays wrong until the rows are recounted. After a worktree goes away, delete its row in both indexes and set the count to the number of remaining rows. Do not list a linked worktree as its own repository.
+
 ### 2026-11-20 — Never hand-edit a version to stay current
 
 A hard-coded CI Python list, a pinned base image and an un-patched host all fail the same way: nobody notices the
