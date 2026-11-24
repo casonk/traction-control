@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync missing GitHub descriptions from each registered repo's merged settings."""
+"""Sync missing GitHub descriptions and drifted topics from merged settings."""
 
 from __future__ import annotations
 
@@ -66,36 +66,62 @@ def sync_pair(pair: repository_visibility.RegistryPair, *, dry_run: bool = False
             failed += 1
             continue
 
-        if remote.description:
-            continue
-
-        missing += 1
         if remote.archived:
-            print(f"SKIP {label}: archived repository has no GitHub description")
-            failed += 1
+            if not remote.description:
+                missing += 1
+                print(f"SKIP {label}: archived repository has no GitHub description")
+                failed += 1
             continue
 
         try:
             settings = read_remote_settings(entry.slug, remote.default_branch)
-            if settings is None:
-                print(f"ERROR {label}: {repo_settings.SETTINGS_PATH} is missing")
-                failed += 1
-                continue
-            action = "PLAN" if dry_run else "APPLY"
-            print(f"{action} {label}: description")
-            if not dry_run:
-                repo_settings.gh_api(
-                    "-X",
-                    "PATCH",
-                    f"repos/{entry.slug}",
-                    "-f",
-                    f"description={settings.description}",
-                )
-                applied += 1
         except (RuntimeError, repo_settings.SettingsError) as exc:
             detail = str(exc).replace(entry.slug, label)
             print(f"ERROR {label}: {detail}", file=sys.stderr)
             failed += 1
+            continue
+        if settings is None:
+            print(f"ERROR {label}: {repo_settings.SETTINGS_PATH} is missing")
+            failed += 1
+            continue
+
+        action = "PLAN" if dry_run else "APPLY"
+        if not remote.description:
+            missing += 1
+            print(f"{action} {label}: description")
+            if not dry_run:
+                try:
+                    repo_settings.gh_api(
+                        "-X",
+                        "PATCH",
+                        f"repos/{entry.slug}",
+                        "-f",
+                        f"description={settings.description}",
+                    )
+                except RuntimeError as exc:
+                    detail = str(exc).replace(entry.slug, label)
+                    print(f"ERROR {label}: {detail}", file=sys.stderr)
+                    failed += 1
+                    continue
+                applied += 1
+
+        if not settings.topics:
+            print(f"ERROR {label}: topics are missing from {repo_settings.SETTINGS_PATH}")
+            failed += 1
+            continue
+        if tuple(sorted(settings.topics)) == tuple(remote.topics):
+            continue
+        print(f"{action} {label}: topics")
+        if dry_run:
+            continue
+        try:
+            repo_settings.apply_action(entry.slug, "topics", list(settings.topics))
+        except (RuntimeError, ValueError) as exc:
+            detail = str(exc).replace(entry.slug, label)
+            print(f"ERROR {label}: {detail}", file=sys.stderr)
+            failed += 1
+            continue
+        applied += 1
 
     print(
         f"Description sync: {len(entries)} registered; {missing} missing; "

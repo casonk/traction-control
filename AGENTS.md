@@ -331,10 +331,12 @@ in the GitHub UI or with `gh repo edit`; the next `check` reports UI edits as dr
 Every repository must declare at least one topic: a missing list is reported as a
 finding, not defaulted.
 The weekly `repository-description-sync-weekly` job checks every repository in
-the paired visibility registry and applies only descriptions from each
-repository's merged `.github/repository.toml`. It does not alter branch
-rulesets, invent missing settings, or unarchive repositories. Missing settings
-and archived repositories with no description are reported for review.
+the paired visibility registry. It fills an empty description and applies
+topics when they differ, both from that repository's merged
+`.github/repository.toml`. It does not alter branch rulesets, invent a
+description or a topic list that the file does not declare, or unarchive
+repositories. A missing settings file, a missing topic list, and an archived
+repository with no description are reported for review.
 Install and enable the Linux user timer with
 `scripts/install_repository_description_sync_systemd.sh`; its default schedule
 is Sunday at 06:00, with up to 30 minutes of jitter.
