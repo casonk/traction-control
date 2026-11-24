@@ -24,10 +24,6 @@ with a `README.md` pointing back here. The item names its id as
   `git clone --mirror` that `refs/pull/*` no longer reaches them. Also edit or delete pull-request titles, descriptions and
   comments that name private repositories; Support cannot change those. Delete the pre-rewrite backups once confirmed.
   attachment: github-support-purge-leaked-names
-- [ ] [manual:2026-11-20] **Run `resource_limits.py check` from the portfolio audit and on a timer.** The regulator
-  (`scripts/resource_limits.py`) exists and is tested, but nothing runs `check` yet, so an unapproved raise is only caught when
-  someone runs it. Wire it into `scripts/portfolio-audit.sh` (fail on exit 1, show the warnings) and add a weekly `observe` so a job
-  approaching its ceiling is raised on evidence before it is killed.
 - [ ] [manual:2026-11-19] **Local-state backups: remaining steps.** Done: the daily configuration bundle (private config store,
   private `local-state-backups` branch), the encrypted dataset backups on the HDD including agent session history, their audit
   checks and the standard (`docs/local-state-backup.md`, Agent Operating Rule 19). Remaining:
@@ -224,14 +220,6 @@ with a `README.md` pointing back here. The item names its id as
   `INET.WAN-1` service XML), enable them via `hedwig.cgi` and add the patches
   to that checkout's `harden.py` so they survive PSK rotations.
 
-### Reusable Workflow Migration
-
-- [ ] [manual:2026-06-17] **Publish workflow migration** — Migrate `sonetsim`'s inline
-  `python-publish.yml` to `casonk/.github/.github/workflows/python-publish.yml@main`.
-  The other seven repos originally listed here (crew-chief, archility, auto-pass,
-  clockwork, dyno-lab, nordility, tachometer) already call the shared workflow;
-  checked 2026-10-10.
-
 ### Other
 
 - [ ] [manual:2026-10-11] **Job guard on macOS** — The guard depends on systemd's
@@ -291,9 +279,32 @@ with a `README.md` pointing back here. The item names its id as
   renders RSI and VWAP signals per ticker from the holdings aggregate.
   Backlog lives in `util-repos/tradility/BACKLOG.md`.
 
+- [ ] [manual:2026-11-16] **Self-hosted CI runners: finish the private-repository move.** All 19 private repositories have an ephemeral runner scale set on the local K3s node (cap: 4 pods) and 16 of them run CI there through the `CI_RUNS_ON` repository variable. Left:
+  - **Azure pool is live (2026-11-17):** the Azure VM was re-created, k3s, the ARC controller, the network policy and the `runner-auth` Secret are in place, and 21 `<repo>-azure` scale sets run with the runner image built on the VM. All 21 private repositories point at Azure (`python3 scripts/runner_pool.py status`); the local K3s scale sets are kept as the fallback (`runner_pool.py set local`). It costs about $1.07 a day on credits and the VM has 2 vCPU (2 jobs at a time), so a busy day queues; destroy it with `scripts/azure_runner_stack.sh destroy` when the credits end. `install-check` on a self-hosted pool is done in `casonk/.github` (push and pull-request runs use the repository's `CI_RUNS_ON` runner; the macOS/Windows matrix runs on dispatch or schedule), and a manual dispatch still runs the hosted matrix, which billing blocks.
+  - **Windows runner broker: built, deployed and tested (2026-11-17).** A Linux pod creates a fresh Windows VM per job from a golden image through just-in-time runner configs and deletes it afterwards (`services/win-broker`, runbook section "Windows runner broker"); two repositories that test on Windows are opted in and their `install-check` Windows legs pass through it. Left: opt in more repositories as they claim Windows support (`runner_pool.py windows set`), rebake the image when the runner version moves, and decide whether any long job needs a longer time limit. macOS has no Azure option (hosted runners, a Mac you own, or AWS EC2 Mac).
+  - A repository's `CI_RUNS_ON` only works if its workflow reads it: one private repository was changed on 2026-11-17 and another has no workflows yet, so neither used the self-hosted pool before.
+  - Delete the runner token file under `~/.config/traction-control/arc-runner/`, and replace the shared fine-grained token with one per repository (or a GitHub App) before relying on this.
+  - The Azure VM path is tested (all 19 repositories, same results as local, about 1.7x slower; see the runbook) and the VM was destroyed on 2026-11-16. Re-create it with `scripts/azure_runner_stack.sh apply` when the runners should leave this machine; size it above 2 vCPU if speed matters.
+  - Re-run `scripts/verify_k3s_arc_runner.sh` after any Cilium or policy change.
+
 ## In Progress
 
 ## Done
+
+- [x] [manual:2026-11-20] **Run `resource_limits.py check` from the portfolio audit and on a timer.**
+  `scripts/portfolio-audit.sh` runs `check --no-journal` and fails on exit 1. Warning lines are shown
+  and do not fail the audit. A missing `limits.local.toml` skips the phase. The user journal stays on
+  `resource-limits-observe-weekly` (`scripts/resource_limits_weekly.sh`, Sunday 07:00): it prints
+  `observe` and then runs `check`, which warns when a peak is within 15% of its ceiling. The timer
+  does not raise a limit. Install with `scripts/install_resource_limits_observe_systemd.sh`.
+
+- [x] [manual:2026-06-17] **Publish workflow migration.** `sonetsim` calls the shared
+  `python-build.yml` and keeps the PyPI upload job in the repository
+  (`.github/workflows/python-publish.yml`). PyPI rejects an OIDC token from a
+  reusable-workflow publish job, so this does not call
+  `casonk/.github/.github/workflows/python-publish.yml`. The other seven
+  repositories named with the original item already called the shared build
+  workflow (checked 2026-10-10).
 
 - [x] [manual:2026-11-01] **Tear down the ARC runner pilot.**
   The fine-grained PAT `dotfiles-pilot-arc` replaced the broad runner
@@ -455,10 +466,3 @@ with a `README.md` pointing back here. The item names its id as
   command, wired it into `run_workflow.sh`, and rotated 171 user-owned stale
   snapshots into `artifacts/archive/snapshots/`. Four `nobody:nobody` snapshots
   remain active because they need an ownership/elevated cleanup decision.
-- [ ] [manual:2026-11-16] **Self-hosted CI runners: finish the private-repository move.** All 19 private repositories have an ephemeral runner scale set on the local K3s node (cap: 4 pods) and 16 of them run CI there through the `CI_RUNS_ON` repository variable. Left:
-  - **Azure pool is live (2026-11-17):** the Azure VM was re-created, k3s, the ARC controller, the network policy and the `runner-auth` Secret are in place, and 21 `<repo>-azure` scale sets run with the runner image built on the VM. All 21 private repositories point at Azure (`python3 scripts/runner_pool.py status`); the local K3s scale sets are kept as the fallback (`runner_pool.py set local`). It costs about $1.07 a day on credits and the VM has 2 vCPU (2 jobs at a time), so a busy day queues; destroy it with `scripts/azure_runner_stack.sh destroy` when the credits end. `install-check` on a self-hosted pool is done in `casonk/.github` (push and pull-request runs use the repository's `CI_RUNS_ON` runner; the macOS/Windows matrix runs on dispatch or schedule), and a manual dispatch still runs the hosted matrix, which billing blocks.
-  - **Windows runner broker: built, deployed and tested (2026-11-17).** A Linux pod creates a fresh Windows VM per job from a golden image through just-in-time runner configs and deletes it afterwards (`services/win-broker`, runbook section "Windows runner broker"); two repositories that test on Windows are opted in and their `install-check` Windows legs pass through it. Left: opt in more repositories as they claim Windows support (`runner_pool.py windows set`), rebake the image when the runner version moves, and decide whether any long job needs a longer time limit. macOS has no Azure option (hosted runners, a Mac you own, or AWS EC2 Mac).
-  - A repository's `CI_RUNS_ON` only works if its workflow reads it: one private repository was changed on 2026-11-17 and another has no workflows yet, so neither used the self-hosted pool before.
-  - Delete the runner token file under `~/.config/traction-control/arc-runner/`, and replace the shared fine-grained token with one per repository (or a GitHub App) before relying on this.
-  - The Azure VM path is tested (all 19 repositories, same results as local, about 1.7x slower; see the runbook) and the VM was destroyed on 2026-11-16. Re-create it with `scripts/azure_runner_stack.sh apply` when the runners should leave this machine; size it above 2 vCPU if speed matters.
-  - Re-run `scripts/verify_k3s_arc_runner.sh` after any Cilium or policy change.

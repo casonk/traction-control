@@ -16,6 +16,15 @@
 
 The workspace-root and `util-repos/` `AGENTS.md` files are not Git repositories. Deleting a worktree directory does not remove its table row, and a prose count of repositories stays wrong until the rows are recounted. After a worktree goes away, delete its row in both indexes and set the count to the number of remaining rows. Do not list a linked worktree as its own repository.
 
+### 2026-11-24 — Keep the user journal out of the daily portfolio audit
+
+A check that has to read `journalctl --user` over a month does not belong in
+`scripts/portfolio-audit.sh`. On this workstation that scan took about 40
+seconds. Keep the daily pass on something that only reads the local registry
+(`resource_limits.py check --no-journal`) and put the peak comparison on its
+own weekly timer. Set `RESOURCE_LIMITS_WITH_JOURNAL=1` only when a single audit
+run should include the warnings.
+
 ### 2026-11-20 — Never hand-edit a version to stay current
 
 A hard-coded CI Python list, a pinned base image and an un-patched host all fail the same way: nobody notices the

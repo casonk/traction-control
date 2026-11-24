@@ -97,6 +97,21 @@ host should not be scaled either, or it would report the quota instead of the ma
 python3 scripts/resource_limits.py check
 ```
 
+The daily portfolio audit runs `check --no-journal` and fails when that exits 1.
+Warning lines are logged and do not fail the audit. The journal scan stays off
+that pass: reading 30 days of the user journal is slow, and the peaks are what
+the weekly timer is for.
+
+```bash
+bash scripts/install_resource_limits_observe_systemd.sh
+```
+
+That installs `resource-limits-observe-weekly.timer` (Sunday 07:00, up to 30
+minutes of jitter). It runs `scripts/resource_limits_weekly.sh`, which prints
+`observe` and then `check` with the journal. A peak within 15% of its ceiling
+shows up there. The timer does not raise a limit; use `raise` with the peak as
+evidence. A checkout with no `limits.local.toml` skips the audit phase.
+
 Fails (exit 1) when:
 
 - a registry value is above its last approved value (a hand edit),

@@ -1,0 +1,19 @@
+[[jobs]]
+name = "resource-limits-observe-weekly"
+description = "Weekly per-job resource peaks and a limits check that warns near a ceiling"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/resource_limits_weekly.sh"
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Record resource-limit peaks and warn when a job nears its ceiling"
+
+[jobs.environment]
+PATH = "%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "Sun *-*-* 07:00:00"
+persistent = true
+randomized_delay_sec = "1800"
