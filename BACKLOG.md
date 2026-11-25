@@ -66,8 +66,10 @@ with a `README.md` pointing back here. The item names its id as
   - **Smaller gaps (done 2026-11-24):** every checked-out README already has a generated badge block.
     The checkouts whose `CLAUDE.md` was a copy or absent now use a gitignored symlink to `AGENTS.md`.
     The weekly description sync applies topics from the merged settings file when GitHub's list differs.
-    It still does not invent a topic list, change branch rules, or unarchive a repository. Badge blocks
-    that have since drifted from the repository's facts are a separate refresh.
+    It still does not invent a topic list, change branch rules, or unarchive a repository.
+  - **README badge refresh (done 2026-11-24):** drifted generated badge blocks were rebuilt from each
+    repository's current facts and merged. One repository was left out because an open pull request
+    already edits its README.
   - **Not found:** a "2.0 Contributor Covenant badge" is not in any checked-out README; locate where it is displayed.
   Next: turn the audit into a checked-in, read-only script with tests, wire it into `portfolio-audit.sh`, and add the
   topics and Covenant checks to it.
